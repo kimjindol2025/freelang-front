@@ -1,0 +1,42 @@
+(defn render [req]
+  (let [err (server-req-query req "error")]
+    (server-html
+      (layout "로그인" (str
+        "<div style='max-width:360px;margin:0 auto'>"
+        "<h2 style='font-size:1.5rem;font-weight:700;margin:0 0 24px;text-align:center'>로그인</h2>"
+        (if err
+          "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;"
+          "color:#dc2626;font-size:.875rem;margin-bottom:16px'>아이디 또는 비밀번호가 올바르지 않습니다</div>"
+          "")
+        "<form method='POST' action='/login' style='background:white;border-radius:12px;"
+        "padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+        "<div style='margin-bottom:16px'>"
+        "<label style='display:block;font-size:.875rem;font-weight:500;margin-bottom:6px'>아이디</label>"
+        "<input type='text' name='username' placeholder='admin'"
+        " style='width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;"
+        "font-size:1rem;box-sizing:border-box' required>"
+        "</div>"
+        "<div style='margin-bottom:24px'>"
+        "<label style='display:block;font-size:.875rem;font-weight:500;margin-bottom:6px'>비밀번호</label>"
+        "<input type='password' name='password' placeholder='••••••'"
+        " style='width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;"
+        "font-size:1rem;box-sizing:border-box' required>"
+        "</div>"
+        "<button type='submit' style='width:100%;background:#6366f1;color:white;border:none;"
+        "border-radius:8px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer'>"
+        "로그인"
+        "</button>"
+        "<p style='text-align:center;font-size:.8rem;color:#9ca3af;margin:16px 0 0'>"
+        "데모: admin / admin123"
+        "</p>"
+        "</form>"
+        "</div>") req))))
+
+(defn render_post [req]
+  (let [body     (server-req-json req)
+        username (get body "username")
+        password (get body "password")
+        cookie   (auth-login username password)]
+    (if cookie
+      (server-redirect-cookie "/dashboard" cookie)
+      (server-redirect "/login?error=1"))))

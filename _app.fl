@@ -1,5 +1,5 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T15:34:31.980Z
+; 생성: 2026-05-29T16:22:38.807Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
 (define layout_nav "layout_nav__18e7")
@@ -24,6 +24,191 @@
 (define resp_hero "resp_hero__266c")
 
 ; ── 레이아웃·헬퍼 함수 ──
+; ── _layout.flx ──
+; pages/_layout.flx — 공통 레이아웃 헬퍼
+; 라우트로 등록되지 않음 (빌드 스크립트가 _ 접두사 제외)
+; 사용: (layout "페이지 제목" "body HTML 내용")
+
+
+; nav link 현재 페이지 강조 여부 반환
+(defn nav-link [href label current]
+  (if (= href current)
+    (str "<a href='" href "' style='color:white;text-decoration:none;"
+         "padding:12px 16px;display:inline-block;background:rgba(255,255,255,.2)'>" label "</a>")
+    (str "<a href='" href "' style='color:white;text-decoration:none;"
+         "padding:12px 16px;display:inline-block;opacity:.8'>" label "</a>")))
+
+; 공통 레이아웃 — title, content, 현재 path
+(defn layout [title content req]
+  (let [path (server-req-path req)]
+    (str
+      "<!DOCTYPE html><html lang='ko'><head>"
+      "<meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>" title " — FreeLang Front</title>"
+      "<style>"
+      "*{box-sizing:border-box}"
+      "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f9fafb;color:#111}"
+      ".lnav{background:#6366f1;padding:0 24px;display:flex;align-items:center;gap:4px}"
+      ".lnav-brand{color:white;font-weight:700;font-size:1.1rem;margin-right:16px;text-decoration:none}"
+      ".lwrap{max-width:960px;margin:0 auto;padding:32px 24px}"
+      ".lfoot{text-align:center;padding:32px;color:#9ca3af;font-size:.8rem;border-top:1px solid #e5e7eb;margin-top:48px}"
+      "</style>"
+      "</head><body>"
+      "<nav class='lnav'>"
+      "<a href='/' class='lnav-brand'>FL Front</a>"
+      (nav-link "/" "홈" path)
+      (nav-link "/dashboard" "대시보드" path)
+      (nav-link "/counter" "카운터" path)
+      (nav-link "/contact" "문의" path)
+      (nav-link "/styled" "스타일" path)
+      (nav-link "/todo" "To-do" path)
+      "<a href='/logout' style='color:white;text-decoration:none;padding:12px 16px;display:inline-block;opacity:.8;margin-left:auto'>로그아웃</a>"
+      "</nav>"
+      "<div class='lwrap'>"
+      content
+      "</div>"
+      "<footer class='lfoot'>FreeLang Front v0.1 · npm install 0개 · SSR · Island</footer>"
+      "</body></html>")))
+
+; ── _db.flx ──
+; pages/_db.flx — SQLite DB 연결 헬퍼
+; DB 설정 — data/app.db
+(define DB {:type "sqlite" :path "data/app.db"})
+
+; 마이그레이션 — 서버 시작 시 자동 실행
+(defn db-migrate []
+  (db-exec DB "CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  )")
+  (db-exec DB "CREATE TABLE IF NOT EXISTS stats (
+    id INTEGER PRIMARY KEY,
+    users INTEGER DEFAULT 0,
+    revenue INTEGER DEFAULT 0,
+    orders INTEGER DEFAULT 0,
+    updated_at TEXT DEFAULT (datetime('now'))
+  )")
+  (db-exec DB "CREATE TABLE IF NOT EXISTS monthly_stats (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    label TEXT NOT NULL,
+    value INTEGER NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  )")
+  ; 초기 데이터 없으면 삽입
+  (let [existing (db-query DB "SELECT id FROM stats LIMIT 1" [])]
+    (if (= (length existing) 0)
+      (do
+        (db-exec DB "INSERT INTO stats (id, users, revenue, orders) VALUES (1, 1247, 23450000, 892)" [])
+        (db-exec DB "INSERT INTO monthly_stats (label, value) VALUES ('1월', 1200)" [])
+        (db-exec DB "INSERT INTO monthly_stats (label, value) VALUES ('2월', 1800)" [])
+        (db-exec DB "INSERT INTO monthly_stats (label, value) VALUES ('3월', 2100)" [])
+        (db-exec DB "INSERT INTO monthly_stats (label, value) VALUES ('4월', 1700)" [])
+        (db-exec DB "INSERT INTO monthly_stats (label, value) VALUES ('5월', 2400)" [])
+        (db-exec DB "INSERT INTO monthly_stats (label, value) VALUES ('6월', 2800)" []))
+      nil)))
+
+; DB에서 대시보드 통계 조회
+(defn db-fetch-stats []
+  (let [rows    (db-query DB "SELECT * FROM stats WHERE id = 1" [])
+        monthly (db-query DB "SELECT label, value FROM monthly_stats ORDER BY id" [])
+        weekly  [{:label "월" :value 320}
+                 {:label "화" :value 410}
+                 {:label "수" :value 290}
+                 {:label "목" :value 500}
+                 {:label "금" :value 460}
+                 {:label "토" :value 230}
+                 {:label "일" :value 180}]]
+    (if (= (length rows) 0)
+      {:users 0 :revenue 0 :orders 0 :monthly [] :weekly weekly}
+      (let [row (first rows)]
+        {:users   (get row "users")
+         :revenue (get row "revenue")
+         :orders  (get row "orders")
+         :monthly monthly
+         :weekly  weekly}))))
+
+; 마이그레이션 즉시 실행
+(db-migrate)
+
+; ── _auth.flx ──
+; pages/_auth.flx — 쿠키 세션 인증 헬퍼
+; 데모 계정: admin / admin123
+
+(define COOKIE_NAME "fl_session")
+(define DEMO_USER "admin")
+(define DEMO_PASS "admin123")
+
+; 쿠키에서 세션 ID 읽기
+(defn auth-session-id [req]
+  (server-req-cookie req COOKIE_NAME))
+
+; 세션 유효성 검사 → username 또는 nil
+(defn auth-check [req]
+  (let [sid (auth-session-id req)]
+    (if sid
+      (let [rows (db-query DB "SELECT username FROM sessions WHERE id = ?" [sid])]
+        (if (> (length rows) 0)
+          (get (first rows) "username")
+          nil))
+      nil)))
+
+; 로그인 → 세션 생성 + 쿠키 문자열 반환 (실패 시 nil)
+(defn auth-login [username password]
+  (if (and (= username DEMO_USER) (= password DEMO_PASS))
+    (let [sid (uuid)]
+      (db-exec DB "INSERT INTO sessions (id, username) VALUES (?, ?)" [sid username])
+      (server-set-cookie COOKIE_NAME sid {:max_age 86400 :secure false}))
+    nil))
+
+; 로그아웃 → 세션 삭제 + 만료 쿠키 문자열 반환
+(defn auth-logout [req]
+  (let [sid (auth-session-id req)]
+    (if sid
+      (db-exec DB "DELETE FROM sessions WHERE id = ?" [sid])
+      nil)
+    (server-set-cookie COOKIE_NAME "" {:max_age 0 :secure false})))
+
+; 인증 필요 라우트 가드 — 미인증 시 /login redirect
+(defn auth-required [req handler]
+  (let [user (auth-check req)]
+    (if user
+      (handler user)
+      (server-redirect "/login"))))
+
+; ── _error.flx ──
+; pages/_error.flx — 에러 페이지 헬퍼
+; (page-404 req) → server-html 404 응답
+; (page-500 msg req) → server-html 500 응답
+
+(defn page-404 [req]
+  (server-status 404
+    (layout "404 — 페이지를 찾을 수 없음" (str
+      "<div style='text-align:center;padding:48px 0'>"
+      "<div style='font-size:5rem;margin-bottom:16px'>🔍</div>"
+      "<h2 style='font-size:2rem;font-weight:800;color:#111;margin:0 0 12px'>404</h2>"
+      "<p style='color:#6b7280;font-size:1.1rem;margin:0 0 32px'>페이지를 찾을 수 없습니다</p>"
+      "<a href='/' style='background:#6366f1;color:white;border-radius:8px;"
+      "padding:12px 28px;font-weight:600;text-decoration:none'>← 홈으로</a>"
+      "</div>") req)))
+
+(defn page-500 [msg req]
+  (server-status 500
+    (layout "500 — 서버 오류" (str
+      "<div style='text-align:center;padding:48px 0'>"
+      "<div style='font-size:5rem;margin-bottom:16px'>💥</div>"
+      "<h2 style='font-size:2rem;font-weight:800;color:#111;margin:0 0 12px'>500</h2>"
+      "<p style='color:#6b7280;font-size:1.1rem;margin:0 0 8px'>서버에서 오류가 발생했습니다</p>"
+      "<p style='color:#9ca3af;font-size:.85rem;font-family:monospace;margin:0 0 32px'>" msg "</p>"
+      "<a href='/' style='background:#6366f1;color:white;border-radius:8px;"
+      "padding:12px 28px;font-weight:600;text-decoration:none'>← 홈으로</a>"
+      "</div>") req)))
+
+; 와일드카드 핸들러 — 등록되지 않은 모든 경로
+(defn not-found-handler [req]
+  (page-404 req))
+
 ; ── _charts.flx ──
 ; pages/_charts.flx — SVG 차트 DSL 헬퍼
 ; (chart-bar data w h) : [{:label "A" :value 40} ...] → SVG 문자열
@@ -107,51 +292,6 @@
                 "' text-anchor='middle' font-size='10' fill='#374151'>" val "</text>")))
           data))
       "</svg>")))
-
-; ── _layout.flx ──
-; pages/_layout.flx — 공통 레이아웃 헬퍼
-; 라우트로 등록되지 않음 (빌드 스크립트가 _ 접두사 제외)
-; 사용: (layout "페이지 제목" "body HTML 내용")
-
-
-; nav link 현재 페이지 강조 여부 반환
-(defn nav-link [href label current]
-  (if (= href current)
-    (str "<a href='" href "' style='color:white;text-decoration:none;"
-         "padding:12px 16px;display:inline-block;background:rgba(255,255,255,.2)'>" label "</a>")
-    (str "<a href='" href "' style='color:white;text-decoration:none;"
-         "padding:12px 16px;display:inline-block;opacity:.8'>" label "</a>")))
-
-; 공통 레이아웃 — title, content, 현재 path
-(defn layout [title content req]
-  (let [path (server-req-path req)]
-    (str
-      "<!DOCTYPE html><html lang='ko'><head>"
-      "<meta charset='utf-8'>"
-      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-      "<title>" title " — FreeLang Front</title>"
-      "<style>"
-      "*{box-sizing:border-box}"
-      "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f9fafb;color:#111}"
-      ".lnav{background:#6366f1;padding:0 24px;display:flex;align-items:center;gap:4px}"
-      ".lnav-brand{color:white;font-weight:700;font-size:1.1rem;margin-right:16px;text-decoration:none}"
-      ".lwrap{max-width:960px;margin:0 auto;padding:32px 24px}"
-      ".lfoot{text-align:center;padding:32px;color:#9ca3af;font-size:.8rem;border-top:1px solid #e5e7eb;margin-top:48px}"
-      "</style>"
-      "</head><body>"
-      "<nav class='lnav'>"
-      "<a href='/' class='lnav-brand'>FL Front</a>"
-      (nav-link "/" "홈" path)
-      (nav-link "/dashboard" "대시보드" path)
-      (nav-link "/counter" "카운터" path)
-      (nav-link "/contact" "문의" path)
-      (nav-link "/styled" "스타일" path)
-      "</nav>"
-      "<div class='lwrap'>"
-      content
-      "</div>"
-      "<footer class='lfoot'>FreeLang Front v0.1 · npm install 0개 · SSR · Island</footer>"
-      "</body></html>")))
 
 ; ── pages/about.flx ──
 (defn page_about [req]
@@ -293,22 +433,9 @@
     "</body></html>")))
 
 ; ── pages/dashboard.flx ──
-; server-fn — 서버 데이터 패치 (실제 앱: DB 쿼리)
+; server-fn — DB에서 통계 조회
 (defn fetch-stats []
-  {:users 1247 :revenue 23450000 :orders 892
-   :monthly [{:label "1월" :value 1200}
-             {:label "2월" :value 1800}
-             {:label "3월" :value 2100}
-             {:label "4월" :value 1700}
-             {:label "5월" :value 2400}
-             {:label "6월" :value 2800}]
-   :weekly  [{:label "월" :value 320}
-             {:label "화" :value 410}
-             {:label "수" :value 290}
-             {:label "목" :value 500}
-             {:label "금" :value 460}
-             {:label "토" :value 230}
-             {:label "일" :value 180}]})
+  (db-fetch-stats))
 
 
 ; 숫자 포맷 (백만 단위)
@@ -320,6 +447,7 @@
       s)))
 
 (defn page_dashboard [req]
+  (auth-required req (fn [user]
   (let [stats   (fetch-stats)
         users   (get stats :users)
         revenue (get stats :revenue)
@@ -359,7 +487,7 @@
         "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📈 주간 방문 선 차트</h3>"
         line
         "</div>"
-        "</div>") req))))
+        "</div>") req))))))
 
 ; ── pages/index.flx ──
 ; CSS 스타일 정의
@@ -521,6 +649,55 @@
       "</div>"
       "</div>") req)))
 
+; ── pages/login.flx ──
+(defn page_login [req]
+  (let [err (server-req-query req "error")]
+    (server-html
+      (layout "로그인" (str
+        "<div style='max-width:360px;margin:0 auto'>"
+        "<h2 style='font-size:1.5rem;font-weight:700;margin:0 0 24px;text-align:center'>로그인</h2>"
+        (if err
+          "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px 16px;"
+          "color:#dc2626;font-size:.875rem;margin-bottom:16px'>아이디 또는 비밀번호가 올바르지 않습니다</div>"
+          "")
+        "<form method='POST' action='/login' style='background:white;border-radius:12px;"
+        "padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+        "<div style='margin-bottom:16px'>"
+        "<label style='display:block;font-size:.875rem;font-weight:500;margin-bottom:6px'>아이디</label>"
+        "<input type='text' name='username' placeholder='admin'"
+        " style='width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;"
+        "font-size:1rem;box-sizing:border-box' required>"
+        "</div>"
+        "<div style='margin-bottom:24px'>"
+        "<label style='display:block;font-size:.875rem;font-weight:500;margin-bottom:6px'>비밀번호</label>"
+        "<input type='password' name='password' placeholder='••••••'"
+        " style='width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;"
+        "font-size:1rem;box-sizing:border-box' required>"
+        "</div>"
+        "<button type='submit' style='width:100%;background:#6366f1;color:white;border:none;"
+        "border-radius:8px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer'>"
+        "로그인"
+        "</button>"
+        "<p style='text-align:center;font-size:.8rem;color:#9ca3af;margin:16px 0 0'>"
+        "데모: admin / admin123"
+        "</p>"
+        "</form>"
+        "</div>") req))))
+
+(defn page_login_post [req]
+  (let [body     (server-req-json req)
+        username (get body "username")
+        password (get body "password")
+        cookie   (auth-login username password)]
+    (if cookie
+      (server-redirect-cookie "/dashboard" cookie)
+      (server-redirect "/login?error=1"))))
+
+; ── pages/logout.flx ──
+(defn page_logout [req]
+  (let [cookie (auth-logout req)]
+    (server-redirect-cookie "/" cookie)))
+
 ; ── pages/styled.flx ──
 ; 기본 스타일
 
@@ -582,6 +759,60 @@
       "<div id='island-todoapp-0'></div>"
       "<script>\nconst _fl={\n  atom:(v)=>({v}),\n  deref:(a)=>a.v,\n  swap:(a,f)=>{a.v=f(a.v);return a.v;},\n  reset:(a,v)=>{a.v=v;return v;},\n  // 배열/맵 조작\n  push:(arr,item)=>[...(arr||[]),item],\n  get:(obj,key)=>obj==null?null:obj[key]??null,\n  assoc:(obj,key,val)=>({...(obj||{}),[key]:val}),\n  dissoc:(obj,key)=>{const r={...(obj||{})};delete r[key];return r;},\n  map_arr:(fn,arr)=>(arr||[]).map(fn),\n  filter_arr:(fn,arr)=>(arr||[]).filter(fn),\n  reduce_arr:(fn,init,arr)=>(arr||[]).reduce(fn,init),\n  h:(tag,attrs,...ch)=>{\n    const el=document.createElement(tag);\n    for(const[k,v]of Object.entries(attrs||{})){\n      if(k==='checked'){if(v&&v!=='')el.checked=true;}\n      else if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);\n      else if(v!==null&&v!==undefined&&v!=='')el.setAttribute(k,String(v));\n    }\n    ch.flat().forEach(c=>{\n      if(c==null)return;\n      if(c instanceof Node)el.appendChild(c);\n      else el.appendChild(document.createTextNode(String(c)));\n    });\n    return el;\n  },\n  mount:(id,renderFn)=>{\n    const el=document.getElementById(id);\n    if(!el)return;\n    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);const r=renderFn(update);if(r)el.appendChild(r);};\n    update();\n  }\n};\nconst _fl_str=(...xs)=>xs.map(String).join('');\n</script><script>\n_fl.mount(\"island-todoapp-0\", (update) => {\n    return (() => { const items = _fl.atom([]); const inp_val = _fl.atom(\"\"); const next_id = _fl.atom(0); return _fl.h(\"div\", {\"style\": \"max-width:480px\"}, _fl.h(\"div\", {\"style\": \"display:flex;gap:8px;margin-bottom:16px\"}, _fl.h(\"input\", {\"type\": \"text\", \"value\": _fl.deref(inp_val), \"placeholder\": \"할 일을 입력하세요...\", \"style\": \"flex:1;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:1rem\", \"on-input\": (e) => { return (_fl.reset(inp_val, (((e)?.[\"target\"])?.[\"value\"] ?? null)), update()); }, \"on-keydown\": (e) => { return ((((e)?.[\"key\"] ?? null) === \"Enter\")) ? ((!((_fl.deref(inp_val) === \"\"))) ? ((() => { (_fl.swap(items, (arr) => { return _fl.push(arr, {\"id\": _fl.deref(next_id), \"text\": _fl.deref(inp_val), \"done\": false}); }), update()); (_fl.swap(next_id, v => v + 1), update()); (_fl.reset(inp_val, \"\"), update()) })()) : null) : null; }}), _fl.h(\"button\", {\"style\": \"background:#6366f1;color:white;border:none;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:1rem;white-space:nowrap\", \"on-click\": () => { return (!((_fl.deref(inp_val) === \"\"))) ? ((() => { (_fl.swap(items, (arr) => { return _fl.push(arr, {\"id\": _fl.deref(next_id), \"text\": _fl.deref(inp_val), \"done\": false}); }), update()); (_fl.swap(next_id, v => v + 1), update()); (_fl.reset(inp_val, \"\"), update()) })()) : null; }}, \"추가\")), _fl.h(\"ul\", {\"style\": \"list-style:none;margin:0;padding:0\"}, _fl.map_arr((item) => { return (() => { const done = _fl.get(item, \"done\"); const id = _fl.get(item, \"id\"); const text = _fl.get(item, \"text\"); return _fl.h(\"li\", {\"style\": \"display:flex;align-items:center;gap:10px;padding:12px 14px;background:white;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.08)\"}, _fl.h(\"input\", {\"type\": \"checkbox\", \"style\": \"width:18px;height:18px;cursor:pointer;accent-color:#6366f1\", \"checked\": (done) ? (\"checked\") : (\"\"), \"on-click\": () => { return (_fl.swap(items, (arr) => { return _fl.map_arr((it) => { return ((_fl.get(it, \"id\") === id)) ? (_fl.assoc(it, \"done\", !(_fl.get(it, \"done\")))) : (it); }, arr); }), update()); }}), _fl.h(\"span\", {\"style\": (done) ? (\"flex:1;color:#9ca3af;text-decoration:line-through\") : (\"flex:1\")}, text), _fl.h(\"button\", {\"style\": \"background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.3rem;line-height:1;padding:0 2px\", \"on-click\": () => { return (_fl.swap(items, (arr) => { return _fl.filter_arr((it) => { return (_fl.get(it, \"id\") !== id); }, arr); }), update()); }}, \"×\")); })(); }, _fl.deref(items))), _fl.h(\"p\", {\"style\": \"color:#9ca3af;font-size:.85rem;margin-top:12px\"}, [(_fl.deref(items))?.length ?? 0, \"개 항목\"].map(String).join(''))); })();\n  });\n</script>") req)))
 
+; ── pages/upload.flx ──
+(defn page_upload [req]
+  (let [msg (server-req-query req "msg")
+        err (server-req-query req "err")]
+    (server-html
+      (layout "파일 업로드" (str
+        "<h2 style='margin:0 0 8px'>파일 업로드</h2>"
+        "<p style='color:#6b7280;margin:0 0 24px'>최대 2MB · 이미지/텍스트/PDF</p>"
+
+        (if err
+          (str "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:8px;"
+               "padding:12px 16px;color:#dc2626;margin-bottom:16px'>" err "</div>")
+          "")
+        (if msg
+          (str "<div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;"
+               "padding:12px 16px;color:#16a34a;margin-bottom:16px'>" msg "</div>")
+          "")
+
+        "<form method='POST' action='/upload' enctype='multipart/form-data'"
+        " style='background:white;border-radius:12px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.1);max-width:480px'>"
+        "<div style='border:2px dashed #d1d5db;border-radius:8px;padding:32px;text-align:center;margin-bottom:20px'>"
+        "<div style='font-size:2.5rem;margin-bottom:8px'>📎</div>"
+        "<label style='cursor:pointer;color:#6366f1;font-weight:600'>"
+        "<input type='file' name='file' accept='image/*,.pdf,.txt,.csv'"
+        " style='display:none' onchange='this.parentElement.nextElementSibling.textContent=this.files[0]?.name||\"\"' required>"
+        "파일 선택"
+        "</label>"
+        "<p id='fname' style='color:#6b7280;font-size:.875rem;margin:8px 0 0'></p>"
+        "</div>"
+        "<button type='submit' style='width:100%;background:#6366f1;color:white;border:none;"
+        "border-radius:8px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer'>"
+        "업로드"
+        "</button>"
+        "</form>") req))))
+
+(defn page_upload_post [req]
+  (let [files (server-req-files req)
+        file  (if (> (length files) 0) (first files) nil)]
+    (if file
+      (let [orig  (get file "originalname")
+            size  (get file "size")
+            mime  (get file "mimetype")
+            tmp   (get file "path")
+            ext   (if (> (length orig) 4)
+                    (str-slice orig (- (length orig) 4) (length orig))
+                    "")
+            dest  (str "public/uploads/" orig)]
+        (if (> size 2097152)
+          (server-redirect "/upload?err=파일이 2MB를 초과합니다")
+          (do
+            (shell-exec (str "cp " tmp " " dest))
+            (server-redirect (str "/upload?msg=업로드 완료: " orig " (" size "bytes)")))))
+      (server-redirect "/upload?err=파일을 선택해주세요"))))
+
 ; ── pages/users/[id].flx ──
 (defn page_users_id [req]
   (let [params (get req "params")
@@ -605,9 +836,15 @@
 (server-get "/counter" "page_counter")
 (server-get "/dashboard" "page_dashboard")
 (server-get "/" "page_index")
+(server-get "/login" "page_login")
+(server-post "/login" "page_login_post")
+(server-get "/logout" "page_logout")
 (server-get "/styled" "page_styled")
 (server-get "/todo" "page_todo")
+(server-get "/upload" "page_upload")
+(server-post "/upload" "page_upload_post")
 (server-get "/users/:id" "page_users_id")
+(server-get "/*" "not_found_handler")
 
 (println "FL-Front v0.1 — http://localhost:3000")
 (server-start 3000)

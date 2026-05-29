@@ -1,19 +1,6 @@
-; server-fn — 서버 데이터 패치 (실제 앱: DB 쿼리)
+; server-fn — DB에서 통계 조회
 (server-fn fetch-stats []
-  {:users 1247 :revenue 23450000 :orders 892
-   :monthly [{:label "1월" :value 1200}
-             {:label "2월" :value 1800}
-             {:label "3월" :value 2100}
-             {:label "4월" :value 1700}
-             {:label "5월" :value 2400}
-             {:label "6월" :value 2800}]
-   :weekly  [{:label "월" :value 320}
-             {:label "화" :value 410}
-             {:label "수" :value 290}
-             {:label "목" :value 500}
-             {:label "금" :value 460}
-             {:label "토" :value 230}
-             {:label "일" :value 180}]})
+  (db-fetch-stats))
 
 (style stat_card :bg "white" :p "24px" :radius "12px" :shadow "sm")
 (style grid      :display "grid" :cols 3 :gap "16px")
@@ -28,6 +15,7 @@
       s)))
 
 (defn render [req]
+  (auth-required req (fn [user]
   (let [stats   (fetch-stats)
         users   (get stats :users)
         revenue (get stats :revenue)
@@ -67,4 +55,4 @@
         "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📈 주간 방문 선 차트</h3>"
         line
         "</div>"
-        "</div>") req))))
+        "</div>") req))))))

@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-011",
+  "hot": "task-015",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -229,6 +229,89 @@
         "JS 없이 SSR SVG 렌더링"
       ],
       "verified": true,
+      "next": []
+    },
+    "task-012": {
+      "t": "task",
+      "v": "에러 페이지 — 404/500 HTML 렌더링 (/* 와일드카드 라우트)",
+      "verified": false,
+      "entry": [
+        "fl-front-build.js (와일드카드 라우트 자동 등록)",
+        "pages/_error.flx (404/500 페이지)"
+      ],
+      "check": [
+        "GET /없는경로 → 404 HTML 페이지 (status 404)",
+        "서버 에러 시 500 HTML 페이지",
+        "layout 헬퍼 적용 (nav 포함)"
+      ],
+      "next": [
+        "task-013"
+      ]
+    },
+    "task-013": {
+      "t": "task",
+      "v": "SQLite DB 연결 — db-query/db-exec + 마이그레이션 자동 실행",
+      "entry": [
+        "pages/_db.flx (db-open 래퍼 + 마이그레이션)",
+        "pages/dashboard.flx (실제 DB 데이터)"
+      ],
+      "check": [
+        "data/app.db 자동 생성",
+        "GET /dashboard → DB에서 통계 읽기",
+        "마이그레이션 자동 실행 (서버 시작 시)"
+      ],
+      "verified": true,
+      "next": [
+        "task-014"
+      ]
+    },
+    "task-014": {
+      "t": "task",
+      "v": "쿠키 세션 인증 — 로그인/로그아웃 + 보호 라우트",
+      "entry": [
+        "pages/login.flx (GET 폼 + POST 처리)",
+        "pages/_auth.flx (세션 헬퍼)",
+        "pages/dashboard.flx (인증 보호)"
+      ],
+      "check": [
+        "GET /login → 로그인 폼",
+        "POST /login → 세션 쿠키 발급 + /dashboard redirect",
+        "GET /dashboard (미인증) → /login redirect",
+        "GET /logout → 세션 삭제 + / redirect"
+      ],
+      "verified": true,
+      "next": [
+        "task-015"
+      ]
+    },
+    "task-015": {
+      "t": "task",
+      "v": "HMR — .flx 파일 변경 감지 + 자동 빌드·재시작",
+      "entry": [
+        "dev-server.js (chokidar 대신 fs.watch + debounce)"
+      ],
+      "check": [
+        ".flx 저장 → 1초 내 자동 빌드 + 서버 재시작",
+        "npm 0개 (Node.js fs.watch 내장 사용)"
+      ],
+      "verified": false,
+      "next": [
+        "task-016"
+      ]
+    },
+    "task-016": {
+      "t": "task",
+      "v": "파일 업로드 — multipart/form-data 파싱 + public/ 저장",
+      "entry": [
+        "pages/upload.flx (업로드 폼 + 처리)",
+        "fl-front-build.js (multipart 파싱 지원)"
+      ],
+      "check": [
+        "GET /upload → 파일 선택 폼",
+        "POST /upload → public/uploads/ 저장 + 미리보기",
+        "파일 크기 제한 2MB"
+      ],
+      "verified": false,
       "next": []
     }
   },

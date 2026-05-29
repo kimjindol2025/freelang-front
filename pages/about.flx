@@ -14,3 +14,4 @@
       "<li><strong>서버 폼 처리</strong> — JS 없이 POST + redirect 패턴</li>"
       "</ul>"
       "</div>") req)))
+

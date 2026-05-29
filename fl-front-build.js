@@ -31,6 +31,9 @@ function scanPages(dir, base = '') {
 }
 
 // _ 접두사 헬퍼 파일 스캔 (최상위 pages/ 만 — 하위 폴더 헬퍼는 불필요)
+// 헬퍼 의존성 순서: layout → db → auth → error → charts → 나머지
+const HELPER_ORDER = ['_layout', '_db', '_auth', '_error', '_charts'];
+
 function scanHelpers(dir) {
   const helpers = [];
   const entries = fs.readdirSync(dir, { withFileTypes: true });
@@ -39,6 +42,13 @@ function scanHelpers(dir) {
       helpers.push(path.join(dir, entry.name));
     }
   }
+  helpers.sort((a, b) => {
+    const ai = HELPER_ORDER.findIndex(o => path.basename(a).startsWith(o));
+    const bi = HELPER_ORDER.findIndex(o => path.basename(b).startsWith(o));
+    const ao = ai === -1 ? 999 : ai;
+    const bo = bi === -1 ? 999 : bi;
+    return ao - bo;
+  });
   return helpers;
 }
 
@@ -167,6 +177,8 @@ function generate(routes, bindings = [], helpers = []) {
       lines.push(`(server-post "${r.route}" "${r.fnName}_post")`);
     }
   }
+  // 와일드카드 404 핸들러 — 마지막에 등록
+  lines.push('(server-get "/*" "not_found_handler")');
   lines.push('');
   lines.push(`(println "FL-Front v0.1 — http://localhost:${PORT}")`);
   lines.push(`(server-start ${PORT})`);

@@ -1,0 +1,3 @@
+(defn render [req]
+  (let [cookie (auth-logout req)]
+    (server-redirect-cookie "/" cookie)))

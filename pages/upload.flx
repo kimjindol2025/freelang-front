@@ -1,0 +1,52 @@
+(defn render [req]
+  (let [msg (server-req-query req "msg")
+        err (server-req-query req "err")]
+    (server-html
+      (layout "파일 업로드" (str
+        "<h2 style='margin:0 0 8px'>파일 업로드</h2>"
+        "<p style='color:#6b7280;margin:0 0 24px'>최대 2MB · 이미지/텍스트/PDF</p>"
+
+        (if err
+          (str "<div style='background:#fef2f2;border:1px solid #fecaca;border-radius:8px;"
+               "padding:12px 16px;color:#dc2626;margin-bottom:16px'>" err "</div>")
+          "")
+        (if msg
+          (str "<div style='background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;"
+               "padding:12px 16px;color:#16a34a;margin-bottom:16px'>" msg "</div>")
+          "")
+
+        "<form method='POST' action='/upload' enctype='multipart/form-data'"
+        " style='background:white;border-radius:12px;padding:32px;box-shadow:0 1px 3px rgba(0,0,0,.1);max-width:480px'>"
+        "<div style='border:2px dashed #d1d5db;border-radius:8px;padding:32px;text-align:center;margin-bottom:20px'>"
+        "<div style='font-size:2.5rem;margin-bottom:8px'>📎</div>"
+        "<label style='cursor:pointer;color:#6366f1;font-weight:600'>"
+        "<input type='file' name='file' accept='image/*,.pdf,.txt,.csv'"
+        " style='display:none' onchange='this.parentElement.nextElementSibling.textContent=this.files[0]?.name||\"\"' required>"
+        "파일 선택"
+        "</label>"
+        "<p id='fname' style='color:#6b7280;font-size:.875rem;margin:8px 0 0'></p>"
+        "</div>"
+        "<button type='submit' style='width:100%;background:#6366f1;color:white;border:none;"
+        "border-radius:8px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer'>"
+        "업로드"
+        "</button>"
+        "</form>") req))))
+
+(defn render_post [req]
+  (let [files (server-req-files req)
+        file  (if (> (length files) 0) (first files) nil)]
+    (if file
+      (let [orig  (get file "originalname")
+            size  (get file "size")
+            mime  (get file "mimetype")
+            tmp   (get file "path")
+            ext   (if (> (length orig) 4)
+                    (str-slice orig (- (length orig) 4) (length orig))
+                    "")
+            dest  (str "public/uploads/" orig)]
+        (if (> size 2097152)
+          (server-redirect "/upload?err=파일이 2MB를 초과합니다")
+          (do
+            (shell-exec (str "cp " tmp " " dest))
+            (server-redirect (str "/upload?msg=업로드 완료: " orig " (" size "bytes)")))))
+      (server-redirect "/upload?err=파일을 선택해주세요"))))
