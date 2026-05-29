@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-010",
+  "hot": "task-011",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -129,6 +129,21 @@
       "v": "target_demo 달성 — /dashboard 동작 (2026-05-29)",
       "why": "server-fn + CSS DSL + SVG chart + scoped class 모두 동작. MVP 기준 충족",
       "lock": true
+    },
+    "task-010": {
+      "t": "task",
+      "v": "P2-C: 반응형 CSS — :sm- :md- :lg- breakpoint prefix 지원",
+      "entry": [
+        "style-compiler.js (breakpoint prefix 파싱 + @media 블록 생성)"
+      ],
+      "check": [
+        "(style card :p '24px' :sm-p '12px') → .card { padding:24px } @media(max-width:640px){.card{padding:12px}}",
+        "3단계 breakpoint: sm(640px) md(768px) lg(1024px)",
+        "pages/styled.flx 반응형 예제 추가",
+        "GET /styled HTML 내 @media 규칙 포함 확인"
+      ],
+      "verified": true,
+      "next": []
     },
     "task-009": {
       "t": "task",

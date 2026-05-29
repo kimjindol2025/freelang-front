@@ -1,5 +1,5 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T14:38:47.416Z
+; 생성: 2026-05-29T15:10:12.720Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
 (define layout_nav "layout_nav__18e7")
@@ -13,7 +13,10 @@
 (define header "header__ae76")
 (define card "card__6486")
 (define hero "hero__1266")
-(define badge "badge__bbad")
+(define badge "badge__6fd2")
+(define resp_grid "resp_grid__90c1")
+(define resp_card "resp_card__23ba")
+(define resp_hero "resp_hero__266c")
 
 ; ── 레이아웃·헬퍼 함수 ──
 ; ── _layout.flx ──
@@ -330,22 +333,56 @@
       "</div>") req)))
 
 ; ── pages/styled.flx ──
+; 기본 스타일
+
+; 반응형 그리드 — 기본 3열, md(768px)에서 2열, sm(640px)에서 1열
+
+; 반응형 카드 — 기본 24px 패딩, sm에서 14px
+
+; 반응형 히어로 — 기본 48px 패딩, sm에서 24px
+
 (defn page_styled [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<title>Styled — FreeLang Front</title>"
-    "<style>.card__6486 { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); } .grid__e95a { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); } .hero__1266 { background: #6366f1; color: white; padding: 48px; border-radius: 12px; } .badge__bbad { background: #f3f4f6; color: #374151; padding: 4px; border-radius: 4px; font-size: 12px; }</style>"
-    "<style>body{font-family:sans-serif;max-width:900px;margin:40px auto;padding:0 20px}</style>"
-    "</head><body>"
-    "<div class='hero__HASH'><h1>CSS DSL 데모</h1></div>"
-    "<div class='grid__HASH' style='margin-top:24px'>"
-    "  <div class='card__HASH'>카드 1</div>"
-    "  <div class='card__HASH'>카드 2</div>"
-    "  <div class='card__HASH'>카드 3</div>"
-    "</div>"
-    "<p style='margin-top:16px'><a href='/'>← 홈</a></p>"
-    "</body></html>")))
+  (server-html
+    (layout "Styled" (str "<style>.card__6486 { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); } .hero__1266 { background: #6366f1; color: white; padding: 48px; border-radius: 12px; } .badge__6fd2 { background: #f3f4f6; color: #374151; padding: 4px; border-radius: 4px; font-size: 12px; font-weight: 600; } .resp_grid__90c1 { display: grid; gap: 20px; grid-template-columns: repeat(3, 1fr); } @media(max-width:768px){.resp_grid__90c1{grid-template-columns: repeat(2, 1fr);}} @media(max-width:640px){.resp_grid__90c1{grid-template-columns: repeat(1, 1fr);}} .resp_card__23ba { background: white; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.12); padding: 24px; } @media(max-width:640px){.resp_card__23ba{padding: 14px;}} .resp_hero__266c { background: #6366f1; color: white; border-radius: 12px; padding: 48px; } @media(max-width:640px){.resp_hero__266c{padding: 24px;}}</style>"
+      "<h2 style='margin:0 0 8px'>CSS DSL 데모</h2>"
+      "<p style='color:#6b7280;margin:0 0 24px'>scoped hash + 반응형 breakpoint — 화면 크기를 줄여보세요</p>"
+
+      ; 반응형 히어로
+      "<div class='" resp_hero "'>"
+      "<h3 style='margin:0 0 8px'>반응형 히어로</h3>"
+      "<p style='margin:0;opacity:.85'>sm(640px): 패딩 24px · md(768px) 이상: 48px</p>"
+      "</div>"
+
+      ; 반응형 그리드
+      "<h3 style='margin:24px 0 12px;color:#374151'>반응형 그리드 (3 → 2 → 1열)</h3>"
+      "<div class='" resp_grid "'>"
+      "<div class='" resp_card "'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>📊</div>"
+      "<strong>SSR 렌더링</strong>"
+      "<p style='font-size:.85rem;color:#6b7280;margin:8px 0 0'>서버에서 완전한 HTML 생성</p>"
+      "</div>"
+      "<div class='" resp_card "'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>🎨</div>"
+      "<strong>CSS DSL</strong>"
+      "<p style='font-size:.85rem;color:#6b7280;margin:8px 0 0'>:sm-p :md-cols breakpoint</p>"
+      "</div>"
+      "<div class='" resp_card "'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>🏝️</div>"
+      "<strong>Island 아키텍처</strong>"
+      "<p style='font-size:.85rem;color:#6b7280;margin:8px 0 0'>필요한 부분만 JS</p>"
+      "</div>"
+      "</div>"
+
+      ; 배지 예제
+      "<h3 style='margin:24px 0 12px;color:#374151'>CSS DSL 배지</h3>"
+      "<div style='display:flex;gap:8px;flex-wrap:wrap'>"
+      "<span class='" badge "'>npm 0개</span>"
+      "<span class='" badge "'>SSR</span>"
+      "<span class='" badge "'>Island</span>"
+      "<span class='" badge "'>반응형</span>"
+      "<span class='" badge "'>Critical CSS</span>"
+      "<span class='" badge "'>서버 폼</span>"
+      "</div>") req)))
 
 ; ── pages/todo.flx ──
 (defn page_todo [req]

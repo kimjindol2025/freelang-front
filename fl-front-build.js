@@ -99,13 +99,21 @@ function generate(routes, bindings = [], helpers = []) {
     // 1) (style ...) 블록 처리 — Critical CSS 인라인 후 블록 제거
     const { css: criticalCss, rawCss, bindings: pageBnd } = styleCompiler.compilePageCSS(r.file);
     if (criticalCss) {
-      // <link rel='stylesheet' href='/public/app.css'> → <style>...</style> 교체
+      // <link rel='stylesheet' href='/public/app.css'> → <style>...</style> 교체 (레거시 패턴)
       src = src.replace(
         /"<link rel='stylesheet' href='\/public\/app\.css'>"/,
         JSON.stringify(criticalCss)
       );
     }
     src = src.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
+    // layout 호출 content 앞에 Critical CSS <style> 태그 주입
+    if (rawCss) {
+      const styleTag = JSON.stringify(`<style>${rawCss}</style>`);
+      src = src.replace(
+        /(\(layout\s+"[^"]+"\s+\(str)/,
+        `$1 ${styleTag}`
+      );
+    }
     // 2) (island ...) 블록 컴파일
     const islands = islandCompiler.extractIslands(src);
     // 2a) 최상위 island 블록 완전 제거 (FL 런타임에서 실행 불가)

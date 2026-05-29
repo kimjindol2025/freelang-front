@@ -71,22 +71,60 @@ function parseStyleBlock(block) {
   return { name, pairs };
 }
 
-// CSS 규칙 생성
+// Breakpoint 맵 — max-width 기준 (mobile-first 역순)
+const BREAKPOINTS = {
+  'sm': '640px',
+  'md': '768px',
+  'lg': '1024px',
+};
+
+// CSS 규칙 생성 — breakpoint prefix(:sm-p, :md-cols ...) 지원
 function buildCss(name, pairs) {
   const key = pairs.map(([k,v]) => `${k}=${v}`).join(';');
   const hash = hashStr(name + key);
   const cls  = name.replace(/-/g, '_') + '__' + hash;
 
-  const decls = pairs.map(([k, v]) => {
-    const prop = PROP_MAP[k];
-    if (!prop) return null;
-    // shadow alias
-    if (k === ':shadow') v = SHADOW_ALIAS[v] || v;
-    if (typeof prop === 'function') return prop(v) + ';';
-    return `${prop}: ${v};`;
-  }).filter(Boolean);
+  // base 선언과 breakpoint별 선언 분리
+  const basePairs = [];
+  const bpPairs   = {};  // { 'sm': [[prop, val], ...], 'md': [...] }
 
-  return { cls, css: `.${cls} { ${decls.join(' ')} }` };
+  for (const [k, v] of pairs) {
+    // :sm-p, :md-cols, :lg-size 등 prefix 감지
+    const bpMatch = k.match(/^:(sm|md|lg)-(.+)$/);
+    if (bpMatch) {
+      const bp   = bpMatch[1];
+      const prop = ':' + bpMatch[2];
+      if (!bpPairs[bp]) bpPairs[bp] = [];
+      bpPairs[bp].push([prop, v]);
+    } else {
+      basePairs.push([k, v]);
+    }
+  }
+
+  function toDecls(pairsArr) {
+    return pairsArr.map(([k, v]) => {
+      const prop = PROP_MAP[k];
+      if (!prop) return null;
+      if (k === ':shadow') v = SHADOW_ALIAS[v] || v;
+      if (typeof prop === 'function') return prop(v) + ';';
+      return `${prop}: ${v};`;
+    }).filter(Boolean);
+  }
+
+  const parts = [];
+  const baseDecls = toDecls(basePairs);
+  if (baseDecls.length) parts.push(`.${cls} { ${baseDecls.join(' ')} }`);
+
+  // breakpoint 순서 고정 (lg → md → sm)
+  for (const bp of ['lg', 'md', 'sm']) {
+    if (!bpPairs[bp]) continue;
+    const bpDecls = toDecls(bpPairs[bp]);
+    if (bpDecls.length) {
+      parts.push(`@media(max-width:${BREAKPOINTS[bp]}){.${cls}{${bpDecls.join(' ')}}}`);
+    }
+  }
+
+  return { cls, css: parts.join(' ') };
 }
 
 // .flx 파일에서 (style ...) 블록 추출

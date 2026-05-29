@@ -1,21 +1,60 @@
-(style card :bg "white" :p "24px" :radius "8px" :shadow "md")
-(style grid :display "grid" :cols 3 :gap "16px")
-(style hero :bg "#6366f1" :color "white" :p "48px" :radius "12px")
-(style badge :bg "#f3f4f6" :color "#374151" :p "4px" :radius "4px" :size "12px")
+; 기본 스타일
+(style card   :bg "white" :p "24px" :radius "8px" :shadow "md")
+(style hero   :bg "#6366f1" :color "white" :p "48px" :radius "12px")
+(style badge  :bg "#f3f4f6" :color "#374151" :p "4px" :radius "4px" :size "12px" :weight "600")
+
+; 반응형 그리드 — 기본 3열, md(768px)에서 2열, sm(640px)에서 1열
+(style resp_grid :display "grid" :cols 3 :gap "20px"
+                 :md-cols 2
+                 :sm-cols 1)
+
+; 반응형 카드 — 기본 24px 패딩, sm에서 14px
+(style resp_card :bg "white" :radius "10px" :shadow "sm" :p "24px"
+                 :sm-p "14px")
+
+; 반응형 히어로 — 기본 48px 패딩, sm에서 24px
+(style resp_hero :bg "#6366f1" :color "white" :radius "12px" :p "48px"
+                 :sm-p "24px")
 
 (defn render [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<title>Styled — FreeLang Front</title>"
-    "<link rel='stylesheet' href='/public/app.css'>"
-    "<style>body{font-family:sans-serif;max-width:900px;margin:40px auto;padding:0 20px}</style>"
-    "</head><body>"
-    "<div class='hero__HASH'><h1>CSS DSL 데모</h1></div>"
-    "<div class='grid__HASH' style='margin-top:24px'>"
-    "  <div class='card__HASH'>카드 1</div>"
-    "  <div class='card__HASH'>카드 2</div>"
-    "  <div class='card__HASH'>카드 3</div>"
-    "</div>"
-    "<p style='margin-top:16px'><a href='/'>← 홈</a></p>"
-    "</body></html>")))
+  (server-html
+    (layout "Styled" (str
+      "<h2 style='margin:0 0 8px'>CSS DSL 데모</h2>"
+      "<p style='color:#6b7280;margin:0 0 24px'>scoped hash + 반응형 breakpoint — 화면 크기를 줄여보세요</p>"
+
+      ; 반응형 히어로
+      "<div class='" resp_hero "'>"
+      "<h3 style='margin:0 0 8px'>반응형 히어로</h3>"
+      "<p style='margin:0;opacity:.85'>sm(640px): 패딩 24px · md(768px) 이상: 48px</p>"
+      "</div>"
+
+      ; 반응형 그리드
+      "<h3 style='margin:24px 0 12px;color:#374151'>반응형 그리드 (3 → 2 → 1열)</h3>"
+      "<div class='" resp_grid "'>"
+      "<div class='" resp_card "'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>📊</div>"
+      "<strong>SSR 렌더링</strong>"
+      "<p style='font-size:.85rem;color:#6b7280;margin:8px 0 0'>서버에서 완전한 HTML 생성</p>"
+      "</div>"
+      "<div class='" resp_card "'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>🎨</div>"
+      "<strong>CSS DSL</strong>"
+      "<p style='font-size:.85rem;color:#6b7280;margin:8px 0 0'>:sm-p :md-cols breakpoint</p>"
+      "</div>"
+      "<div class='" resp_card "'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>🏝️</div>"
+      "<strong>Island 아키텍처</strong>"
+      "<p style='font-size:.85rem;color:#6b7280;margin:8px 0 0'>필요한 부분만 JS</p>"
+      "</div>"
+      "</div>"
+
+      ; 배지 예제
+      "<h3 style='margin:24px 0 12px;color:#374151'>CSS DSL 배지</h3>"
+      "<div style='display:flex;gap:8px;flex-wrap:wrap'>"
+      "<span class='" badge "'>npm 0개</span>"
+      "<span class='" badge "'>SSR</span>"
+      "<span class='" badge "'>Island</span>"
+      "<span class='" badge "'>반응형</span>"
+      "<span class='" badge "'>Critical CSS</span>"
+      "<span class='" badge "'>서버 폼</span>"
+      "</div>") req)))
