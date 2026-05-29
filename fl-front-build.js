@@ -62,11 +62,16 @@ function generate(routes, bindings = []) {
     lines.push('');
   }
 
-  // 각 페이지 함수 인라인 — (style/island ...) 블록 처리 후 삽입
+  // 각 페이지 함수 인라인 — (style/island/server-fn ...) 블록 처리 후 삽입
   for (const r of routes) {
     const raw = fs.readFileSync(r.file, 'utf8').trim();
+    // 0) (server-fn name [] body) → (defn name [] body)
+    let src = raw.replace(
+      /\(server-fn\s+([\w-]+)\s+\[([^\]]*)\]/,
+      '(defn $1 [$2]'
+    );
     // 1) (style ...) 블록 제거 (CSS 파일로 컴파일됨)
-    let src = raw.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
+    src = src.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
     // 2) (island ...) 블록 컴파일
     const islands = islandCompiler.extractIslands(src);
     // 2a) 최상위 island 블록 완전 제거 (FL 런타임에서 실행 불가)

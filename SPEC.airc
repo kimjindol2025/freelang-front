@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "done-p1-p2-p3a",
+  "hot": "task-006",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -122,6 +122,12 @@
       "t": "decision",
       "v": "확장자 .flx — 기존 .fl과 구분",
       "why": "빌드 파이프라인이 .flx만 라우트로 스캔",
+      "lock": true
+    },
+    "target-demo": {
+      "t": "decision",
+      "v": "target_demo 달성 — /dashboard 동작 (2026-05-29)",
+      "why": "server-fn + CSS DSL + SVG chart + scoped class 모두 동작. MVP 기준 충족",
       "lock": true
     }
   },
