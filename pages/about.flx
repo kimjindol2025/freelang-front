@@ -1,3 +1,4 @@
+; HMR 테스트
 (defn render [req]
   (server-html
     (layout "About" (str
@@ -15,3 +16,4 @@
       "</ul>"
       "</div>") req)))
 
+; hmr-test
