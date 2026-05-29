@@ -1,0 +1,21 @@
+(style card :bg "white" :p "24px" :radius "8px" :shadow "md")
+(style grid :display "grid" :cols 3 :gap "16px")
+(style hero :bg "#6366f1" :color "white" :p "48px" :radius "12px")
+(style badge :bg "#f3f4f6" :color "#374151" :p "4px" :radius "4px" :size "12px")
+
+(defn render [req]
+  (server-html (str
+    "<!DOCTYPE html><html><head>"
+    "<meta charset='utf-8'>"
+    "<title>Styled — FreeLang Front</title>"
+    "<link rel='stylesheet' href='/public/app.css'>"
+    "<style>body{font-family:sans-serif;max-width:900px;margin:40px auto;padding:0 20px}</style>"
+    "</head><body>"
+    "<div class='hero__HASH'><h1>CSS DSL 데모</h1></div>"
+    "<div class='grid__HASH' style='margin-top:24px'>"
+    "  <div class='card__HASH'>카드 1</div>"
+    "  <div class='card__HASH'>카드 2</div>"
+    "  <div class='card__HASH'>카드 3</div>"
+    "</div>"
+    "<p style='margin-top:16px'><a href='/'>← 홈</a></p>"
+    "</body></html>")))

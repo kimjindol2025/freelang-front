@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // fl-front-build.js — pages/*.flx 스캔 → _app.fl 단일 파일 생성 (load 불필요)
 
-const fs   = require('fs');
-const path = require('path');
+const fs            = require('fs');
+const path          = require('path');
+const styleCompiler = require('./style-compiler');
 
 const PAGES_DIR = path.join(__dirname, 'pages');
 const OUT_FILE  = path.join(__dirname, '_app.fl');
@@ -44,15 +45,27 @@ function routeToFnName(rel) {
     .replace(/-/g, '_');
 }
 
-function generate(routes) {
+function generate(routes, bindings = []) {
   const lines = [];
   lines.push('; _app.fl — 자동 생성. 직접 수정 금지.');
   lines.push(`; 생성: ${new Date().toISOString()}`);
   lines.push('');
 
-  // 각 페이지 함수 인라인
+  // CSS 스타일 바인딩 — (define card "card__6486")
+  if (bindings.length > 0) {
+    lines.push('; ── CSS 스타일 클래스 바인딩 ──');
+    for (const { name, cls } of bindings) {
+      const flName = name.replace(/-/g, '_');
+      lines.push(`(define ${flName} "${cls}")`);
+    }
+    lines.push('');
+  }
+
+  // 각 페이지 함수 인라인 — (style ...) 블록 제거 후 삽입
   for (const r of routes) {
-    const src = fs.readFileSync(r.file, 'utf8').trim();
+    const raw = fs.readFileSync(r.file, 'utf8').trim();
+    // (style ...) 블록 제거 (이미 CSS 파일로 컴파일됨)
+    const src = raw.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
     lines.push(`; ── ${r.file} ──`);
     const renamed = src.replace(
       /\(defn render \[req\]/,
@@ -78,5 +91,13 @@ const routes = scanPages(PAGES_DIR);
 console.log('FL-Front 빌드...');
 routes.forEach(r => console.log(`  ${r.route.padEnd(22)} → ${r.file}`));
 
-fs.writeFileSync(OUT_FILE, generate(routes), 'utf8');
+// CSS DSL 컴파일
+const PUBLIC_DIR = path.join(__dirname, 'public');
+const { bindings } = styleCompiler.compile(PAGES_DIR, PUBLIC_DIR);
+if (bindings.length > 0) {
+  console.log(`  CSS: ${bindings.length}개 스타일 → public/app.css`);
+  bindings.forEach(b => console.log(`    .${b.cls}  ←  ${b.name}`));
+}
+
+fs.writeFileSync(OUT_FILE, generate(routes, bindings), 'utf8');
 console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트)`);
