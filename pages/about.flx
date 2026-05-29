@@ -1,12 +1,16 @@
 (defn render [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<title>About — FreeLang Front</title>"
-    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
-    "</head><body>"
-    "<h1>FreeLang-Front란?</h1>"
-    "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어</p>"
-    "<ul><li>npm install 0개</li><li>SSR 기본</li><li>파일 기반 라우팅</li></ul>"
-    "<a href='/'>← 홈</a>"
-    "</body></html>")))
+  (server-html
+    (layout "About" (str
+      "<h2>FreeLang Front란?</h2>"
+      "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어입니다.</p>"
+      "<div style='background:white;border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+      "<h3 style='margin:0 0 16px;color:#6366f1'>핵심 특징</h3>"
+      "<ul style='margin:0;padding-left:20px;line-height:2'>"
+      "<li><strong>npm install 0개</strong> — Node.js 표준 라이브러리만 사용</li>"
+      "<li><strong>파일 기반 라우팅</strong> — pages/*.flx → 자동 라우트 생성</li>"
+      "<li><strong>CSS DSL</strong> — (style name :key val) → scoped .cls__hash</li>"
+      "<li><strong>Island 아키텍처</strong> — SSR + 필요한 부분만 JS hydration</li>"
+      "<li><strong>Critical CSS</strong> — 페이지별 사용 CSS만 인라인</li>"
+      "<li><strong>서버 폼 처리</strong> — JS 없이 POST + redirect 패턴</li>"
+      "</ul>"
+      "</div>") req)))

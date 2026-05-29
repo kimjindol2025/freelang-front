@@ -1,7 +1,10 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T14:04:24.123Z
+; 생성: 2026-05-29T14:13:20.055Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
+(define layout_nav "layout_nav__18e7")
+(define layout_wrap "layout_wrap__d3b3")
+(define name "name__7c72")
 (define form_box "form_box__ec6f")
 (define page_wrap "page_wrap__7159")
 (define stat_card "stat_card__5598")
@@ -12,19 +15,69 @@
 (define hero "hero__1266")
 (define badge "badge__bbad")
 
+; ── 레이아웃·헬퍼 함수 ──
+; ── _layout.flx ──
+; pages/_layout.flx — 공통 레이아웃 헬퍼
+; 라우트로 등록되지 않음 (빌드 스크립트가 _ 접두사 제외)
+; 사용: (layout "페이지 제목" "body HTML 내용")
+
+
+; nav link 현재 페이지 강조 여부 반환
+(defn nav-link [href label current]
+  (if (= href current)
+    (str "<a href='" href "' style='color:white;text-decoration:none;"
+         "padding:12px 16px;display:inline-block;background:rgba(255,255,255,.2)'>" label "</a>")
+    (str "<a href='" href "' style='color:white;text-decoration:none;"
+         "padding:12px 16px;display:inline-block;opacity:.8'>" label "</a>")))
+
+; 공통 레이아웃 — title, content, 현재 path
+(defn layout [title content req]
+  (let [path (server-req-path req)]
+    (str
+      "<!DOCTYPE html><html lang='ko'><head>"
+      "<meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>" title " — FreeLang Front</title>"
+      "<style>"
+      "*{box-sizing:border-box}"
+      "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;margin:0;background:#f9fafb;color:#111}"
+      ".lnav{background:#6366f1;padding:0 24px;display:flex;align-items:center;gap:4px}"
+      ".lnav-brand{color:white;font-weight:700;font-size:1.1rem;margin-right:16px;text-decoration:none}"
+      ".lwrap{max-width:960px;margin:0 auto;padding:32px 24px}"
+      ".lfoot{text-align:center;padding:32px;color:#9ca3af;font-size:.8rem;border-top:1px solid #e5e7eb;margin-top:48px}"
+      "</style>"
+      "</head><body>"
+      "<nav class='lnav'>"
+      "<a href='/' class='lnav-brand'>FL Front</a>"
+      (nav-link "/" "홈" path)
+      (nav-link "/dashboard" "대시보드" path)
+      (nav-link "/counter" "카운터" path)
+      (nav-link "/contact" "문의" path)
+      (nav-link "/styled" "스타일" path)
+      "</nav>"
+      "<div class='lwrap'>"
+      content
+      "</div>"
+      "<footer class='lfoot'>FreeLang Front v0.1 · npm install 0개 · SSR · Island</footer>"
+      "</body></html>")))
+
 ; ── pages/about.flx ──
 (defn page_about [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<title>About — FreeLang Front</title>"
-    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
-    "</head><body>"
-    "<h1>FreeLang-Front란?</h1>"
-    "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어</p>"
-    "<ul><li>npm install 0개</li><li>SSR 기본</li><li>파일 기반 라우팅</li></ul>"
-    "<a href='/'>← 홈</a>"
-    "</body></html>")))
+  (server-html
+    (layout "About" (str
+      "<h2>FreeLang Front란?</h2>"
+      "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어입니다.</p>"
+      "<div style='background:white;border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+      "<h3 style='margin:0 0 16px;color:#6366f1'>핵심 특징</h3>"
+      "<ul style='margin:0;padding-left:20px;line-height:2'>"
+      "<li><strong>npm install 0개</strong> — Node.js 표준 라이브러리만 사용</li>"
+      "<li><strong>파일 기반 라우팅</strong> — pages/*.flx → 자동 라우트 생성</li>"
+      "<li><strong>CSS DSL</strong> —  → scoped .cls__hash</li>"
+      "<li><strong>Island 아키텍처</strong> — SSR + 필요한 부분만 JS hydration</li>"
+      "<li><strong>Critical CSS</strong> — 페이지별 사용 CSS만 인라인</li>"
+      "<li><strong>서버 폼 처리</strong> — JS 없이 POST + redirect 패턴</li>"
+      "</ul>"
+      "</div>") req)))
 
 ; ── pages/api/hello.flx ──
 (defn page_api_hello [req]
@@ -245,17 +298,36 @@
 
 ; ── pages/index.flx ──
 (defn page_index [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>FreeLang Front</title>"
-    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
-    "</head><body>"
-    "<h1>Hello FreeLang-Front</h1>"
-    "<p>npm install 0개로 Next.js 대체</p>"
-    "<nav><a href='/about'>About</a> · <a href='/api/hello'>API 테스트</a></nav>"
-    "</body></html>")))
+  (server-html
+    (layout "홈" (str
+      "<h2 style='margin:0 0 8px;font-size:2rem'>FreeLang Front</h2>"
+      "<p style='color:#6b7280;margin:0 0 32px'>npm install 0개 · SSR · CSS DSL · Island · SVG Chart</p>"
+      "<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px'>"
+      "<a href='/dashboard' style='display:block;background:white;border-radius:10px;padding:24px;"
+      "text-decoration:none;color:#111;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>📊</div>"
+      "<div style='font-weight:600'>Dashboard</div>"
+      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>SSR · SVG 차트 · 통계</div>"
+      "</a>"
+      "<a href='/counter' style='display:block;background:white;border-radius:10px;padding:24px;"
+      "text-decoration:none;color:#111;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>🔢</div>"
+      "<div style='font-weight:600'>Counter</div>"
+      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>Island 아키텍처 · 클라이언트 상태</div>"
+      "</a>"
+      "<a href='/styled' style='display:block;background:white;border-radius:10px;padding:24px;"
+      "text-decoration:none;color:#111;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>🎨</div>"
+      "<div style='font-weight:600'>Styled</div>"
+      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>CSS DSL · Scoped 클래스</div>"
+      "</a>"
+      "<a href='/contact' style='display:block;background:white;border-radius:10px;padding:24px;"
+      "text-decoration:none;color:#111;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
+      "<div style='font-size:1.5rem;margin-bottom:8px'>📬</div>"
+      "<div style='font-weight:600'>Contact</div>"
+      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>서버 폼 처리 · 검증 · Redirect</div>"
+      "</a>"
+      "</div>") req)))
 
 ; ── pages/styled.flx ──
 (defn page_styled [req]

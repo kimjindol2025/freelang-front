@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-008",
+  "hot": "task-009",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -129,6 +129,23 @@
       "v": "target_demo 달성 — /dashboard 동작 (2026-05-29)",
       "why": "server-fn + CSS DSL + SVG chart + scoped class 모두 동작. MVP 기준 충족",
       "lock": true
+    },
+    "task-008": {
+      "t": "task",
+      "v": "P1-D: 레이아웃 시스템 — pages/_layout.flx 공통 헬퍼 + 페이지 boilerplate 제거",
+      "entry": [
+        "pages/_layout.flx (layout 헬퍼 함수 정의)",
+        "fl-front-build.js (_layout.flx를 라우트 제외 + 맨 앞 삽입)"
+      ],
+      "check": [
+        "_layout.flx 내 layout 함수가 _app.fl 맨 앞에 삽입됨",
+        "pages/index.flx — layout 사용으로 100줄 이하로 단축",
+        "GET / 정상 렌더 (타이틀·nav·footer 포함)",
+        "GET /about 정상 렌더",
+        "기존 dashboard·counter·contact 페이지 회귀 없음"
+      ],
+      "verified": true,
+      "next": []
     },
     "task-007": {
       "t": "task",
