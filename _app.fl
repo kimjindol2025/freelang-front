@@ -1,7 +1,9 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T12:27:29.852Z
+; 생성: 2026-05-29T13:06:50.081Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
+(define form_box "form_box__ec6f")
+(define page_wrap "page_wrap__7159")
 (define stat_card "stat_card__5598")
 (define grid "grid__e95a")
 (define chart_box "chart_box__a13d")
@@ -27,6 +29,102 @@
 ; ── pages/api/hello.flx ──
 (defn page_api_hello [req]
   (server-json {:ok true :message "Hello from FL-Front API" :version "0.1"}))
+
+; ── pages/contact/thanks.flx ──
+; GET /contact/thanks — 문의 완료 페이지
+(defn page_contact_thanks [req]
+  (server-html (str
+    "<!DOCTYPE html><html><head>"
+    "<meta charset='utf-8'>"
+    "<title>문의 완료 — FreeLang Front</title>"
+    "<style>"
+    "body{font-family:sans-serif;margin:0;background:#f9fafb}"
+    ".wrap{max-width:560px;margin:80px auto;padding:0 24px;text-align:center}"
+    ".card{background:white;border-radius:12px;padding:48px 32px;"
+    "box-shadow:0 4px 12px rgba(0,0,0,.1)}"
+    ".icon{font-size:3rem;margin-bottom:16px}"
+    "h2{color:#111;margin:0 0 8px}"
+    "p{color:#6b7280;margin:0 0 24px}"
+    "a{display:inline-block;background:#6366f1;color:white;text-decoration:none;"
+    "border-radius:6px;padding:10px 24px;font-size:.95rem}"
+    "a:hover{background:#4f46e5}"
+    "</style>"
+    "</head><body>"
+    "<div class='wrap'>"
+    "<div class='card'>"
+    "<div class='icon'>&#x2705;</div>"
+    "<h2>감사합니다</h2>"
+    "<p>문의가 성공적으로 접수되었습니다.<br>빠른 시일 내에 답변 드리겠습니다.</p>"
+    "<a href='/'>홈으로 돌아가기</a>"
+    "</div>"
+    "</div>"
+    "</body></html>")))
+
+; ── pages/contact.flx ──
+; GET /contact — 문의 폼 렌더
+; POST /contact — 폼 처리 → /contact/thanks redirect (또는 에러 재렌더)
+
+
+; POST 핸들러 — server-req-json이 {name email message} 객체 반환
+; (form-field req "name") → "홍길동" 또는 ""
+(defn form-field [req key]
+  (let [parsed (server-req-json req)
+        val    (get parsed key)]
+    (if (= val nil) "" val)))
+
+; GET 핸들러 — ?error=1 시 에러 메시지 표시
+(defn page_contact [req]
+  (let [err (server-req-query req "error")]
+    (server-html (str
+      "<!DOCTYPE html><html><head>"
+      "<meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>문의하기 — FreeLang Front</title>"
+      "<style>"
+      "body{font-family:sans-serif;margin:0;background:#f9fafb}"
+      ".wrap{max-width:560px;margin:0 auto;padding:48px 24px}"
+      "label{display:block;font-size:.9rem;color:#374151;margin-bottom:4px}"
+      "input,textarea{width:100%;box-sizing:border-box;border:1px solid #d1d5db;"
+      "border-radius:6px;padding:10px 12px;font-size:1rem;margin-bottom:16px}"
+      "input:focus,textarea:focus{outline:2px solid #6366f1;border-color:transparent}"
+      "button{background:#6366f1;color:white;border:none;border-radius:6px;"
+      "padding:12px 32px;font-size:1rem;cursor:pointer;width:100%}"
+      "button:hover{background:#4f46e5}"
+      ".err{background:#fef2f2;border:1px solid #fecaca;border-radius:6px;"
+      "padding:12px 16px;color:#dc2626;margin-bottom:16px;font-size:.9rem}"
+      ".nav{margin-bottom:24px}"
+      ".nav a{color:#6366f1;text-decoration:none;font-size:.9rem}"
+      "</style>"
+      "</head><body>"
+      "<div class='wrap'>"
+      "<div class='nav'><a href='/'>← 홈으로</a></div>"
+      "<div class='" form_box "'>"
+      "<h2 style='margin:0 0 24px;color:#111'>문의하기</h2>"
+      (if (= err "1")
+        "<div class='err'>이름과 이메일을 모두 입력해 주세요.</div>"
+        "")
+      "<form method='POST' action='/contact'>"
+      "<label>이름</label>"
+      "<input type='text' name='name' placeholder='홍길동' required>"
+      "<label>이메일</label>"
+      "<input type='email' name='email' placeholder='hello@example.com' required>"
+      "<label>메시지</label>"
+      "<textarea name='message' rows='5' placeholder='문의 내용을 입력해 주세요...'></textarea>"
+      "<button type='submit'>보내기</button>"
+      "</form>"
+      "</div>"
+      "</div>"
+      "</body></html>"))))
+
+; POST 핸들러 — form-field 파싱 → 검증 → redirect
+(defn page_contact_post [req]
+  (let [name  (form-field req "name")
+        email (form-field req "email")]
+    (if (= name "")
+      (server-redirect "/contact?error=1")
+      (if (= email "")
+        (server-redirect "/contact?error=1")
+        (server-redirect "/contact/thanks")))))
 
 ; ── pages/counter.flx ──
 (defn page_counter [req]
@@ -190,6 +288,9 @@
 
 (server-get "/about" "page_about")
 (server-get "/api/hello" "page_api_hello")
+(server-get "/contact/thanks" "page_contact_thanks")
+(server-get "/contact" "page_contact")
+(server-post "/contact" "page_contact_post")
 (server-get "/counter" "page_counter")
 (server-get "/dashboard" "page_dashboard")
 (server-get "/" "page_index")

@@ -111,18 +111,27 @@ function generate(routes, bindings = []) {
       src = src.replace(/"ISLAND_SCRIPTS"/g, JSON.stringify(scriptBlock));
     }
     lines.push(`; ── ${r.file} ──`);
-    const renamed = src.replace(
+    let renamed = src.replace(
       /\(defn render \[req\]/,
       `(defn ${r.fnName} [req]`
+    );
+    // render_post 함수도 있으면 fnName_post 로 rename
+    renamed = renamed.replace(
+      /\(defn render_post \[req\]/,
+      `(defn ${r.fnName}_post [req]`
     );
     lines.push(renamed);
     lines.push('');
   }
 
-  // server-get/server-post 방식으로 라우트 등록
+  // server-get/server-post 라우트 등록
   for (const r of routes) {
-    const method = r.route.startsWith('/api/') ? 'server-get' : 'server-get';
-    lines.push(`(${method} "${r.route}" "${r.fnName}")`);
+    lines.push(`(server-get "${r.route}" "${r.fnName}")`);
+    // render_post 함수가 있으면 POST도 등록
+    const rawSrc = fs.readFileSync(r.file, 'utf8');
+    if (rawSrc.includes('(defn render_post [req]')) {
+      lines.push(`(server-post "${r.route}" "${r.fnName}_post")`);
+    }
   }
   lines.push('');
   lines.push(`(println "FL-Front v0.1 — http://localhost:${PORT}")`);

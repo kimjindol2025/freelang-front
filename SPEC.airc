@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-007",
+  "hot": "task-008",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -129,6 +129,22 @@
       "v": "target_demo 달성 — /dashboard 동작 (2026-05-29)",
       "why": "server-fn + CSS DSL + SVG chart + scoped class 모두 동작. MVP 기준 충족",
       "lock": true
+    },
+    "task-007": {
+      "t": "task",
+      "v": "P4-A: 서버 폼 처리 — POST form-field 파싱 + server-side 처리 + redirect",
+      "entry": [
+        "pages/contact.flx (GET 폼 렌더 + POST 처리)",
+        "fl-front-build.js (server-post 라우트 등록 지원)"
+      ],
+      "check": [
+        "GET /contact → 폼 HTML 렌더",
+        "POST /contact → form-field 파싱 후 /contact/thanks redirect",
+        "GET /contact/thanks → 성공 메시지 렌더",
+        "빈 필드 submit → 에러 메시지 재렌더 (JS 없이)"
+      ],
+      "verified": true,
+      "next": []
     },
     "task-006": {
       "t": "task",

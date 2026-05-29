@@ -1,0 +1,66 @@
+; GET /contact — 문의 폼 렌더
+; POST /contact — 폼 처리 → /contact/thanks redirect (또는 에러 재렌더)
+
+(style form_box :bg "white" :p "32px" :radius "12px" :shadow "md" :width "100%")
+(style page_wrap :bg "#f9fafb")
+
+; POST 핸들러 — server-req-json이 {name email message} 객체 반환
+; (form-field req "name") → "홍길동" 또는 ""
+(defn form-field [req key]
+  (let [parsed (server-req-json req)
+        val    (get parsed key)]
+    (if (= val nil) "" val)))
+
+; GET 핸들러 — ?error=1 시 에러 메시지 표시
+(defn render [req]
+  (let [err (server-req-query req "error")]
+    (server-html (str
+      "<!DOCTYPE html><html><head>"
+      "<meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>문의하기 — FreeLang Front</title>"
+      "<style>"
+      "body{font-family:sans-serif;margin:0;background:#f9fafb}"
+      ".wrap{max-width:560px;margin:0 auto;padding:48px 24px}"
+      "label{display:block;font-size:.9rem;color:#374151;margin-bottom:4px}"
+      "input,textarea{width:100%;box-sizing:border-box;border:1px solid #d1d5db;"
+      "border-radius:6px;padding:10px 12px;font-size:1rem;margin-bottom:16px}"
+      "input:focus,textarea:focus{outline:2px solid #6366f1;border-color:transparent}"
+      "button{background:#6366f1;color:white;border:none;border-radius:6px;"
+      "padding:12px 32px;font-size:1rem;cursor:pointer;width:100%}"
+      "button:hover{background:#4f46e5}"
+      ".err{background:#fef2f2;border:1px solid #fecaca;border-radius:6px;"
+      "padding:12px 16px;color:#dc2626;margin-bottom:16px;font-size:.9rem}"
+      ".nav{margin-bottom:24px}"
+      ".nav a{color:#6366f1;text-decoration:none;font-size:.9rem}"
+      "</style>"
+      "</head><body>"
+      "<div class='wrap'>"
+      "<div class='nav'><a href='/'>← 홈으로</a></div>"
+      "<div class='" form_box "'>"
+      "<h2 style='margin:0 0 24px;color:#111'>문의하기</h2>"
+      (if (= err "1")
+        "<div class='err'>이름과 이메일을 모두 입력해 주세요.</div>"
+        "")
+      "<form method='POST' action='/contact'>"
+      "<label>이름</label>"
+      "<input type='text' name='name' placeholder='홍길동' required>"
+      "<label>이메일</label>"
+      "<input type='email' name='email' placeholder='hello@example.com' required>"
+      "<label>메시지</label>"
+      "<textarea name='message' rows='5' placeholder='문의 내용을 입력해 주세요...'></textarea>"
+      "<button type='submit'>보내기</button>"
+      "</form>"
+      "</div>"
+      "</div>"
+      "</body></html>"))))
+
+; POST 핸들러 — form-field 파싱 → 검증 → redirect
+(defn render_post [req]
+  (let [name  (form-field req "name")
+        email (form-field req "email")]
+    (if (= name "")
+      (server-redirect "/contact?error=1")
+      (if (= email "")
+        (server-redirect "/contact?error=1")
+        (server-redirect "/contact/thanks")))))
