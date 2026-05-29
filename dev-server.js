@@ -47,20 +47,40 @@ async function rebuild(changedFile) {
   }
 }
 
-function watchDir(dir) {
+// PRoot 호환 — recursive 없이 폴더 목록 직접 수집 후 각각 watch
+function collectDirs(dir, result = []) {
+  result.push(dir);
   try {
-    fs.watch(dir, { recursive: true }, (event, filename) => {
-      if (!filename) return;
-      if (!filename.endsWith('.flx') && !filename.endsWith('.js')) return;
-      if (filename.includes('_app')) return;
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (e.isDirectory() && !e.name.startsWith('.') && e.name !== 'node_modules') {
+        collectDirs(path.join(dir, e.name), result);
+      }
+    }
+  } catch {}
+  return result;
+}
 
-      clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => rebuild(path.join(dir, filename)), 300);
-    });
-    console.log(`[dev] 감시 중: ${path.relative(ROOT, dir) || '.'}/`);
-  } catch (e) {
-    console.warn(`[dev] watch 실패 ${dir}: ${e.message}`);
+function watchAll() {
+  const dirs = collectDirs(PAGES_DIR);
+  dirs.push(ROOT);  // fl-front-build.js, style-compiler.js 감시
+  const watched = new Set();
+  for (const dir of dirs) {
+    if (watched.has(dir)) continue;
+    watched.add(dir);
+    try {
+      fs.watch(dir, (event, filename) => {
+        if (!filename) return;
+        if (!filename.endsWith('.flx') && !filename.endsWith('.js')) return;
+        if (filename.includes('_app')) return;
+        const full = path.join(dir, filename);
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => rebuild(full), 300);
+      });
+    } catch (e) {
+      console.warn(`[dev] watch 실패 ${dir}: ${e.message}`);
+    }
   }
+  console.log(`[dev] 감시 중: ${watched.size}개 디렉토리`);
 }
 
 (async () => {
@@ -68,8 +88,7 @@ function watchDir(dir) {
   try { await build(); } catch (e) { console.error('[dev] 초기 빌드 실패:', e.message); process.exit(1); }
 
   startServer();
-  watchDir(PAGES_DIR);
-  watchDir(ROOT);
+  watchAll();
 
   process.on('SIGINT', () => {
     console.log('\n[dev] 종료');
