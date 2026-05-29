@@ -1,0 +1,68 @@
+(island TodoApp []
+  (let [items   (atom [])
+        inp-val (atom "")
+        next-id (atom 0)]
+    (h "div" {"style" "max-width:480px"}
+      ; 입력 영역
+      (h "div" {"style" "display:flex;gap:8px;margin-bottom:16px"}
+        (h "input"
+          {"type" "text"
+           "value" @inp-val
+           "placeholder" "할 일을 입력하세요..."
+           "style" "flex:1;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:1rem"
+           "on-input" (fn [e] (reset! inp-val (get-in e ["target" "value"])))
+           "on-keydown" (fn [e]
+             (when (= (get-in e ["key"]) "Enter")
+               (when (not (= @inp-val ""))
+                 (do
+                   (swap! items (fn [arr] (push arr {:id @next-id :text @inp-val :done false})))
+                   (swap! next-id inc)
+                   (reset! inp-val "")))))})
+        (h "button"
+          {"style" "background:#6366f1;color:white;border:none;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:1rem;white-space:nowrap"
+           "on-click" (fn []
+             (when (not (= @inp-val ""))
+               (do
+                 (swap! items (fn [arr] (push arr {:id @next-id :text @inp-val :done false})))
+                 (swap! next-id inc)
+                 (reset! inp-val ""))))}
+          "추가"))
+      ; 항목 목록
+      (h "ul" {"style" "list-style:none;margin:0;padding:0"}
+        (map (fn [item]
+          (let [done (get item "done")
+                id   (get item "id")
+                text (get item "text")]
+            (h "li" {"style" "display:flex;align-items:center;gap:10px;padding:12px 14px;background:white;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.08)"}
+              (h "input"
+                {"type" "checkbox"
+                 "style" "width:18px;height:18px;cursor:pointer;accent-color:#6366f1"
+                 "checked" (if done "checked" "")
+                 "on-click" (fn []
+                   (swap! items (fn [arr]
+                     (map (fn [it]
+                       (if (= (get it "id") id)
+                         (assoc it "done" (not (get it "done")))
+                         it))
+                     arr))))})
+              (h "span"
+                {"style" (if done "flex:1;color:#9ca3af;text-decoration:line-through" "flex:1")}
+                text)
+              (h "button"
+                {"style" "background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.3rem;line-height:1;padding:0 2px"
+                 "on-click" (fn []
+                   (swap! items (fn [arr]
+                     (filter (fn [it] (not= (get it "id") id)) arr))))}
+                "×"))))
+          @items))
+      ; 카운터
+      (h "p" {"style" "color:#9ca3af;font-size:.85rem;margin-top:12px"}
+        (str (length @items) "개 항목")))))
+
+(defn render [req]
+  (server-html
+    (layout "To-do" (str
+      "<h2 style='margin:0 0 8px'>To-do Island</h2>"
+      "<p style='color:#6b7280;margin:0 0 24px'>atom 배열 상태 · 추가 / 완료 토글 / 삭제 — 순수 클라이언트 Island</p>"
+      "ISLAND_PLACEHOLDER"
+      "ISLAND_SCRIPTS") req)))

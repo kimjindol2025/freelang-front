@@ -118,11 +118,36 @@ function emitList(node, ctx) {
   if (head?.sym === '*')      return `(${args.map(a=>emit(a,ctx)).join(' * ')})`;
   if (head?.sym === '/')      return `(${args.map(a=>emit(a,ctx)).join(' / ')})`;
   if (head?.sym === '=')      return `(${emit(args[0],ctx)} === ${emit(args[1],ctx)})`;
+  if (head?.sym === 'not=')   return `(${emit(args[0],ctx)} !== ${emit(args[1],ctx)})`;
   if (head?.sym === 'not')    return `!(${emit(args[0],ctx)})`;
   if (head?.sym === 'when')   return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : null`;
+  if (head?.sym === 'or')     return `(${args.map(a=>`(${emit(a,ctx)})`).join(' || ')})`;
+  if (head?.sym === 'and')    return `(${args.map(a=>`(${emit(a,ctx)})`).join(' && ')})`;
+  // 배열/맵 조작 — _fl 런타임 위임
+  if (head?.sym === 'push')    return `_fl.push(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'get')     return `_fl.get(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'get-in')  return emitGetIn(args, ctx);
+  if (head?.sym === 'assoc')   return `_fl.assoc(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
+  if (head?.sym === 'dissoc')  return `_fl.dissoc(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'map')     return `_fl.map_arr(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'filter')  return `_fl.filter_arr(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'reduce')  return `_fl.reduce_arr(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
+  if (head?.sym === 'length')  return `(${emit(args[0],ctx)})?.length ?? 0`;
+  if (head?.sym === 'first')   return `(${emit(args[0],ctx)})?.[0] ?? null`;
+  if (head?.sym === 'rest')    return `(${emit(args[0],ctx)})?.slice(1) ?? []`;
+  if (head?.sym === 'empty?')  return `(!((${emit(args[0],ctx)}) && (${emit(args[0],ctx)}).length > 0))`;
   // 일반 함수 호출
   const fn = emit(head, ctx);
   return `${fn}(${args.map(a => emit(a, ctx)).join(', ')})`;
+}
+
+function emitGetIn(args, ctx) {
+  // (get-in obj ["key1" "key2"]) → (obj?.["key1"]?.["key2"] ?? null)
+  const obj  = emit(args[0], ctx);
+  const keys = args[1]; // array AST node
+  if (!Array.isArray(keys) || keys.length === 0) return `(${obj} ?? null)`;
+  const chain = keys.reduce((acc, key) => `(${acc})?.[${emit(key, ctx)}]`, obj);
+  return `(${chain} ?? null)`;
 }
 
 function emitIsland(args, ctx) {
@@ -184,26 +209,39 @@ function emitStr(args, ctx) {
   return `[${args.map(a => emit(a, ctx)).join(', ')}].map(String).join('')`;
 }
 
-// ── Island 런타임 (minified, ~500B) ─────────────────────────
+// ── Island 런타임 (~900B) ────────────────────────────────────
 const FL_ISLAND_RT = `<script>
 const _fl={
   atom:(v)=>({v}),
   deref:(a)=>a.v,
   swap:(a,f)=>{a.v=f(a.v);return a.v;},
   reset:(a,v)=>{a.v=v;return v;},
+  // 배열/맵 조작
+  push:(arr,item)=>[...(arr||[]),item],
+  get:(obj,key)=>obj==null?null:obj[key]??null,
+  assoc:(obj,key,val)=>({...(obj||{}),[key]:val}),
+  dissoc:(obj,key)=>{const r={...(obj||{})};delete r[key];return r;},
+  map_arr:(fn,arr)=>(arr||[]).map(fn),
+  filter_arr:(fn,arr)=>(arr||[]).filter(fn),
+  reduce_arr:(fn,init,arr)=>(arr||[]).reduce(fn,init),
   h:(tag,attrs,...ch)=>{
     const el=document.createElement(tag);
     for(const[k,v]of Object.entries(attrs||{})){
-      if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);
-      else el.setAttribute(k,String(v));
+      if(k==='checked'){if(v&&v!=='')el.checked=true;}
+      else if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);
+      else if(v!==null&&v!==undefined&&v!=='')el.setAttribute(k,String(v));
     }
-    ch.flat().forEach(c=>el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(String(c)):c));
+    ch.flat().forEach(c=>{
+      if(c==null)return;
+      if(c instanceof Node)el.appendChild(c);
+      else el.appendChild(document.createTextNode(String(c)));
+    });
     return el;
   },
   mount:(id,renderFn)=>{
     const el=document.getElementById(id);
     if(!el)return;
-    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);el.appendChild(renderFn(update));};
+    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);const r=renderFn(update);if(r)el.appendChild(r);};
     update();
   }
 };

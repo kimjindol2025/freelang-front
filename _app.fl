@@ -1,5 +1,5 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T14:13:20.055Z
+; 생성: 2026-05-29T14:38:47.416Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
 (define layout_nav "layout_nav__18e7")
@@ -196,7 +196,7 @@
     "<h1>Island 카운터</h1>"
     "<p>버튼을 클릭하면 숫자가 증가합니다.</p>"
     "<div id='island-counter-0'></div>"
-    "<script>\nconst _fl={\n  atom:(v)=>({v}),\n  deref:(a)=>a.v,\n  swap:(a,f)=>{a.v=f(a.v);return a.v;},\n  reset:(a,v)=>{a.v=v;return v;},\n  h:(tag,attrs,...ch)=>{\n    const el=document.createElement(tag);\n    for(const[k,v]of Object.entries(attrs||{})){\n      if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);\n      else el.setAttribute(k,String(v));\n    }\n    ch.flat().forEach(c=>el.appendChild(typeof c==='string'||typeof c==='number'?document.createTextNode(String(c)):c));\n    return el;\n  },\n  mount:(id,renderFn)=>{\n    const el=document.getElementById(id);\n    if(!el)return;\n    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);el.appendChild(renderFn(update));};\n    update();\n  }\n};\nconst _fl_str=(...xs)=>xs.map(String).join('');\n</script><script>\n_fl.mount(\"island-counter-0\", (update) => {\n    return (() => { const n = _fl.atom(0); return _fl.h(\"button\", {\"on-click\": () => { return (_fl.swap(n, v => v + 1), update()); }}, [_fl.deref(n)].map(String).join('')); })();\n  });\n</script>"
+    "<script>\nconst _fl={\n  atom:(v)=>({v}),\n  deref:(a)=>a.v,\n  swap:(a,f)=>{a.v=f(a.v);return a.v;},\n  reset:(a,v)=>{a.v=v;return v;},\n  // 배열/맵 조작\n  push:(arr,item)=>[...(arr||[]),item],\n  get:(obj,key)=>obj==null?null:obj[key]??null,\n  assoc:(obj,key,val)=>({...(obj||{}),[key]:val}),\n  dissoc:(obj,key)=>{const r={...(obj||{})};delete r[key];return r;},\n  map_arr:(fn,arr)=>(arr||[]).map(fn),\n  filter_arr:(fn,arr)=>(arr||[]).filter(fn),\n  reduce_arr:(fn,init,arr)=>(arr||[]).reduce(fn,init),\n  h:(tag,attrs,...ch)=>{\n    const el=document.createElement(tag);\n    for(const[k,v]of Object.entries(attrs||{})){\n      if(k==='checked'){if(v&&v!=='')el.checked=true;}\n      else if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);\n      else if(v!==null&&v!==undefined&&v!=='')el.setAttribute(k,String(v));\n    }\n    ch.flat().forEach(c=>{\n      if(c==null)return;\n      if(c instanceof Node)el.appendChild(c);\n      else el.appendChild(document.createTextNode(String(c)));\n    });\n    return el;\n  },\n  mount:(id,renderFn)=>{\n    const el=document.getElementById(id);\n    if(!el)return;\n    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);const r=renderFn(update);if(r)el.appendChild(r);};\n    update();\n  }\n};\nconst _fl_str=(...xs)=>xs.map(String).join('');\n</script><script>\n_fl.mount(\"island-counter-0\", (update) => {\n    return (() => { const n = _fl.atom(0); return _fl.h(\"button\", {\"on-click\": () => { return (_fl.swap(n, v => v + 1), update()); }}, [_fl.deref(n)].map(String).join('')); })();\n  });\n</script>"
     "<p style='margin-top:32px'><a href='/'>← 홈</a></p>"
     "</body></html>")))
 
@@ -347,6 +347,15 @@
     "<p style='margin-top:16px'><a href='/'>← 홈</a></p>"
     "</body></html>")))
 
+; ── pages/todo.flx ──
+(defn page_todo [req]
+  (server-html
+    (layout "To-do" (str
+      "<h2 style='margin:0 0 8px'>To-do Island</h2>"
+      "<p style='color:#6b7280;margin:0 0 24px'>atom 배열 상태 · 추가 / 완료 토글 / 삭제 — 순수 클라이언트 Island</p>"
+      "<div id='island-todoapp-0'></div>"
+      "<script>\nconst _fl={\n  atom:(v)=>({v}),\n  deref:(a)=>a.v,\n  swap:(a,f)=>{a.v=f(a.v);return a.v;},\n  reset:(a,v)=>{a.v=v;return v;},\n  // 배열/맵 조작\n  push:(arr,item)=>[...(arr||[]),item],\n  get:(obj,key)=>obj==null?null:obj[key]??null,\n  assoc:(obj,key,val)=>({...(obj||{}),[key]:val}),\n  dissoc:(obj,key)=>{const r={...(obj||{})};delete r[key];return r;},\n  map_arr:(fn,arr)=>(arr||[]).map(fn),\n  filter_arr:(fn,arr)=>(arr||[]).filter(fn),\n  reduce_arr:(fn,init,arr)=>(arr||[]).reduce(fn,init),\n  h:(tag,attrs,...ch)=>{\n    const el=document.createElement(tag);\n    for(const[k,v]of Object.entries(attrs||{})){\n      if(k==='checked'){if(v&&v!=='')el.checked=true;}\n      else if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);\n      else if(v!==null&&v!==undefined&&v!=='')el.setAttribute(k,String(v));\n    }\n    ch.flat().forEach(c=>{\n      if(c==null)return;\n      if(c instanceof Node)el.appendChild(c);\n      else el.appendChild(document.createTextNode(String(c)));\n    });\n    return el;\n  },\n  mount:(id,renderFn)=>{\n    const el=document.getElementById(id);\n    if(!el)return;\n    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);const r=renderFn(update);if(r)el.appendChild(r);};\n    update();\n  }\n};\nconst _fl_str=(...xs)=>xs.map(String).join('');\n</script><script>\n_fl.mount(\"island-todoapp-0\", (update) => {\n    return (() => { const items = _fl.atom([]); const inp_val = _fl.atom(\"\"); const next_id = _fl.atom(0); return _fl.h(\"div\", {\"style\": \"max-width:480px\"}, _fl.h(\"div\", {\"style\": \"display:flex;gap:8px;margin-bottom:16px\"}, _fl.h(\"input\", {\"type\": \"text\", \"value\": _fl.deref(inp_val), \"placeholder\": \"할 일을 입력하세요...\", \"style\": \"flex:1;padding:10px 14px;border:1px solid #d1d5db;border-radius:6px;font-size:1rem\", \"on-input\": (e) => { return (_fl.reset(inp_val, (((e)?.[\"target\"])?.[\"value\"] ?? null)), update()); }, \"on-keydown\": (e) => { return ((((e)?.[\"key\"] ?? null) === \"Enter\")) ? ((!((_fl.deref(inp_val) === \"\"))) ? ((() => { (_fl.swap(items, (arr) => { return _fl.push(arr, {\"id\": _fl.deref(next_id), \"text\": _fl.deref(inp_val), \"done\": false}); }), update()); (_fl.swap(next_id, v => v + 1), update()); (_fl.reset(inp_val, \"\"), update()) })()) : null) : null; }}), _fl.h(\"button\", {\"style\": \"background:#6366f1;color:white;border:none;border-radius:6px;padding:10px 20px;cursor:pointer;font-size:1rem;white-space:nowrap\", \"on-click\": () => { return (!((_fl.deref(inp_val) === \"\"))) ? ((() => { (_fl.swap(items, (arr) => { return _fl.push(arr, {\"id\": _fl.deref(next_id), \"text\": _fl.deref(inp_val), \"done\": false}); }), update()); (_fl.swap(next_id, v => v + 1), update()); (_fl.reset(inp_val, \"\"), update()) })()) : null; }}, \"추가\")), _fl.h(\"ul\", {\"style\": \"list-style:none;margin:0;padding:0\"}, _fl.map_arr((item) => { return (() => { const done = _fl.get(item, \"done\"); const id = _fl.get(item, \"id\"); const text = _fl.get(item, \"text\"); return _fl.h(\"li\", {\"style\": \"display:flex;align-items:center;gap:10px;padding:12px 14px;background:white;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.08)\"}, _fl.h(\"input\", {\"type\": \"checkbox\", \"style\": \"width:18px;height:18px;cursor:pointer;accent-color:#6366f1\", \"checked\": (done) ? (\"checked\") : (\"\"), \"on-click\": () => { return (_fl.swap(items, (arr) => { return _fl.map_arr((it) => { return ((_fl.get(it, \"id\") === id)) ? (_fl.assoc(it, \"done\", !(_fl.get(it, \"done\")))) : (it); }, arr); }), update()); }}), _fl.h(\"span\", {\"style\": (done) ? (\"flex:1;color:#9ca3af;text-decoration:line-through\") : (\"flex:1\")}, text), _fl.h(\"button\", {\"style\": \"background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.3rem;line-height:1;padding:0 2px\", \"on-click\": () => { return (_fl.swap(items, (arr) => { return _fl.filter_arr((it) => { return (_fl.get(it, \"id\") !== id); }, arr); }), update()); }}, \"×\")); })(); }, _fl.deref(items))), _fl.h(\"p\", {\"style\": \"color:#9ca3af;font-size:.85rem;margin-top:12px\"}, [(_fl.deref(items))?.length ?? 0, \"개 항목\"].map(String).join(''))); })();\n  });\n</script>") req)))
+
 ; ── pages/users/[id].flx ──
 (defn page_users_id [req]
   (let [params (get req "params")
@@ -371,6 +380,7 @@
 (server-get "/dashboard" "page_dashboard")
 (server-get "/" "page_index")
 (server-get "/styled" "page_styled")
+(server-get "/todo" "page_todo")
 (server-get "/users/:id" "page_users_id")
 
 (println "FL-Front v0.1 — http://localhost:3000")

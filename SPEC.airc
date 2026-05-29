@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-009",
+  "hot": "task-010",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -129,6 +129,24 @@
       "v": "target_demo 달성 — /dashboard 동작 (2026-05-29)",
       "why": "server-fn + CSS DSL + SVG chart + scoped class 모두 동작. MVP 기준 충족",
       "lock": true
+    },
+    "task-009": {
+      "t": "task",
+      "v": "P3-B: To-do Island — atom 배열 상태 + 목록 렌더링 + 항목 삭제",
+      "entry": [
+        "pages/todo.flx",
+        "island-compiler.js (push/get/assoc/map/filter/reduce/get-in 추가)",
+        "FL_ISLAND_RT 확장 (배열·맵 조작 런타임)"
+      ],
+      "check": [
+        "GET /todo → SSR 렌더 (island placeholder 포함)",
+        "항목 추가 — 입력 후 추가 버튼 → 목록에 반영",
+        "항목 완료 토글 — 클릭 시 취소선",
+        "항목 삭제 — 삭제 버튼",
+        "JS 번들 크기 < 5KB (배열/맵 조작 함수 포함)"
+      ],
+      "verified": true,
+      "next": []
     },
     "task-008": {
       "t": "task",
