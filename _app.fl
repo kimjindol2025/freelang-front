@@ -1,5 +1,5 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T13:06:50.081Z
+; 생성: 2026-05-29T14:04:24.123Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
 (define form_box "form_box__ec6f")
@@ -33,32 +33,35 @@
 ; ── pages/contact/thanks.flx ──
 ; GET /contact/thanks — 문의 완료 페이지
 (defn page_contact_thanks [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<title>문의 완료 — FreeLang Front</title>"
-    "<style>"
-    "body{font-family:sans-serif;margin:0;background:#f9fafb}"
-    ".wrap{max-width:560px;margin:80px auto;padding:0 24px;text-align:center}"
-    ".card{background:white;border-radius:12px;padding:48px 32px;"
-    "box-shadow:0 4px 12px rgba(0,0,0,.1)}"
-    ".icon{font-size:3rem;margin-bottom:16px}"
-    "h2{color:#111;margin:0 0 8px}"
-    "p{color:#6b7280;margin:0 0 24px}"
-    "a{display:inline-block;background:#6366f1;color:white;text-decoration:none;"
-    "border-radius:6px;padding:10px 24px;font-size:.95rem}"
-    "a:hover{background:#4f46e5}"
-    "</style>"
-    "</head><body>"
-    "<div class='wrap'>"
-    "<div class='card'>"
-    "<div class='icon'>&#x2705;</div>"
-    "<h2>감사합니다</h2>"
-    "<p>문의가 성공적으로 접수되었습니다.<br>빠른 시일 내에 답변 드리겠습니다.</p>"
-    "<a href='/'>홈으로 돌아가기</a>"
-    "</div>"
-    "</div>"
-    "</body></html>")))
+  (let [name (server-req-query req "name")]
+    (server-html (str
+      "<!DOCTYPE html><html><head>"
+      "<meta charset='utf-8'>"
+      "<title>문의 완료 — FreeLang Front</title>"
+      "<style>"
+      "body{font-family:sans-serif;margin:0;background:#f9fafb}"
+      ".wrap{max-width:560px;margin:80px auto;padding:0 24px;text-align:center}"
+      ".card{background:white;border-radius:12px;padding:48px 32px;"
+      "box-shadow:0 4px 12px rgba(0,0,0,.1)}"
+      ".icon{font-size:3rem;margin-bottom:16px}"
+      "h2{color:#111;margin:0 0 8px}"
+      "p{color:#6b7280;margin:0 0 24px}"
+      "a{display:inline-block;background:#6366f1;color:white;text-decoration:none;"
+      "border-radius:6px;padding:10px 24px;font-size:.95rem}"
+      "a:hover{background:#4f46e5}"
+      "</style>"
+      "</head><body>"
+      "<div class='wrap'>"
+      "<div class='card'>"
+      "<div class='icon'>&#x2705;</div>"
+      "<h2>"
+      (if (= name nil) "감사합니다" (str name "님, 감사합니다"))
+      "</h2>"
+      "<p>문의가 성공적으로 접수되었습니다.<br>빠른 시일 내에 답변 드리겠습니다.</p>"
+      "<a href='/'>홈으로 돌아가기</a>"
+      "</div>"
+      "</div>"
+      "</body></html>"))))
 
 ; ── pages/contact.flx ──
 ; GET /contact — 문의 폼 렌더
@@ -117,6 +120,7 @@
       "</body></html>"))))
 
 ; POST 핸들러 — form-field 파싱 → 검증 → redirect
+; server-redirect가 encodeURI로 한글 자동 인코딩하므로 raw 값 그대로 전달
 (defn page_contact_post [req]
   (let [name  (form-field req "name")
         email (form-field req "email")]
@@ -124,7 +128,7 @@
       (server-redirect "/contact?error=1")
       (if (= email "")
         (server-redirect "/contact?error=1")
-        (server-redirect "/contact/thanks")))))
+        (server-redirect (str "/contact/thanks?name=" name))))))
 
 ; ── pages/counter.flx ──
 (defn page_counter [req]

@@ -56,6 +56,7 @@
       "</body></html>"))))
 
 ; POST 핸들러 — form-field 파싱 → 검증 → redirect
+; server-redirect가 encodeURI로 한글 자동 인코딩하므로 raw 값 그대로 전달
 (defn render_post [req]
   (let [name  (form-field req "name")
         email (form-field req "email")]
@@ -63,4 +64,4 @@
       (server-redirect "/contact?error=1")
       (if (= email "")
         (server-redirect "/contact?error=1")
-        (server-redirect "/contact/thanks")))))
+        (server-redirect (str "/contact/thanks?name=" name))))))
