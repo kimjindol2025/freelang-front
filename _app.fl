@@ -1,5 +1,5 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T12:12:02.167Z
+; 생성: 2026-05-29T12:27:29.852Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
 (define stat_card "stat_card__5598")
@@ -110,7 +110,7 @@
       "<meta charset='utf-8'>"
       "<meta name='viewport' content='width=device-width,initial-scale=1'>"
       "<title>Dashboard — FreeLang Front</title>"
-      "<link rel='stylesheet' href='/public/app.css'>"
+      "<style>.stat_card__5598 { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); } .grid__e95a { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); } .chart_box__a13d { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); margin-top: 24px; } .header__ae76 { background: #6366f1; color: white; padding: 32px; }</style>"
       "<style>"
       "body{font-family:sans-serif;margin:0;background:#f9fafb}"
       ".wrap{max-width:960px;margin:0 auto;padding:24px}"
@@ -161,7 +161,7 @@
     "<!DOCTYPE html><html><head>"
     "<meta charset='utf-8'>"
     "<title>Styled — FreeLang Front</title>"
-    "<link rel='stylesheet' href='/public/app.css'>"
+    "<style>.card__6486 { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.15); } .grid__e95a { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); } .hero__1266 { background: #6366f1; color: white; padding: 48px; border-radius: 12px; } .badge__bbad { background: #f3f4f6; color: #374151; padding: 4px; border-radius: 4px; font-size: 12px; }</style>"
     "<style>body{font-family:sans-serif;max-width:900px;margin:40px auto;padding:0 20px}</style>"
     "</head><body>"
     "<div class='hero__HASH'><h1>CSS DSL 데모</h1></div>"

@@ -147,7 +147,25 @@ function compile(pagesDir, outDir) {
   return { cssPath, bindings };
 }
 
-module.exports = { compile, extractStyles, buildCss };
+// 단일 파일의 Critical CSS 생성
+// 반환: { css: "<style>...</style>", bindings, rawCss }
+function compilePageCSS(filePath) {
+  const content  = fs.readFileSync(filePath, 'utf8');
+  const styles   = extractStyles(content);
+  if (!styles.length) return { css: '', bindings: [], rawCss: '' };
+
+  const bindings = [];
+  const rules    = [];
+  for (const s of styles) {
+    const { cls, css } = buildCss(s.name, s.pairs);
+    bindings.push({ name: s.name, cls });
+    rules.push(css);
+  }
+  const rawCss = rules.join(' ');
+  return { css: `<style>${rawCss}</style>`, bindings, rawCss };
+}
+
+module.exports = { compile, compilePageCSS, extractStyles, buildCss };
 
 // CLI 직접 실행 시
 if (require.main === module) {

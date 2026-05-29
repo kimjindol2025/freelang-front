@@ -70,7 +70,15 @@ function generate(routes, bindings = []) {
       /\(server-fn\s+([\w-]+)\s+\[([^\]]*)\]/,
       '(defn $1 [$2]'
     );
-    // 1) (style ...) 블록 제거 (CSS 파일로 컴파일됨)
+    // 1) (style ...) 블록 처리 — Critical CSS 인라인 후 블록 제거
+    const { css: criticalCss, rawCss, bindings: pageBnd } = styleCompiler.compilePageCSS(r.file);
+    if (criticalCss) {
+      // <link rel='stylesheet' href='/public/app.css'> → <style>...</style> 교체
+      src = src.replace(
+        /"<link rel='stylesheet' href='\/public\/app\.css'>"/,
+        JSON.stringify(criticalCss)
+      );
+    }
     src = src.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
     // 2) (island ...) 블록 컴파일
     const islands = islandCompiler.extractIslands(src);
