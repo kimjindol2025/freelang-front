@@ -1,5 +1,5 @@
 ; _app.fl — 자동 생성. 직접 수정 금지.
-; 생성: 2026-05-29T15:10:12.720Z
+; 생성: 2026-05-29T15:18:53.111Z
 
 ; ── CSS 스타일 클래스 바인딩 ──
 (define layout_nav "layout_nav__18e7")
@@ -9,8 +9,7 @@
 (define page_wrap "page_wrap__7159")
 (define stat_card "stat_card__5598")
 (define grid "grid__e95a")
-(define chart_box "chart_box__a13d")
-(define header "header__ae76")
+(define chart_box "chart_box__4b8f")
 (define card "card__6486")
 (define hero "hero__1266")
 (define badge "badge__6fd2")
@@ -19,6 +18,90 @@
 (define resp_hero "resp_hero__266c")
 
 ; ── 레이아웃·헬퍼 함수 ──
+; ── _charts.flx ──
+; pages/_charts.flx — SVG 차트 DSL 헬퍼
+; (chart-bar data w h) : [{:label "A" :value 40} ...] → SVG 문자열
+; (chart-line data w h): [{:label "A" :value 40} ...] → SVG 문자열
+
+; 막대 차트
+(defn chart-bar [data w h]
+  (let [n       (length data)
+        pad     40
+        inner-w (- w (* pad 2))
+        inner-h (- h (* pad 2))
+        values  (map (fn [d] (get d :value)) data)
+        max-v   (reduce (fn [a b] (if (> a b) a b)) 1 values)
+        bar-w   (- (/ inner-w n) 6)]
+    (str
+      "<svg viewBox='0 0 " w " " h "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
+      "<line x1='" pad "' y1='" pad "' x2='" pad "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
+      "<line x1='" pad "' y1='" (+ pad inner-h) "' x2='" (+ pad inner-w) "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
+      (reduce str ""
+        (map-indexed
+          (fn [i d]
+            (let [val   (get d :value)
+                  label (get d :label)
+                  bar-h (round (* inner-h (/ val max-v)))
+                  x     (+ pad (* i (+ bar-w 6)))
+                  y     (+ pad (- inner-h bar-h))]
+              (str
+                "<rect x='" x "' y='" y "' width='" bar-w "' height='" bar-h
+                "' fill='#6366f1' rx='3' opacity='0.85'/>"
+                "<text x='" (+ x (/ bar-w 2)) "' y='" (+ (+ pad inner-h) 14)
+                "' text-anchor='middle' font-size='11' fill='#6b7280'>" label "</text>"
+                "<text x='" (+ x (/ bar-w 2)) "' y='" (- y 4)
+                "' text-anchor='middle' font-size='10' fill='#374151'>" val "</text>")))
+          data))
+      "</svg>")))
+
+; 선 차트
+(defn chart-line [data w h]
+  (let [n       (length data)
+        pad     40
+        inner-w (- w (* pad 2))
+        inner-h (- h (* pad 2))
+        values  (map (fn [d] (get d :value)) data)
+        max-v   (reduce (fn [a b] (if (> a b) a b)) 1 values)
+        min-v   (reduce (fn [a b] (if (< a b) a b)) max-v values)
+        range-v (if (= max-v min-v) 1 (- max-v min-v))
+        step-x  (if (= n 1) inner-w (/ inner-w (- n 1)))
+        ; 포인트 좌표 계산
+        points  (map-indexed
+                  (fn [i d]
+                    (let [val (get d :value)
+                          cx  (+ pad (* i step-x))
+                          cy  (+ pad (- inner-h (* inner-h (/ (- val min-v) range-v))))]
+                      (str cx "," cy)))
+                  data)]
+    (str
+      "<svg viewBox='0 0 " w " " h "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
+      "<line x1='" pad "' y1='" pad "' x2='" pad "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
+      "<line x1='" pad "' y1='" (+ pad inner-h) "' x2='" (+ pad inner-w) "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
+      ; 그라데이션 영역 (fill)
+      "<defs><linearGradient id='grad' x1='0' y1='0' x2='0' y2='1'>"
+      "<stop offset='0%' stop-color='#6366f1' stop-opacity='0.2'/>"
+      "<stop offset='100%' stop-color='#6366f1' stop-opacity='0'/>"
+      "</linearGradient></defs>"
+      "<polyline points='"
+      (reduce str "" (map (fn [p] (str p " ")) points))
+      "' fill='none' stroke='#6366f1' stroke-width='2.5' stroke-linejoin='round'/>"
+      ; 데이터 포인트 + 레이블
+      (reduce str ""
+        (map-indexed
+          (fn [i d]
+            (let [val   (get d :value)
+                  label (get d :label)
+                  cx    (+ pad (* i step-x))
+                  cy    (+ pad (- inner-h (* inner-h (/ (- val min-v) range-v))))]
+              (str
+                "<circle cx='" cx "' cy='" cy "' r='4' fill='#6366f1'/>"
+                "<text x='" cx "' y='" (+ (+ pad inner-h) 14)
+                "' text-anchor='middle' font-size='11' fill='#6b7280'>" label "</text>"
+                "<text x='" cx "' y='" (- cy 8)
+                "' text-anchor='middle' font-size='10' fill='#374151'>" val "</text>")))
+          data))
+      "</svg>")))
+
 ; ── _layout.flx ──
 ; pages/_layout.flx — 공통 레이아웃 헬퍼
 ; 라우트로 등록되지 않음 (빌드 스크립트가 _ 접두사 제외)
@@ -212,92 +295,65 @@
              {:label "3월" :value 2100}
              {:label "4월" :value 1700}
              {:label "5월" :value 2400}
-             {:label "6월" :value 2800}]})
+             {:label "6월" :value 2800}]
+   :weekly  [{:label "월" :value 320}
+             {:label "화" :value 410}
+             {:label "수" :value 290}
+             {:label "목" :value 500}
+             {:label "금" :value 460}
+             {:label "토" :value 230}
+             {:label "일" :value 180}]})
 
 
-; SVG 바 차트 생성기
-(defn bar-chart [data w h]
-  (let [n      (length data)
-        pad    40
-        inner-w (- w (* pad 2))
-        inner-h (- h (* pad 2))
-        values  (map (fn [d] (get d :value)) data)
-        max-v   (reduce (fn [a b] (if (> a b) a b)) 1 values)
-        bar-w   (- (/ inner-w n) 6)]
-    (str
-      "<svg viewBox='0 0 " w " " h "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
-      ; Y축 격자
-      "<line x1='" pad "' y1='" pad "' x2='" pad "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
-      "<line x1='" pad "' y1='" (+ pad inner-h) "' x2='" (+ pad inner-w) "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
-      ; 바 + 레이블
-      (reduce str ""
-        (map-indexed
-          (fn [i d]
-            (let [val    (get d :value)
-                  label  (get d :label)
-                  bar-h  (round (* inner-h (/ val max-v)))
-                  x      (+ pad (* i (+ bar-w 6)))
-                  y      (+ pad (- inner-h bar-h))]
-              (str
-                "<rect x='" x "' y='" y "' width='" bar-w "' height='" bar-h
-                "' fill='#6366f1' rx='4' opacity='0.85'/>"
-                "<text x='" (+ x (/ bar-w 2)) "' y='" (+ (+ pad inner-h) 14)
-                "' text-anchor='middle' font-size='11' fill='#6b7280'>" label "</text>"
-                "<text x='" (+ x (/ bar-w 2)) "' y='" (- y 4)
-                "' text-anchor='middle' font-size='10' fill='#374151'>" val "</text>")))
-          data))
-      "</svg>")))
-
-; 숫자 포맷 (1000단위 쉼표)
+; 숫자 포맷 (백만 단위)
 (defn fmt-num [n]
-  (let [s (str n)
+  (let [s   (str n)
         len (length s)]
     (if (> len 6)
       (str (str-slice s 0 (- len 6)) "백" (str-slice s (- len 6) (- len 4)) "만")
       s)))
 
 (defn page_dashboard [req]
-  (let [stats    (fetch-stats)
-        users    (get stats :users)
-        revenue  (get stats :revenue)
-        orders   (get stats :orders)
-        monthly  (get stats :monthly)
-        chart    (bar-chart monthly 480 200)]
-    (server-html (str
-      "<!DOCTYPE html><html><head>"
-      "<meta charset='utf-8'>"
-      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-      "<title>Dashboard — FreeLang Front</title>"
-      "<style>.stat_card__5598 { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); } .grid__e95a { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); } .chart_box__a13d { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); margin-top: 24px; } .header__ae76 { background: #6366f1; color: white; padding: 32px; }</style>"
-      "<style>"
-      "body{font-family:sans-serif;margin:0;background:#f9fafb}"
-      ".wrap{max-width:960px;margin:0 auto;padding:24px}"
-      ".num{font-size:2rem;font-weight:700;color:#111}"
-      ".lbl{font-size:.85rem;color:#6b7280;margin-top:4px}"
-      ".nav a{color:white;text-decoration:none;margin-right:16px;opacity:.85}"
-      ".nav a:hover{opacity:1}"
-      "</style>"
-      "</head><body>"
-      "<div class='" header "'>"
-      "<div class='wrap'>"
-      "<div class='nav'><a href='/'>홈</a><a href='/counter'>카운터</a><a href='/styled'>스타일</a></div>"
-      "<h1 style='margin:16px 0 4px'>📊 FreeLang Front Dashboard</h1>"
-      "<p style='margin:0;opacity:.8'>npm install 0개 · SSR · CSS DSL · Island · SVG Chart</p>"
-      "</div></div>"
-      "<div class='wrap'>"
-      ; 통계 카드 3개
-      "<div class='" grid "' style='margin-top:24px'>"
-      "<div class='" stat_card "'><div class='num'>" users "</div><div class='lbl'>총 사용자</div></div>"
-      "<div class='" stat_card "'><div class='num'>₩" (fmt-num revenue) "</div><div class='lbl'>총 매출</div></div>"
-      "<div class='" stat_card "'><div class='num'>" orders "</div><div class='lbl'>총 주문</div></div>"
-      "</div>"
-      ; 바 차트
-      "<div class='" chart_box "'>"
-      "<h3 style='margin:0 0 16px;color:#374151'>월별 매출 (만원)</h3>"
-      chart
-      "</div>"
-      "</div>"
-      "</body></html>"))))
+  (let [stats   (fetch-stats)
+        users   (get stats :users)
+        revenue (get stats :revenue)
+        orders  (get stats :orders)
+        monthly (get stats :monthly)
+        weekly  (get stats :weekly)
+        bar     (chart-bar monthly 480 200)
+        line    (chart-line weekly 480 200)]
+    (server-html
+      (layout "Dashboard" (str "<style>.stat_card__5598 { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); } .grid__e95a { display: grid; gap: 16px; grid-template-columns: repeat(3, 1fr); } .chart_box__4b8f { background: white; padding: 24px; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.12); }</style>"
+        "<h2 style='margin:0 0 4px'>📊 FreeLang Front Dashboard</h2>"
+        "<p style='color:#6b7280;margin:0 0 24px'>npm install 0개 · SSR · CSS DSL · Island · SVG Chart</p>"
+
+        ; 통계 카드 3개
+        "<div class='" grid "' style='margin-bottom:24px'>"
+        "<div class='" stat_card "'>"
+        "<div style='font-size:2rem;font-weight:700'>" users "</div>"
+        "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>총 사용자</div>"
+        "</div>"
+        "<div class='" stat_card "'>"
+        "<div style='font-size:2rem;font-weight:700'>₩" (fmt-num revenue) "</div>"
+        "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>총 매출</div>"
+        "</div>"
+        "<div class='" stat_card "'>"
+        "<div style='font-size:2rem;font-weight:700'>" orders "</div>"
+        "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>총 주문</div>"
+        "</div>"
+        "</div>"
+
+        ; 차트 2개 — 나란히
+        "<div style='display:grid;grid-template-columns:1fr 1fr;gap:16px'>"
+        "<div class='" chart_box "'>"
+        "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📊 월별 매출 막대 차트</h3>"
+        bar
+        "</div>"
+        "<div class='" chart_box "'>"
+        "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📈 주간 방문 선 차트</h3>"
+        line
+        "</div>"
+        "</div>") req))))
 
 ; ── pages/index.flx ──
 (defn page_index [req]

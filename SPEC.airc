@@ -213,6 +213,23 @@
       "next": [
         "task-007"
       ]
+    },
+    "task-011": {
+      "t": "task",
+      "v": "P5-A: SVG 차트 DSL — (chart-bar) / (chart-line) 순수 SSR SVG 생성",
+      "entry": [
+        "pages/_charts.flx (chart-bar, chart-line 헬퍼 함수)",
+        "pages/dashboard.flx (차트 통합)"
+      ],
+      "check": [
+        "(chart-bar [{:label 'A' :value 40} ...] {}) → <svg>...</svg> 문자열",
+        "(chart-line [{:x 0 :y 10} ...] {}) → <svg>...</svg> 문자열",
+        "GET /dashboard — SVG 차트 2개 이상 포함",
+        "npm install 0개 유지",
+        "JS 없이 SSR SVG 렌더링"
+      ],
+      "verified": true,
+      "next": []
     }
   },
   "lock": [
