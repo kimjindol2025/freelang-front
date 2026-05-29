@@ -1,0 +1,3 @@
+(api-route "/api/hello" :get
+  (defn handler [req]
+    (server-json {:ok true :message "Hello from FL-Front API"})))

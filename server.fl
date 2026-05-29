@@ -1,0 +1,50 @@
+; FL-Front 메인 서버 — pages/ 스캔 후 라우트 자동 등록
+
+(define PORT 3000)
+(define PAGES_DIR "pages")
+
+; pages/*.flx 파일을 읽어 라우트 등록
+(defn load-page [route file]
+  (let [src (file-read file)]
+    ; (page "...") 블록에서 render fn 추출 후 등록
+    (server-route route "GET"
+      (fn [req]
+        (let [html (eval-page src req)]
+          (server-html html))))))
+
+; .flx → HTML 렌더 (P1: 단순 파일 읽기 후 eval)
+(defn eval-page [src req]
+  (let [result (fl-eval src {"req" req})]
+    (if (string? result)
+      result
+      (h->html result))))
+
+; h 트리 → HTML 문자열 변환
+(defn h->html [node]
+  (if (string? node)
+    (html-escape node)
+    (let [tag   (nth node 0)
+          attrs (nth node 1)
+          kids  (slice node 2)]
+      (str "<" tag (attrs->str attrs) ">"
+           (str-join (map kids h->html))
+           "</" tag ">"))))
+
+(defn attrs->str [attrs]
+  (if (nil? attrs)
+    ""
+    (let [pairs (map (keys attrs)
+                  (fn [k] (str " " k "=\"" (get attrs k) "\"")))]
+      (str-join pairs))))
+
+; 서버 시작
+(defn main []
+  (println (str "FL-Front v0.1 — port " PORT))
+  (println "스캔 중: pages/")
+  (let [routes (scan-pages PAGES_DIR)]
+    (for [r routes]
+      (println (str "  " (:route r) " → " (:file r)))
+      (load-page (:route r) (:file r))))
+  (server-start PORT))
+
+(main)

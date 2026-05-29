@@ -1,0 +1,23 @@
+; FL-Front 라우터 — pages/ 디렉토리 스캔 → 라우트 맵 자동 생성
+
+(defn file-to-route [path]
+  ; pages/index.flx        → /
+  ; pages/about.flx        → /about
+  ; pages/api/hello.flx    → /api/hello
+  ; pages/users/[id].flx   → /users/:id
+  (let [rel   (str-replace path "pages/" "")
+        noext (str-replace rel ".flx" "")
+        slash (str "/" noext)
+        route (str-replace slash "/index" "/")
+        dyn   (str-replace-regex route "\\[([^\\]]+)\\]" ":$1")]
+    (if (= dyn "//") "/" dyn)))
+
+(defn scan-pages [dir]
+  (let [files (dir-list-recursive dir ".flx")]
+    (map files (fn [f]
+      {:file f
+       :route (file-to-route f)}))))
+
+(defn router-print [routes]
+  (for [r routes]
+    (println (str "  " (:route r) "  →  " (:file r)))))

@@ -1,0 +1,8 @@
+(page "/"
+  (defn render []
+    (h "html" {}
+      (h "head" {}
+        (h "title" {} "FreeLang Front"))
+      (h "body" {}
+        (h "h1" {} "Hello FreeLang-Front")
+        (h "p" {} "npm install 0개로 Next.js 대체")))))

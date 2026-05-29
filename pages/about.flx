@@ -1,0 +1,8 @@
+(page "/about"
+  (defn render []
+    (h "html" {}
+      (h "head" {}
+        (h "title" {} "About"))
+      (h "body" {}
+        (h "h1" {} "FreeLang-Front란?")
+        (h "p" {} "FreeLang v11 fx 기반 풀스택 프론트엔드 언어")))))
