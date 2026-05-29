@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-005",
+  "hot": "done-p1-p2-p3a",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -103,7 +103,7 @@
         "카운터 island 브라우저 동작",
         "JS < 2KB"
       ],
-      "verified": false,
+      "verified": true,
       "next": []
     },
     "dec-001": {

@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // fl-front-build.js — pages/*.flx 스캔 → _app.fl 단일 파일 생성 (load 불필요)
 
-const fs            = require('fs');
-const path          = require('path');
-const styleCompiler = require('./style-compiler');
+const fs             = require('fs');
+const path           = require('path');
+const styleCompiler  = require('./style-compiler');
+const islandCompiler = require('./island-compiler');
 
 const PAGES_DIR = path.join(__dirname, 'pages');
 const OUT_FILE  = path.join(__dirname, '_app.fl');
@@ -61,11 +62,41 @@ function generate(routes, bindings = []) {
     lines.push('');
   }
 
-  // 각 페이지 함수 인라인 — (style ...) 블록 제거 후 삽입
+  // 각 페이지 함수 인라인 — (style/island ...) 블록 처리 후 삽입
   for (const r of routes) {
     const raw = fs.readFileSync(r.file, 'utf8').trim();
-    // (style ...) 블록 제거 (이미 CSS 파일로 컴파일됨)
-    const src = raw.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
+    // 1) (style ...) 블록 제거 (CSS 파일로 컴파일됨)
+    let src = raw.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
+    // 2) (island ...) 블록 컴파일
+    const islands = islandCompiler.extractIslands(src);
+    // 2a) 최상위 island 블록 완전 제거 (FL 런타임에서 실행 불가)
+    for (const { block } of [...islands].reverse()) {
+      src = src.replace(block, '');
+    }
+    src = src.trim();
+    // 2b) HTML placeholder 교체 (ISLAND_PLACEHOLDER → <div> 마운트 포인트)
+    if (islands.length > 0) {
+      const { scripts } = islandCompiler.compileFileIslands(
+        islands.map(i => i.block).join('\n')
+      );
+      const divs = islands.map((_, idx) => {
+        const ast = islandCompiler.extractIslands(islands[idx].block);
+        return `<div id='island-${idx}'></div>`;
+      }).join('');
+      // island id는 compileFileIslands가 생성한 것 사용
+      const { scripts: compiledScripts } = islandCompiler.compileFileIslands(
+        islands.map(i => i.block).join('\n')
+      );
+      const divPlaceholder = islands.map((item, idx) => {
+        const nameMatch = item.block.match(/\(island\s+([\w-]+)/);
+        const name = nameMatch ? nameMatch[1].toLowerCase() : `island${idx}`;
+        return `<div id='island-${name}-${idx}'></div>`;
+      }).join('');
+      const scriptBlock = islandCompiler.FL_ISLAND_RT +
+        `<script>\n${compiledScripts.join('\n')}\n</script>`;
+      src = src.replace(/"ISLAND_PLACEHOLDER"/g, JSON.stringify(divPlaceholder));
+      src = src.replace(/"ISLAND_SCRIPTS"/g, JSON.stringify(scriptBlock));
+    }
     lines.push(`; ── ${r.file} ──`);
     const renamed = src.replace(
       /\(defn render \[req\]/,
