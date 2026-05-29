@@ -294,7 +294,7 @@
         ".flx 저장 → 1초 내 자동 빌드 + 서버 재시작",
         "npm 0개 (Node.js fs.watch 내장 사용)"
       ],
-      "verified": false,
+      "verified": true,
       "next": [
         "task-016"
       ]
@@ -311,7 +311,7 @@
         "POST /upload → public/uploads/ 저장 + 미리보기",
         "파일 크기 제한 2MB"
       ],
-      "verified": false,
+      "verified": true,
       "next": []
     }
   },
