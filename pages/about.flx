@@ -1,8 +1,12 @@
-(page "/about"
-  (defn render []
-    (h "html" {}
-      (h "head" {}
-        (h "title" {} "About"))
-      (h "body" {}
-        (h "h1" {} "FreeLang-Front란?")
-        (h "p" {} "FreeLang v11 fx 기반 풀스택 프론트엔드 언어")))))
+(defn render [req]
+  (server-html (str
+    "<!DOCTYPE html><html><head>"
+    "<meta charset='utf-8'>"
+    "<title>About — FreeLang Front</title>"
+    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
+    "</head><body>"
+    "<h1>FreeLang-Front란?</h1>"
+    "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어</p>"
+    "<ul><li>npm install 0개</li><li>SSR 기본</li><li>파일 기반 라우팅</li></ul>"
+    "<a href='/'>← 홈</a>"
+    "</body></html>")))

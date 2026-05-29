@@ -1,8 +1,12 @@
-(page "/"
-  (defn render []
-    (h "html" {}
-      (h "head" {}
-        (h "title" {} "FreeLang Front"))
-      (h "body" {}
-        (h "h1" {} "Hello FreeLang-Front")
-        (h "p" {} "npm install 0개로 Next.js 대체")))))
+(defn render [req]
+  (server-html (str
+    "<!DOCTYPE html><html><head>"
+    "<meta charset='utf-8'>"
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<title>FreeLang Front</title>"
+    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
+    "</head><body>"
+    "<h1>Hello FreeLang-Front</h1>"
+    "<p>npm install 0개로 Next.js 대체</p>"
+    "<nav><a href='/about'>About</a> · <a href='/api/hello'>API 테스트</a></nav>"
+    "</body></html>")))

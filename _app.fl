@@ -1,0 +1,41 @@
+; _app.fl — 자동 생성. 직접 수정 금지.
+; 생성: 2026-05-29T11:19:41.534Z
+
+; ── pages/about.flx ──
+(defn page_about [req]
+  (server-html (str
+    "<!DOCTYPE html><html><head>"
+    "<meta charset='utf-8'>"
+    "<title>About — FreeLang Front</title>"
+    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
+    "</head><body>"
+    "<h1>FreeLang-Front란?</h1>"
+    "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어</p>"
+    "<ul><li>npm install 0개</li><li>SSR 기본</li><li>파일 기반 라우팅</li></ul>"
+    "<a href='/'>← 홈</a>"
+    "</body></html>")))
+
+; ── pages/api/hello.flx ──
+(defn page_api_hello [req]
+  (server-json {:ok true :message "Hello from FL-Front API" :version "0.1"}))
+
+; ── pages/index.flx ──
+(defn page_index [req]
+  (server-html (str
+    "<!DOCTYPE html><html><head>"
+    "<meta charset='utf-8'>"
+    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+    "<title>FreeLang Front</title>"
+    "<style>body{font-family:sans-serif;max-width:800px;margin:40px auto;padding:0 20px}</style>"
+    "</head><body>"
+    "<h1>Hello FreeLang-Front</h1>"
+    "<p>npm install 0개로 Next.js 대체</p>"
+    "<nav><a href='/about'>About</a> · <a href='/api/hello'>API 테스트</a></nav>"
+    "</body></html>")))
+
+(server-get "/about" "page_about")
+(server-get "/api/hello" "page_api_hello")
+(server-get "/" "page_index")
+
+(println "FL-Front v0.1 — http://localhost:3000")
+(server-start 3000)

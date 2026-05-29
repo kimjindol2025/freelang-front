@@ -1,0 +1,46 @@
+; _routes.fl — 자동 생성. 직접 수정 금지.
+; fl-front-build.js 가 pages/*.flx 를 스캔하여 생성합니다.
+
+; ── pages/about.flx ──
+(defn page-about [req]
+  (server-html
+    (h "html" {}
+      (h "head" {}
+        (h "title" {} "About — FreeLang Front")
+        (h "meta" {:charset "utf-8"}))
+      (h "body" {}
+        (h "h1" {} "FreeLang-Front란?")
+        (h "p" {} "FreeLang v11 fx 기반 풀스택 프론트엔드 언어")
+        (h "ul" {}
+          (h "li" {} "npm install 0개")
+          (h "li" {} "SSR 기본")
+          (h "li" {} "파일 기반 라우팅"))
+        (h "a" {:href "/"} "← 홈")))))
+
+; ── pages/api/hello.flx ──
+(defn page-api-hello [req]
+  (server-json {:ok true :message "Hello from FL-Front API" :version "0.1"}))
+
+; ── pages/index.flx ──
+(defn page-index [req]
+  (server-html
+    (h "html" {}
+      (h "head" {}
+        (h "title" {} "FreeLang Front")
+        (h "meta" {:charset "utf-8"})
+        (h "meta" {:name "viewport" :content "width=device-width,initial-scale=1"}))
+      (h "body" {}
+        (h "h1" {} "Hello FreeLang-Front")
+        (h "p" {} "npm install 0개로 Next.js 대체")
+        (h "nav" {}
+          (h "a" {:href "/about"} "About"))))))
+
+(define routes {
+  :get {
+    "/about" (fn [req] (page-about req))
+    "/api/hello" (fn [req] (page-api-hello req))
+    "/" (fn [req] (page-index req))
+  }
+})
+
+(route routes)

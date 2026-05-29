@@ -4,16 +4,13 @@
   "project": "freelang-front",
   "date": "2026-05-29",
   "cmd": "python3 -c \"import json; d=json.load(open('SPEC.airc')); print('what:', d['identity']['what']); print('hot:', d['hot'])\"",
-
   "identity": {
     "what": "FreeLang v11 fx 기반 풀스택 프론트엔드 언어 — npm install 0개로 Next.js 스택 전체 대체",
-    "why":  "React+Next.js+Tailwind+Zustand+TanStack 조합의 복잡성을 단일 언어로 통합",
-    "for":  "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
-    "not":  "SPA, 3D, 게임, 인터랙션이 많은 앱"
+    "why": "React+Next.js+Tailwind+Zustand+TanStack 조합의 복잡성을 단일 언어로 통합",
+    "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
+    "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-
-  "hot": "task-001",
-
+  "hot": "task-002",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -22,13 +19,11 @@
     "5": "노드는 삭제하지 않는다. void 처리만 허용",
     "6": "why 없는 lock·decision 등록 불가"
   },
-
   "types": {
-    "task":     "t + v + entry + check + verified + next",
+    "task": "t + v + entry + check + verified + next",
     "decision": "t + v + why + lock",
-    "error":    "t + v + cause + fix + repeat_risk"
+    "error": "t + v + cause + fix + repeat_risk"
   },
-
   "phases": {
     "P1": "SSR + 파일 라우터 (3~4주) ★★☆",
     "P2": "CSS DSL + 빌드 파이프라인 (2~3주) ★★☆",
@@ -36,72 +31,93 @@
     "P4": "query/form/atom 내장 (2~3주) ★★★☆",
     "P5": "SVG 차트 + HMR (2~3주) ★★★☆"
   },
-
   "nodes": {
-
     "task-001": {
       "t": "task",
       "v": "P1-A: pages/ 라우터 스캐너 구현 — .flx → 라우트 맵",
-      "entry": ["router.fl", "server.fl"],
+      "entry": [
+        "router.fl",
+        "server.fl"
+      ],
       "check": [
         "pages/index.flx → GET / 응답",
         "pages/about.flx → GET /about 응답",
         "pages/api/hello.flx → GET /api/hello JSON"
       ],
-      "verified": false,
-      "next": ["task-002"]
+      "verified": true,
+      "next": [
+        "task-002"
+      ]
     },
-
     "task-002": {
       "t": "task",
       "v": "P1-B: 동적 라우트 — pages/users/[id].flx → /users/:id",
-      "entry": ["router.fl (str-replace-regex 패턴)"],
-      "check": ["GET /users/42 → req.params.id = '42'"],
+      "entry": [
+        "router.fl (str-replace-regex 패턴)"
+      ],
+      "check": [
+        "GET /users/42 → req.params.id = '42'"
+      ],
       "verified": false,
-      "next": ["task-003"]
+      "next": [
+        "task-003"
+      ]
     },
-
     "task-003": {
       "t": "task",
       "v": "P1-C: fl-dev-server — 파일 감시 + 자동 restart",
-      "entry": ["dev-server.fl"],
-      "check": [".flx 저장 → 1초 내 서버 재시작"],
+      "entry": [
+        "dev-server.fl"
+      ],
+      "check": [
+        ".flx 저장 → 1초 내 서버 재시작"
+      ],
       "verified": false,
-      "next": ["task-004"]
+      "next": [
+        "task-004"
+      ]
     },
-
     "task-004": {
       "t": "task",
       "v": "P2-A: (style ...) DSL → scoped .css 생성",
-      "entry": ["style-compiler.fl"],
-      "check": ["10개 속성 지원", "hash suffix", ".css 파일 출력"],
+      "entry": [
+        "style-compiler.fl"
+      ],
+      "check": [
+        "10개 속성 지원",
+        "hash suffix",
+        ".css 파일 출력"
+      ],
       "verified": false,
-      "next": ["task-005"]
+      "next": [
+        "task-005"
+      ]
     },
-
     "task-005": {
       "t": "task",
       "v": "P3-A: (island ...) 파서 + 기본 JS emit",
-      "entry": ["island-compiler.fl"],
-      "check": ["카운터 island 브라우저 동작", "JS < 2KB"],
+      "entry": [
+        "island-compiler.fl"
+      ],
+      "check": [
+        "카운터 island 브라우저 동작",
+        "JS < 2KB"
+      ],
       "verified": false,
       "next": []
     },
-
     "dec-001": {
       "t": "decision",
       "v": "아일랜드 아키텍처 채택 — 전체 Hydration 금지",
       "why": "Virtual DOM 구현 6개월+. 아일랜드로 충분",
       "lock": true
     },
-
     "dec-002": {
       "t": "decision",
       "v": "CSS 빌드타임 정적 생성 — 런타임 CSS-in-JS 금지",
       "why": "의존성 없음. SSR Critical CSS 자동화",
       "lock": true
     },
-
     "dec-003": {
       "t": "decision",
       "v": "확장자 .flx — 기존 .fl과 구분",
@@ -109,20 +125,41 @@
       "lock": true
     }
   },
-
   "lock": [
-    {"rule": "npm install 금지", "why": "의존성 0 원칙"},
-    {"rule": "Virtual DOM 전체 구현 금지", "why": "dec-001"},
-    {"rule": ".flx 내 순수 JS 금지", "why": "언어 단일성"},
-    {"rule": "CSS 런타임 생성 금지", "why": "dec-002"}
+    {
+      "rule": "npm install 금지",
+      "why": "의존성 0 원칙"
+    },
+    {
+      "rule": "Virtual DOM 전체 구현 금지",
+      "why": "dec-001"
+    },
+    {
+      "rule": ".flx 내 순수 JS 금지",
+      "why": "언어 단일성"
+    },
+    {
+      "rule": "CSS 런타임 생성 금지",
+      "why": "dec-002"
+    }
   ],
-
   "graveyard": [
-    {"idea": "Virtual DOM clone", "why": "6개월+. 아일랜드로 대체", "final": true},
-    {"idea": "WASM 타깃", "why": "cgc-bin으로 충분. 별도 프로젝트", "final": true},
-    {"idea": "TypeScript 통합", "why": "FL 타입 시스템과 충돌", "final": true}
+    {
+      "idea": "Virtual DOM clone",
+      "why": "6개월+. 아일랜드로 대체",
+      "final": true
+    },
+    {
+      "idea": "WASM 타깃",
+      "why": "cgc-bin으로 충분. 별도 프로젝트",
+      "final": true
+    },
+    {
+      "idea": "TypeScript 통합",
+      "why": "FL 타입 시스템과 충돌",
+      "final": true
+    }
   ],
-
   "handoff": {
     "step1": "cmd 실행 → identity·hot 확인",
     "step2": "graveyard 확인",
