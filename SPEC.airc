@@ -10,7 +10,7 @@
     "for": "FreeLang v11 fx 사용자. 콘텐츠 중심 앱, 관리자 대시보드, SaaS 프론트엔드",
     "not": "SPA, 3D, 게임, 인터랙션이 많은 앱"
   },
-  "hot": "task-015",
+  "hot": "done",
   "constitution": {
     "1": "AI 전용. 인간 가독성을 위한 구조 타협 금지",
     "2": "identity는 잠긴다. 변경은 사용자 협의 필수",
@@ -234,7 +234,8 @@
     "task-012": {
       "t": "task",
       "v": "에러 페이지 — 404/500 HTML 렌더링 (/* 와일드카드 라우트)",
-      "verified": false,
+      "verified": true,
+      "verified_at": "2026-05-30",
       "entry": [
         "fl-front-build.js (와일드카드 라우트 자동 등록)",
         "pages/_error.flx (404/500 페이지)"
@@ -244,6 +245,7 @@
         "서버 에러 시 500 HTML 페이지",
         "layout 헬퍼 적용 (nav 포함)"
       ],
+      "evidence": "실측 PASS: GET / →200, /this-does-not-exist →404, /random-path/sub →404, 404 페이지에 <nav + '404' + '페이지를 찾을 수 없습니다' 모두 포함. _app.fl 마지막 라우트 (server-get \"/*\" \"not_found_handler\") 등록 확인. page-500은 helper로 정의(자동 wrap 미구현, 페이지가 catch 후 명시 호출 패턴 — 호출 자동화는 별도 사이클).",
       "next": [
         "task-013"
       ]
