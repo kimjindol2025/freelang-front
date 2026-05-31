@@ -625,13 +625,29 @@ function generate(routes, bindings = [], helpers = [], appCss = '') {
       // _layout.flx: GLOBAL-CSS 앞에 모던 CSS 토큰 주입 + app.css 병합
       if (path.basename(helperPath) === '_layout.flx') {
         const BASE_CSS = `
+/* ━━━ OKLCH + Relative Colors + light-dark() 다크모드 ━━━ */
 :root{
-  --c-bg:#f9fafb;--c-surface:#fff;--c-border:#e5e7eb;
-  --c-text:#111827;--c-muted:#9ca3af;
-  --c-primary:#6366f1;--c-primary-d:#4f46e5;--c-primary-l:#ede9fe;
-  --c-success:#16a34a;--c-warning:#d97706;--c-danger:#dc2626;
+  color-scheme: light dark;
+
+  /* OKLCH 팔레트 — 지각적으로 균일한 색상 */
+  --c-primary:   oklch(0.55 0.22 264);
+  --c-primary-d: oklch(from var(--c-primary) calc(l - 0.07) c h);
+  --c-primary-l: oklch(from var(--c-primary) 0.94 0.05 h);
+  --c-success:   oklch(0.55 0.17 145);
+  --c-warning:   oklch(0.62 0.15 76);
+  --c-danger:    oklch(0.50 0.20 25);
+
+  /* light-dark() — 다크모드 자동 전환 */
+  --c-bg:      light-dark(oklch(0.97 0.01 264), oklch(0.12 0.015 264));
+  --c-surface: light-dark(oklch(1 0 0),          oklch(0.17 0.012 264));
+  --c-border:  light-dark(oklch(0.91 0.01 264),  oklch(0.27 0.015 264));
+  --c-text:    light-dark(oklch(0.17 0.01 264),  oklch(0.92 0.005 264));
+  --c-muted:   light-dark(oklch(0.65 0.01 264),  oklch(0.52 0.01 264));
+  --c-nav-bg:  light-dark(oklch(0.17 0.03 264),  oklch(0.10 0.02 264));
+
   --radius-sm:8px;--radius-md:12px;
-  --shadow-sm:0 1px 3px rgba(0,0,0,.07);--shadow-md:0 4px 16px rgba(0,0,0,.10);
+  --shadow-sm:0 1px 3px oklch(0 0 0 / .07);
+  --shadow-md:0 4px 16px oklch(0 0 0 / .12);
   --ease-spring:linear(0,0.009,0.035 2.1%,0.141,0.281 6.7%,0.723 12.9%,0.938 16.7%,1.017,1.06,1.081 21%,1.09,1.088 24.6%,1.081,1.037 33.3%,1.009 38.3%,1);
   --ease-bounce:linear(0,0.063,0.25,0.563,1.001,1.199 18.2%,1.249,1.27,1.274,1.25 25%,1.008 32.8%,0.96,0.944 37%,0.944 38.6%,0.96,1.001 46.6%,1.015,1.016 52.5%,1.001 56.6%,0.994,1);
 }
@@ -710,6 +726,44 @@ button.danger:hover{background:#b91c1c}
 }
 .tooltip-wrap:has(.tooltip-trigger:hover) .tooltip,
 .tooltip-wrap:has(.tooltip-trigger:focus) .tooltip{opacity:1;transform:translateY(0)}
+
+/* ━━━ @starting-style — 플래시 없는 진입 애니메이션 ━━━ */
+.card{transition:opacity .4s,transform .4s var(--ease-spring),box-shadow .3s}
+@starting-style{
+  .card{opacity:0;transform:translateY(14px)}
+}
+dialog{transition:opacity .3s,transform .3s var(--ease-spring),display .3s allow-discrete}
+dialog[open]{opacity:1;transform:scale(1) translateY(0)}
+@starting-style{
+  dialog[open]{opacity:0;transform:scale(.94) translateY(-12px)}
+}
+.badge{transition:opacity .25s,transform .25s var(--ease-spring)}
+@starting-style{
+  .badge{opacity:0;transform:scale(.7)}
+}
+.stat{transition:opacity .4s,transform .4s var(--ease-spring),box-shadow .3s}
+@starting-style{
+  .stat{opacity:0;transform:scale(.9)}
+}
+
+/* ━━━ @scope — 컴포넌트 CSS 격리 ━━━ */
+@scope (.card){
+  :scope{position:relative}
+  p{color:var(--c-text);line-height:1.6;margin:6px 0}
+  a{color:var(--c-primary);font-weight:500}
+  h3{font-size:1rem;font-weight:700;margin-bottom:10px;text-wrap:balance}
+  code{background:oklch(from var(--c-primary) 0.95 0.03 h);color:var(--c-primary-d);padding:2px 6px;border-radius:4px;font-size:.85em}
+}
+@scope (.table-wrap){
+  th{background:oklch(from var(--c-bg) calc(l - 0.03) c h)}
+  td{color:var(--c-text)}
+  tr:hover td{background:oklch(from var(--c-primary) 0.96 0.03 h)}
+}
+@scope (form){
+  :scope{gap:14px}
+  label{color:var(--c-text);font-weight:600}
+  input,select,textarea{background:var(--c-surface);color:var(--c-text);border-color:var(--c-border)}
+}
 `.trim();
         const escapedBase = BASE_CSS.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         const escapedApp  = appCss ? appCss.replace(/\\/g, '\\\\').replace(/"/g, '\\"') : '';
