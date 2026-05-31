@@ -1,19 +1,56 @@
-(island Counter []
+; pages/counter.flx — 글로벌 store 연동 데모
+
+(style counter-page :align "center" :p "48px 24px")
+(style counter-box :bg "white" :radius "16px" :p "40px" :shadow "md" :display "inline-block" :min-w "320px")
+(style counter-btn :size "1.5rem" :p "12px 28px" :cursor "pointer"
+  :border "2px solid #6366f1" :radius "8px" :bg "white" :color "#6366f1"
+  :hover-bg "#6366f1" :hover-color "white" :transition "all .15s")
+(style counter-num :size "4rem" :weight "800" :color "#6366f1" :m "16px 0")
+(style counter-label :color "#9ca3af" :size ".85rem")
+(style store-badge :bg "#f3f4f6" :radius "8px" :p "12px 16px" :mt "24px" :size ".85rem" :align "left")
+
+; Island 1: 로컬 카운터 (atom 기반)
+(island LocalCounter []
   (let [n (atom 0)]
-    (h "button" {:on-click (fn [] (swap! n inc))} (str @n))))
+    (h "div" {}
+      (h "p" {:class counter-label} "로컬 카운터 (이 Island만)")
+      (h "div" {:class counter-num} (str @n))
+      (h "div" {:style "display:flex;gap:8px;justify-content:center"}
+        (h "button" {:class counter-btn :on-click (fn [] (swap! n (fn [v] (- v 1))))} "−")
+        (h "button" {:class counter-btn :on-click (fn [] (swap! n (fn [v] (+ v 1))))} "+")))))
+
+; Island 2: 글로벌 store 카운터 (Island 간 공유)
+(island GlobalCounter []
+  (let [count (get-store "count")]
+    (h "div" {}
+      (h "p" {:class counter-label} "글로벌 카운터 (모든 Island 공유)")
+      (h "div" {:class counter-num :style "color:#10b981"} (str (if (= count nil) 0 count)))
+      (h "div" {:style "display:flex;gap:8px;justify-content:center"}
+        (h "button" {:class counter-btn :style "border-color:#10b981;color:#10b981"
+                     :on-click (fn [] (dispatch "count" (- (or (get-store "count") 0) 1)))} "−")
+        (h "button" {:class counter-btn :style "border-color:#10b981;color:#10b981"
+                     :on-click (fn [] (dispatch "count" (+ (or (get-store "count") 0) 1)))} "+")))))
+
+; Island 3: store 상태 뷰어 (다른 Island 변화 관찰)
+(island StoreViewer [:watch "count"]
+  (let [store (get-store)]
+    (h "div" {:class store-badge}
+      (h "strong" {} "🗂 글로벌 store 상태")
+      (h "pre" {:style "margin:8px 0 0;color:#374151"} (str "count = " (or (get-store "count") 0))))))
 
 (defn render [req]
-  (server-html (str
-    "<!DOCTYPE html><html><head>"
-    "<meta charset='utf-8'>"
-    "<title>Counter Island — FreeLang Front</title>"
-    "<style>body{font-family:sans-serif;max-width:600px;margin:60px auto;text-align:center}"
-    "button{font-size:2rem;padding:16px 32px;cursor:pointer;border:2px solid #6366f1;"
-    "border-radius:8px;background:white;color:#6366f1}</style>"
-    "</head><body>"
-    "<h1>Island 카운터</h1>"
-    "<p>버튼을 클릭하면 숫자가 증가합니다.</p>"
-    "ISLAND_PLACEHOLDER"
-    "ISLAND_SCRIPTS"
-    "<p style='margin-top:32px'><a href='/'>← 홈</a></p>"
-    "</body></html>")))
+  (layout-html "Counter" (str
+    (h "div" {:class counter-page}
+      (h "h2" {:style "margin:0 0 8px"} "Island 상태 공유 데모")
+      (h "p" {:style "color:#6b7280;margin:0 0 32px"}
+        "로컬 atom vs 글로벌 store — Island 간 상태 동기화")
+      (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:24px;max-width:700px;margin:0 auto"}
+        (str
+          (h "div" {:class counter-box}
+            "ISLAND_PLACEHOLDER_0")
+          (h "div" {:class counter-box}
+            "ISLAND_PLACEHOLDER_1")))
+      (h "div" {:style "max-width:700px;margin:24px auto"}
+        "ISLAND_PLACEHOLDER_2"))
+    "ISLAND_SCRIPTS")
+  req))

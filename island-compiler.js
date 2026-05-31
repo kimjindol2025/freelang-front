@@ -135,6 +135,10 @@ function emitList(node, ctx) {
   if (head?.sym === 'length')  return `(${emit(args[0],ctx)})?.length ?? 0`;
   if (head?.sym === 'first')   return `(${emit(args[0],ctx)})?.[0] ?? null`;
   if (head?.sym === 'rest')    return `(${emit(args[0],ctx)})?.slice(1) ?? []`;
+  // ── 글로벌 store ──
+  if (head?.sym === 'get-store')    return args.length ? `_fl.get_store(${emit(args[0],ctx)})` : `_fl.get_store()`;
+  if (head?.sym === 'dispatch')     return `_fl.dispatch(${emit(args[0],ctx)}${args[1]!==undefined?','+emit(args[1],ctx):''})`;
+  if (head?.sym === 'watch-store')  return `_fl.watch_store(${emit(args[0],ctx)})`;
   if (head?.sym === 'empty?')  return `(!((${emit(args[0],ctx)}) && (${emit(args[0],ctx)}).length > 0))`;
   // 일반 함수 호출
   const fn = emit(head, ctx);
@@ -212,11 +216,24 @@ function emitStr(args, ctx) {
 // ── Island 런타임 (~900B) ────────────────────────────────────
 const FL_ISLAND_RT = `<script>
 const _fl={
+  // ── 로컬 atom ──
   atom:(v)=>({v}),
   deref:(a)=>a.v,
   swap:(a,f)=>{a.v=f(a.v);return a.v;},
   reset:(a,v)=>{a.v=v;return v;},
-  // 배열/맵 조작
+  // ── 글로벌 store (Island 간 상태 공유) ──
+  _store:{v:{}},
+  _watchers:[],
+  get_store:(key)=>key?(_fl._store.v[key]??null):_fl._store.v,
+  dispatch:(key,val)=>{
+    const prev=_fl._store.v;
+    _fl._store.v=typeof key==='object'
+      ? {...prev,...key}
+      : {...prev,[key]:val};
+    _fl._watchers.forEach(fn=>fn(prev,_fl._store.v,key));
+  },
+  watch_store:(fn)=>{_fl._watchers.push(fn);return ()=>{_fl._watchers=_fl._watchers.filter(w=>w!==fn);};},
+  // ── 배열/맵 조작 ──
   push:(arr,item)=>[...(arr||[]),item],
   get:(obj,key)=>obj==null?null:obj[key]??null,
   assoc:(obj,key,val)=>({...(obj||{}),[key]:val}),
@@ -224,6 +241,7 @@ const _fl={
   map_arr:(fn,arr)=>(arr||[]).map(fn),
   filter_arr:(fn,arr)=>(arr||[]).filter(fn),
   reduce_arr:(fn,init,arr)=>(arr||[]).reduce(fn,init),
+  // ── DOM 빌더 ──
   h:(tag,attrs,...ch)=>{
     const el=document.createElement(tag);
     for(const[k,v]of Object.entries(attrs||{})){
@@ -238,11 +256,21 @@ const _fl={
     });
     return el;
   },
+  // ── Island 마운트 (store watch 통합) ──
   mount:(id,renderFn)=>{
     const el=document.getElementById(id);
     if(!el)return;
     const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);const r=renderFn(update);if(r)el.appendChild(r);};
     update();
+    return update;  // store watch에서 재렌더 가능하도록 반환
+  },
+  // ── store 구독 + 자동 재렌더 ──
+  mount_reactive:(id,renderFn,keys)=>{
+    const update=_fl.mount(id,renderFn);
+    if(!update)return;
+    _fl.watch_store((prev,next,changed)=>{
+      if(!keys||keys.includes(changed))update();
+    });
   }
 };
 const _fl_str=(...xs)=>xs.map(String).join('');
@@ -282,8 +310,18 @@ function compileFileIslands(flxContent) {
     const ast  = parse(block);
     const name = ast[1]?.sym ?? `Island${idx}`;
     const id   = `island-${name.toLowerCase()}-${idx}`;
+    // 두 번째 인자가 배열이면 옵션 맵으로 해석 ([:watch "key1" ...])
+    const opts = Array.isArray(ast[2]) ? ast[2] : null;
+    const watchKeys = opts
+      ? opts.reduce((acc, v, i) => {
+          if (v?.kw === 'watch') acc.push(...opts.slice(i+1).filter(x => typeof x === 'string'));
+          return acc;
+        }, [])
+      : [];
     const renderFn = emitIsland(ast.slice(1), {});
-    const js   = `_fl.mount(${JSON.stringify(id)}, ${renderFn});`;
+    const js = watchKeys.length
+      ? `_fl.mount_reactive(${JSON.stringify(id)}, ${renderFn}, ${JSON.stringify(watchKeys)});`
+      : `_fl.mount(${JSON.stringify(id)}, ${renderFn});`;
     scripts.push(js);
     // island 블록 → <div id="..."></div> 플레이스홀더로 교체
     const placeholder = `"<div id='${id}'></div>"`;
