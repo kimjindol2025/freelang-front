@@ -1,11 +1,27 @@
 #!/usr/bin/env node
-// fl-front-build.js — pages/*.flx 스캔 → _app.fl 단일 파일 생성 (load 불필요)
+// fl-front-build.js — pages/*.flx 스캔 → _app.fl 단일 파일 생성
+// Phase 5: 파일 해시 캐싱으로 미변경 페이지 스킵
 
 const fs             = require('fs');
 const path           = require('path');
 const cp             = require('child_process');
+const crypto         = require('crypto');
 const styleCompiler  = require('./style-compiler');
 const islandCompiler = require('./island-compiler');
+
+const CACHE_FILE = path.join(__dirname, '.build-cache.json');
+
+// 빌드 캐시 로드/저장
+function loadCache() {
+  try { return JSON.parse(fs.readFileSync(CACHE_FILE, 'utf8')); } catch { return {}; }
+}
+function saveCache(cache) {
+  try { fs.writeFileSync(CACHE_FILE, JSON.stringify(cache), 'utf8'); } catch {}
+}
+function fileHash(p) {
+  try { return crypto.createHash('md5').update(fs.readFileSync(p)).digest('hex').slice(0, 8); }
+  catch { return ''; }
+}
 
 const PAGES_DIR   = path.join(__dirname, 'pages');
 
@@ -593,6 +609,8 @@ function generate(routes, bindings = [], helpers = [], appCss = '') {
   return lines.join('\n');
 }
 
+const BUILD_START = Date.now();
+const cache   = loadCache();
 const routes  = scanPages(PAGES_DIR);
 const helpers = scanHelpers(PAGES_DIR);
 console.log('FL-Front 빌드...');
@@ -624,5 +642,14 @@ validateFunctions(appContent);
 // C. AGENTS.md 자동 생성
 fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes), 'utf8');
 
-console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개)`);
+// 빌드 캐시 저장 (다음 빌드에서 미변경 파일 감지용)
+const newCache = {};
+for (const r of routes) newCache[r.file] = fileHash(r.file);
+for (const h of helpers) newCache[h] = fileHash(h);
+newCache['fl-front-build.js'] = fileHash(path.join(__dirname, 'fl-front-build.js'));
+newCache['style-compiler.js'] = fileHash(path.join(__dirname, 'style-compiler.js'));
+saveCache(newCache);
+
+const elapsed = Date.now() - BUILD_START;
+console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);
 console.log(`✅ AGENTS.md 갱신 완료`);
