@@ -1,0 +1,108 @@
+; pages/notes.flx — 서버 저장 메모장
+; GET  /notes      → 전체 목록 (SSR)
+; POST /notes      → 메모 추가 → redirect
+; POST /notes/del  → 메모 삭제 (별도 라우트로 처리)
+
+; ── DB 마이그레이션 ──
+(db-exec DB "CREATE TABLE IF NOT EXISTS notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  content TEXT NOT NULL,
+  color TEXT DEFAULT '#ffffff',
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+)" [])
+
+; ── DB 헬퍼 ──
+(defn notes-fetch []
+  (db-query DB "SELECT * FROM notes ORDER BY id DESC" []))
+
+(defn notes-add [content color]
+  (db-exec DB "INSERT INTO notes (content, color) VALUES (?, ?)" [content color]))
+
+(defn notes-del [id]
+  (db-exec DB "DELETE FROM notes WHERE id = ?" [id]))
+
+; ── 색상 팔레트 ──
+(define NOTE-COLORS ["#fff9c4" "#c8e6c9" "#bbdefb" "#f8bbd0" "#e1bee7" "#ffffff"])
+
+(defn color-btn [c]
+  (str "<button type='button' onclick=\"document.getElementById('color-inp').value='" c "';"
+       "document.querySelectorAll('.cbtn').forEach(b=>b.style.outline='none');"
+       "this.style.outline='3px solid #6366f1'\""
+       " class='cbtn'"
+       " style='width:28px;height:28px;border-radius:50%;background:" c ";border:1px solid #d1d5db;"
+       "cursor:pointer'></button>"))
+
+(defn note-card [note]
+  (let [id      (str (get note "id"))
+        content (get note "content")
+        color   (get note "color")
+        at      (get note "created_at")]
+    (str
+      "<div style='background:" color ";border-radius:12px;padding:20px 20px 14px;"
+      "box-shadow:0 2px 8px rgba(0,0,0,.08);position:relative;min-height:100px'>"
+      "<p style='margin:0 0 32px;font-size:.95rem;line-height:1.6;white-space:pre-wrap'>"
+      content "</p>"
+      "<div style='display:flex;justify-content:space-between;align-items:center'>"
+      "<span style='font-size:.75rem;color:#9ca3af'>" at "</span>"
+      "<form method='POST' action='/notes' style='margin:0'>"
+      "<input type='hidden' name='action' value='del'>"
+      "<input type='hidden' name='id' value='" id "'>"
+      "<button type='submit' style='background:none;border:none;color:#ef4444;"
+      "cursor:pointer;font-size:1.1rem;padding:4px;line-height:1' title='삭제'>🗑</button>"
+      "</form>"
+      "</div></div>")))
+
+(defn notes-page [req]
+  (let [notes (notes-fetch)
+        count (length notes)
+        cards (if (= count 0)
+                "<p style='color:#9ca3af;text-align:center;padding:48px 0'>아직 메모가 없습니다</p>"
+                (str-join "" (map note-card notes)))]
+    (server-html
+      (layout "Notes" (str
+        "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:24px'>"
+        "<div><h2 style='margin:0 0 4px'>📝 Notes</h2>"
+        "<p style='margin:0;color:#6b7280;font-size:.9rem'>" (str count) "개 메모</p></div>"
+        "</div>"
+
+        "<form method='POST' action='/notes' style='background:white;border-radius:12px;"
+        "padding:24px;margin-bottom:32px;box-shadow:0 1px 4px rgba(0,0,0,.08)'>"
+        "<input type='hidden' name='action' value='add'>"
+        "<textarea name='content' rows='3' placeholder='메모를 입력하세요...'"
+        " style='width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:12px;"
+        "font-size:.95rem;resize:vertical;font-family:inherit;outline:none' required></textarea>"
+        "<div style='display:flex;align-items:center;gap:8px;margin:12px 0'>"
+        "<span style='font-size:.85rem;color:#6b7280'>색상:</span>"
+        (str-join "" (map color-btn NOTE-COLORS))
+        "<input type='hidden' name='color' id='color-inp' value='#fff9c4'>"
+        "</div>"
+        "<button type='submit' style='background:#6366f1;color:white;border:none;"
+        "border-radius:8px;padding:10px 24px;font-size:.95rem;cursor:pointer;font-weight:600'>"
+        "추가</button>"
+        "</form>"
+
+        "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px'>"
+        cards
+        "</div>")
+      req))))
+
+; ── GET /notes ──
+(defn render [req]
+  (notes-page req))
+
+; ── POST /notes ──
+(defn render_post [req]
+  (let [parsed  (server-req-json req)
+        action  (get parsed "action")
+        content (get parsed "content")
+        color   (get parsed "color")
+        id      (get parsed "id")]
+    (if (= action "del")
+      (do
+        (notes-del (str id))
+        (server-redirect "/notes"))
+      (do
+        (if (and (not (= content nil)) (not (= content "")))
+          (notes-add content (if (= color nil) "#fff9c4" color))
+          nil)
+        (server-redirect "/notes")))))

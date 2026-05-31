@@ -38,10 +38,12 @@
       (nav-link "/contact" "문의" path)
       (nav-link "/styled" "스타일" path)
       (nav-link "/todo" "To-do" path)
+      (nav-link "/notes" "Notes" path)
       "<a href='/logout' style='color:white;text-decoration:none;padding:12px 16px;display:inline-block;opacity:.8;margin-left:auto'>로그아웃</a>"
       "</nav>"
       "<div class='lwrap'>"
       content
       "</div>"
       "<footer class='lfoot'>FreeLang Front v0.1 · npm install 0개 · SSR · Island</footer>"
+      "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>"
       "</body></html>")))
