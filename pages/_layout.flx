@@ -11,11 +11,11 @@
 ; DEV CSP — inline style + HMR connect 허용
 (define DEV-CSP "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob:; connect-src 'self' http://localhost:40851 ws://localhost:40851; font-src 'self' data:")
 
-; nav 링크 — 현재 경로 강조
+; nav 링크 — 현재 경로 강조 + SPA 라우팅
 (defn nav-link [href label current]
   (if (= href current)
-    (h "a" {:href href :class nav-link-base :style "background:rgba(255,255,255,.2)"} label)
-    (h "a" {:href href :class nav-link-base :style "opacity:.8"} label)))
+    (h "a" {:href href :class nav-link-base :data-spa "1" :style "background:rgba(255,255,255,.2)"} label)
+    (h "a" {:href href :class nav-link-base :data-spa "1" :style "opacity:.8"} label)))
 
 ; 공통 글로벌 CSS
 (define GLOBAL-CSS
@@ -24,6 +24,38 @@
 ; HMR 클라이언트 스크립트
 (define HMR-SCRIPT
   "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>")
+
+; SPA 클라이언트 라우터 — Island 없는 페이지에도 동작
+(define SPA-ROUTER
+  "<script>(function(){
+function spa(href){
+  fetch(href,{headers:{'X-SPA':'1'}})
+    .then(function(r){return r.text();})
+    .then(function(html){
+      var doc=new DOMParser().parseFromString(html,'text/html');
+      var nw=doc.querySelector('[class*=\"layout_wrap\"]');
+      var cw=document.querySelector('[class*=\"layout_wrap\"]');
+      if(nw&&cw)cw.innerHTML=nw.innerHTML;
+      doc.querySelectorAll('script:not([src])').forEach(function(s){
+        if(s.textContent.indexOf('_fl.')>-1){try{eval(s.textContent);}catch(e){}}
+      });
+      if(window._fl)window._fl.dispatch('route',href);
+      history.pushState({href:href},'',href);
+      window.scrollTo(0,0);
+    })
+    .catch(function(){location.href=href;});
+}
+document.addEventListener('click',function(e){
+  var a=e.target.closest('[data-spa]');
+  if(!a)return;
+  e.preventDefault();
+  spa(a.getAttribute('href'));
+});
+window.addEventListener('popstate',function(e){
+  var href=e.state&&e.state.href?e.state.href:location.pathname;
+  spa(href);
+});
+})()</script>")
 
 ; 공통 레이아웃 → HTML 문자열
 (defn layout [title content req]
@@ -54,6 +86,7 @@
                   (h "a" {:href "/logout" :class nav-link-base :style "opacity:.8;margin-left:auto"} "로그아웃")))
               (h "div" {:class layout_wrap} content)
               (h "footer" {:class layout_foot} "FreeLang Front v0.1 · npm install 0개 · SSR · Island")
+              SPA-ROUTER
               HMR-SCRIPT)))))))
 
 ; layout-html — server-html + DEV CSP 헤더 적용

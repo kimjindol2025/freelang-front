@@ -271,7 +271,7 @@ const _fl={
     _fl.watch_store((prev,next,changed)=>{
       if(!keys||keys.includes(changed))update();
     });
-  }
+  },
 };
 const _fl_str=(...xs)=>xs.map(String).join('');
 </script>`;
