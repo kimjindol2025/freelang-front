@@ -1,18 +1,43 @@
-; HMR 테스트
-(defn render [req]
-  (layout-html "About" (str
-      "<h2>FreeLang Front란?</h2>"
-      "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어입니다.</p>"
-      "<div style='background:white;border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
-      "<h3 style='margin:0 0 16px;color:#6366f1'>핵심 특징</h3>"
-      "<ul style='margin:0;padding-left:20px;line-height:2'>"
-      "<li><strong>npm install 0개</strong> — Node.js 표준 라이브러리만 사용</li>"
-      "<li><strong>파일 기반 라우팅</strong> — pages/*.flx → 자동 라우트 생성</li>"
-      "<li><strong>CSS DSL</strong> — (style name :key val) → scoped .cls__hash</li>"
-      "<li><strong>Island 아키텍처</strong> — SSR + 필요한 부분만 JS hydration</li>"
-      "<li><strong>Critical CSS</strong> — 페이지별 사용 CSS만 인라인</li>"
-      "<li><strong>서버 폼 처리</strong> — JS 없이 POST + redirect 패턴</li>"
-      "</ul>"
-      "</div>") req))
+; pages/about.flx — h() SSR 실증 페이지
 
-; hmr-test
+(style about-card
+  :bg "white"
+  :radius "12px"
+  :p "24px"
+  :shadow "sm"
+  :mb "16px")
+
+(style about-title
+  :color "#6366f1"
+  :size "1.1rem"
+  :weight "700"
+  :m "0 0 16px")
+
+(define FEATURES
+  ["(style ...) DSL → scoped CSS (hover/focus/반응형)"
+   "h() SSR — HTML 문자열 빌더 (이 페이지가 h()로 작성됨)"
+   "Island 아키텍처 — SSR + 필요한 부분만 JS hydration"
+   "npm install 0개 — Node.js 표준 라이브러리만 사용"
+   "파일 기반 라우팅 — pages/*.flx → 자동 라우트 생성"
+   "빌드 시 미정의 함수 감지 — AI 친화적 경고"])
+
+(defn render [req]
+  (layout-html "About"
+    (str
+      (h "h2" {:style "margin:0 0 20px"} "FreeLang Front란?")
+      (h "p" {:style "color:#6b7280;margin:0 0 24px"}
+        "FreeLang v11 기반 파일 라우팅 SSR 프레임워크 — npm install 0개.")
+      (h "div" {:class about-card}
+        (str
+          (h "h3" {:class about-title} "핵심 특징")
+          (h "ul" {:style "margin:0;padding-left:20px;line-height:2"}
+            (arr-join (map (fn [item] (h "li" {} item)) FEATURES) ""))))
+      (h "div" {:class about-card :style "margin-top:24px"}
+        (str
+          (h "h3" {:class about-title} "h() 사용법")
+          (h "pre" {:style "background:#f3f4f6;padding:16px;border-radius:8px;font-size:.85rem;overflow-x:auto"}
+            (str
+              "(h \"div\" {:class card} \"내용\")\n"
+              "(h \"div\" {:class card} (str child1 child2))\n"
+              "(h! \"input\" {:type \"text\" :placeholder \"입력\"})")))))
+    req))

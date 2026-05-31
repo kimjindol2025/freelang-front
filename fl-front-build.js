@@ -34,40 +34,42 @@ const AGENTS_FILE = path.join(__dirname, 'AGENTS.md');
 const PORT        = 40850;
 
 // ══════════════════════════════════════════════════════════════
-// A. 알려진 함수 목록 (AI가 써도 되는 것들)
+// A. FreeLang stdlib 함수 목록 자동 로드 (빌드 시 1회)
 // ══════════════════════════════════════════════════════════════
-const KNOWN_STDLIB = new Set([
-  // http-server
-  'server_get','server_post','server_put','server_patch','server_delete',
-  'server_static','server_stop','server_text','server_status','server_html',
-  'server_html_cookie','server_csp_nonce','server_set_cookie',
-  'server_redirect','server_redirect_cookie','server_header','server_options',
-  'server_req_cookie','server_req_query','server_req_files','server_req_fields',
-  'server_req_header','server_req_headers','server_req_param','server_req_params',
-  'server_req_method','server_req_path','server_req_id','server_req_session_id',
-  'server_wait_respond','server_hold_response','server_send_held',
-  'server_on_upgrade','server_on_ws_message','server_on_ws_close',
-  'ws_send_to_client','ws_close_client','server_json','server_start',
-  // db
-  'db_query','db_exec','db_insert','db_count','db_tables','db_create',
-  'db_get','db_all','db_put','db_delete','db_close',
-  // auth
-  'auth_jwt_sign','auth_jwt_verify','auth_password_hash','auth_password_verify',
-  'auth_csrf_token','auth_csrf_verify','html_escape','js_escape',
-  // data
-  'json_parse','json_str','json_stringify','str_trim','str_lines',
-  'str_replace_in','str_template','str_count','regex_split',
-  // fl-front 주입 헬퍼
-  'form_field','url_decode','dev_error_page','not_found_handler',
-  'layout','nav_link','db_migrate','db_fetch_stats',
-  // core
-  'defn','define','let','if','do','when','str','get','get_in',
+const BOOTSTRAP = '/home/kimjin/freelang-v11/bootstrap.js';
+
+function loadFreeLangStdlib() {
+  try {
+    const out = cp.execSync(`node ${BOOTSTRAP} ls-fns 2>/dev/null`, { timeout: 8000 }).toString();
+    // 출력 패턴: "  func_name [args] → ..." (2칸 들여쓰기)
+    const names = [...out.matchAll(/^ {2}([\w-]+)[\s[→]/gm)].map(m => m[1]);
+    return new Set(names);
+  } catch {
+    return new Set(); // 로드 실패 시 빈 Set (모든 함수 허용)
+  }
+}
+
+// fl-front 자체 주입 헬퍼 (stdlib에 없는 것만)
+const FL_FRONT_HELPERS = new Set([
+  'form_field','form-field','url_decode','url-decode',
+  'dev_error_page','dev-error-page','not_found_handler','not-found-handler',
+  'layout','layout-html','nav_link','nav-link',
+  'db_migrate','db-migrate','db_fetch_stats','db-fetch-stats',
+  'chart_bar','chart-bar','chart_line','chart-line',
+  'arr_join','arr-join','h',
+  // core FreeLang
+  'defn','define','let','if','do','when','str','get','get_in','get-in',
   'first','last','rest','map','filter','reduce','length','push',
   'assoc','dissoc','nil?','not','and','or','=','not=','>','<','>=','<=',
-  'str_join','str_split','println','try','catch','fn',
-  'server_redirect','server_html','chart_bar','chart_line',
-  'uuid_short','uuid','format_currency','number_format',
+  'println','try','catch','fn','inc','dec','swap!','reset!','atom','deref',
+  'server_start','server-start','server_html','server-html',
+  'server_json','server-json','server_redirect','server-redirect',
+  'uuid','uuid_short','uuid-short',
 ]);
+
+const KNOWN_STDLIB = loadFreeLangStdlib();
+// 헬퍼 추가
+for (const fn of FL_FRONT_HELPERS) KNOWN_STDLIB.add(fn);
 
 // 하이픈↔언더스코어 양쪽 허용
 function isKnown(name) {
@@ -104,6 +106,10 @@ function validateFunctions(appFlContent) {
     'table','column','select','insert','update','delete','where','order',
     'auto','fill','minmax','repeat','grid','flex','block','inline',
     'search','event','card','index','server','client','text','html',
+    // JS 문법 키워드 (Island 코드 잔재)
+    'string','function','handler','auto-fill','object','class','extends',
+    // CSS 값 (문자열 제거 후 잔재)
+    'translate','rotate','scale','linear','radial','solid','dashed',
   ]);
 
   for (const m of stripped.matchAll(/\(([a-z][a-z0-9_-]{2,})/g)) {
@@ -376,6 +382,41 @@ const INJECTED_HELPERS = `
            "<pre>" msg "</pre>"
            hint
            "</div></body></html>"))))
+
+; ── h() SSR — HTML 문자열 빌더 ──
+; 사용: (h "div" {:class btn :id "main"} "내용")
+; 사용: (h "div" {:class card} (h "p" {} "자식"))
+; 자식이 배열이면 자동으로 결합
+
+(defn arr-join [arr sep]
+  (reduce
+    (fn [acc x] (if (= acc "") (str x) (str acc sep x)))
+    "" arr))
+
+; 큰따옴표 문자 — json_str("x") = "\"x\"", split by "x" → ['"', '"']
+(define DQUOTE (first (regex_split (json_str "x") "x")))
+
+(defn h-attrs [attrs]
+  (if (= attrs nil) ""
+    (let [pairs (map-entries attrs)]
+      (arr-join
+        (filter (fn [s] (not (= s "")))
+          (map (fn [pair]
+            (let [k (get pair 0)
+                  v (get pair 1)]
+              (if (= v nil) ""
+                (str " " k "=" DQUOTE (str v) DQUOTE))))
+            pairs))
+        ""))))
+
+(defn h [tag attrs content]
+  (let [a (h-attrs attrs)
+        c (if (= content nil) "" (str content))]
+    (str "<" tag a ">" c "</" tag ">")))
+
+; 자기닫힘 태그용
+(defn h! [tag attrs]
+  (str "<" tag (h-attrs attrs) ">"))
 
 ; 404 핸들러
 (defn not_found_handler [req]
