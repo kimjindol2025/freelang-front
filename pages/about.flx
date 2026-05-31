@@ -22,7 +22,7 @@
    "빌드 시 미정의 함수 감지 — AI 친화적 경고"])
 
 (defn render [req]
-  (layout-html "About"
+  (layout-html-seo "About"
     (str
       (h "h2" {:style "margin:0 0 20px"} "FreeLang Front란?")
       (h "p" {:style "color:#6b7280;margin:0 0 24px"}
@@ -40,4 +40,5 @@
               "(h \"div\" {:class card} \"내용\")\n"
               "(h \"div\" {:class card} (str child1 child2))\n"
               "(h! \"input\" {:type \"text\" :placeholder \"입력\"})")))))
-    req))
+    req
+    {"title" "FreeLang Front란?" "desc" "npm install 0개로 Next.js 대체. SSR + Island 아키텍처." "type" "article"}))

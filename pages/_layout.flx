@@ -57,8 +57,28 @@ window.addEventListener('popstate',function(e){
 });
 })()</script>")
 
-; 공통 레이아웃 → HTML 문자열
-(defn layout [title content req]
+; ── SEO meta 태그 생성 ──
+; 사용: (seo-tags {:title "제목" :desc "설명" :image "/og.png" :type "article"})
+(defn seo-tags [m]
+  (let [title  (if (= (get m "title") nil) "" (str (get m "title")))
+        desc   (if (= (get m "desc") nil) "" (str (get m "desc")))
+        image  (get m "image")
+        type   (if (= (get m "type") nil) "website" (str (get m "type")))
+        url    (if (= (get m "url") nil) "" (str (get m "url")))]
+    (str
+      (h! "meta" {:name "description" :content desc})
+      (h! "meta" {:property "og:title" :content title})
+      (h! "meta" {:property "og:description" :content desc})
+      (h! "meta" {:property "og:type" :content type})
+      (if (= image nil) "" (h! "meta" {:property "og:image" :content (str image)}))
+      (if (= url "") "" (h! "meta" {:property "og:url" :content url}))
+      (h! "meta" {:name "twitter:card" :content "summary_large_image"})
+      (h! "meta" {:name "twitter:title" :content title})
+      (h! "meta" {:name "twitter:description" :content desc})
+      (if (= image nil) "" (h! "meta" {:name "twitter:image" :content (str image)})))))
+
+; 공통 레이아웃 → HTML 문자열 (meta-str: seo-tags 결과 또는 nil)
+(defn layout-core [title content req meta-str]
   (let [path (server-req-path req)]
     (str
       "<!DOCTYPE html>"
@@ -69,6 +89,7 @@ window.addEventListener('popstate',function(e){
               (h! "meta" {:charset "utf-8"})
               (h! "meta" {:name "viewport" :content "width=device-width,initial-scale=1"})
               (h "title" {} (str title " — FreeLang Front"))
+              (if (= meta-str nil) "" meta-str)
               GLOBAL-CSS))
           (h "body" {}
             (str
@@ -89,9 +110,19 @@ window.addEventListener('popstate',function(e){
               SPA-ROUTER
               HMR-SCRIPT)))))))
 
-; layout-html — server-html + DEV CSP 헤더 적용
+; layout — 기존 호환 유지
+(defn layout [title content req]
+  (layout-core title content req nil))
+
+; layout-html — server-html + DEV CSP
 (defn layout-html [title content req]
   (server_header
     (server-html (layout title content req))
-    "Content-Security-Policy"
-    DEV-CSP))
+    "Content-Security-Policy" DEV-CSP))
+
+; layout-html-seo — SEO meta 포함 버전
+; 사용: (layout-html-seo "제목" content req {:title "..." :desc "..." :image "/og.png"})
+(defn layout-html-seo [title content req seo-opts]
+  (server_header
+    (server-html (layout-core title content req (seo-tags seo-opts)))
+    "Content-Security-Policy" DEV-CSP))
