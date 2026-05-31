@@ -73,6 +73,8 @@ const FL_FRONT_HELPERS = new Set([
   'db_migrate','db-migrate','db_fetch_stats','db-fetch-stats',
   'chart_bar','chart-bar','chart_line','chart-line',
   'arr_join','arr-join','h',
+  // 빌드 타임에 변환되는 특수 구문
+  'island','server-fn','server_fn',
   // core FreeLang
   'defn','define','let','if','do','when','str','get','get_in','get-in',
   'first','last','rest','map','filter','reduce','length','push',
@@ -81,6 +83,11 @@ const FL_FRONT_HELPERS = new Set([
   'server_start','server-start','server_html','server-html',
   'server_json','server-json','server_redirect','server-redirect',
   'uuid','uuid_short','uuid-short',
+  // Island 전용 런타임 함수
+  'dispatch','get-store','get_store',
+  // 서버 req 헬퍼
+  'server-req-param','server-req-query','server-req-json',
+  'server_req_param','server_req_query','server_req_json',
 ]);
 
 const KNOWN_STDLIB = loadFreeLangStdlib();
@@ -95,9 +102,45 @@ function isKnown(name) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// B. 빌드 시 미정의 함수 감지 (false positive 최소화)
+// B. 빌드 시 미정의 함수 감지 — 원본 .flx 파일 기준 (file:line 정확)
 // ══════════════════════════════════════════════════════════════
-function validateFunctions(appFlContent) {
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (m === 0) return n;
+  if (n === 0) return m;
+  const dp = Array.from({length: m + 1}, (_, i) => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function suggestFn(fn, knownSet) {
+  const norm = fn.replace(/-/g, '_');
+  const threshold = Math.max(2, Math.floor(fn.length * 0.45));
+  return [...knownSet]
+    .map(k => ({ k, d: levenshtein(norm, k.replace(/-/g, '_')) }))
+    .filter(x => x.d <= threshold)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, 3)
+    .map(x => x.k);
+}
+
+const FALSE_POS = new Set([
+  'snake_case','datetime','label','style','nil','null','true','false',
+  'table','column','select','insert','update','delete','where','order',
+  'auto','fill','minmax','repeat','grid','flex','block','inline',
+  'search','event','card','index','server','client','text','html',
+  'string','function','handler','auto-fill','object','class','extends',
+  'hover','focus','active','disabled','checked','visited',
+  'translate','rotate','scale','linear','radial','solid','dashed',
+]);
+
+function validateFunctions(routes, helpers, bindings) {
   const CORE_KEYWORDS = new Set([
     'defn','define','let','if','do','when','and','or','not','fn',
     'try','catch','str','get','map','filter','reduce','first','last',
@@ -105,56 +148,68 @@ function validateFunctions(appFlContent) {
     'swap!','reset!','atom','deref','str-join','not=','zero?','pos?',
   ]);
 
-  // 1. _app.fl에서 실제 정의된 함수 모두 수집 → known으로 추가
-  const defined = new Set();
-  for (const m of appFlContent.matchAll(/\(defn\s+([\w-]+)/g)) defined.add(m[1]);
-  for (const m of appFlContent.matchAll(/\(define\s+([\w-]+)/g)) defined.add(m[1]);
-
-  // 2. 문자열 리터럴 제거 후 스캔 (SQL/JS/CSS 안의 단어 무시)
-  const stripped = appFlContent
-    .replace(/;[^\n]*/g, '')           // 주석 제거
-    .replace(/"(?:[^"\\]|\\.)*"/g, '"__STR__"'); // 문자열 제거
-
-  const unknown = new Map();
-  // 오탐 블랙리스트 (SQL 키워드, CSS 값, JS 변수명 등)
-  const FALSE_POS = new Set([
-    'snake_case','datetime','label','style','nil','null','true','false',
-    'table','column','select','insert','update','delete','where','order',
-    'auto','fill','minmax','repeat','grid','flex','block','inline',
-    'search','event','card','index','server','client','text','html',
-    // JS 문법 키워드 (Island 코드 잔재)
-    'string','function','handler','auto-fill','object','class','extends',
-    // CSS 의사 클래스 이름 (style 속성 값)
-    'hover','focus','active','disabled','checked','visited',
-    // CSS 값 (문자열 제거 후 잔재)
-    'translate','rotate','scale','linear','radial','solid','dashed',
-  ]);
-
-  for (const m of stripped.matchAll(/\(([a-z][a-z0-9_-]{2,})/g)) {
-    const fn = m[1];
-    if (CORE_KEYWORDS.has(fn)) continue;
-    if (isKnown(fn)) continue;
-    if (defined.has(fn)) continue;
-    if (fn.endsWith('__inner') || fn.startsWith('page_')) continue;
-    if (FALSE_POS.has(fn)) continue;
-    if (!unknown.has(fn)) unknown.set(fn, []);
-    const idx = appFlContent.indexOf(`(${fn}`);
-    const line = appFlContent.slice(0, idx).split('\n').length;
-    unknown.get(fn).push(line);
+  // 알려진 함수 세트 구성 (stdlib + 헬퍼 + CSS 바인딩)
+  const known = new Set(KNOWN_STDLIB);
+  for (const b of (bindings || [])) {
+    known.add(b.name);
+    known.add(b.name.replace(/-/g, '_'));
   }
 
-  if (unknown.size === 0) { console.log('  ✅ 미정의 함수 없음'); return; }
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
 
-  const allKnown = [...KNOWN_STDLIB];
-  console.log('\n\x1b[33m⚠️  [AI 경고] 미정의 함수 — 런타임 에러 가능\x1b[0m');
-  for (const [fn, lineNums] of unknown) {
-    const suggestions = allKnown.filter(k => {
-      const a = fn.replace(/-/g,'_'), b = k.replace(/-/g,'_');
-      if (Math.abs(a.length - b.length) > 4) return false;
-      return b.includes(a.slice(0,5)) || a.includes(b.slice(0,5));
-    }).slice(0, 2);
-    const hint = suggestions.length ? `  → ${suggestions.join(', ')}` : '';
-    console.log(`  \x1b[31m✗\x1b[0m ${fn} (줄 ${lineNums[0]})${hint}`);
+  // 1패스: 모든 .flx 파일에서 defn/define 수집
+  const defined = new Set();
+  for (const f of allFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    for (const m of src.matchAll(/\(defn\s+([\w-]+)/g))   defined.add(m[1]);
+    for (const m of src.matchAll(/\(define\s+([\w-]+)/g)) defined.add(m[1]);
+  }
+
+  function isKnownFn(fn) {
+    if (known.has(fn) || defined.has(fn)) return true;
+    const alt = fn.includes('-') ? fn.replace(/-/g,'_') : fn.replace(/_/g,'-');
+    return known.has(alt) || defined.has(alt);
+  }
+
+  // 2패스: 각 원본 .flx 파일에서 미정의 함수 감지
+  const issues = [];
+  for (const f of allFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    const fileName = path.basename(f);
+    const strippedLines = src
+      .replace(/;[^\n]*/g, '')
+      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, '"__STR__"')  // dotAll — 멀티라인 문자열 처리
+      .split('\n');
+
+    for (let li = 0; li < strippedLines.length; li++) {
+      for (const m of strippedLines[li].matchAll(/\(([a-z][a-z0-9_-]{2,})/g)) {
+        const fn = m[1];
+        if (CORE_KEYWORDS.has(fn)) continue;
+        if (isKnownFn(fn)) continue;
+        if (fn.endsWith('__inner') || fn.startsWith('page_')) continue;
+        if (FALSE_POS.has(fn)) continue;
+        issues.push({ file: fileName, line: li + 1, fn });
+      }
+    }
+  }
+
+  // 중복 제거 (같은 파일+함수명 첫 발생만)
+  const seen = new Set();
+  const unique = issues.filter(i => {
+    const k = `${i.file}:${i.fn}`;
+    if (seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+
+  if (unique.length === 0) { console.log('  ✅ 미정의 함수 없음'); return; }
+
+  console.log('\n\x1b[33m⚠️  [경고] 미정의 함수 — 런타임 에러 가능\x1b[0m');
+  for (const { file, line, fn } of unique) {
+    const suggestions = suggestFn(fn, known);
+    const hint = suggestions.length
+      ? `\n      → \x1b[36m${suggestions.join(', ')}\x1b[0m`
+      : '';
+    console.log(`  \x1b[31m✗\x1b[0m ${file}:${line} — '${fn}' 정의 없음${hint}`);
   }
   console.log('');
 }
@@ -692,23 +747,64 @@ function detectDangerousPatterns(routes, helpers) {
   }
 }
 
-// Fix 5: check-parens.py 자동 실행
+// Fix 5: check-parens.py 자동 실행 (파싱 오류 시 file:line:col 표시)
 function checkAllParens(routes, helpers) {
   const CHECKER = '/home/kimjin/freelang-v11/scripts/check-parens.py';
   if (!fs.existsSync(CHECKER)) return;
   const allFiles = [...routes.map(r => r.file), ...helpers];
   const errors = [];
   for (const f of allFiles) {
+    const fileName = path.basename(f);
     try {
       cp.execSync(`python3 ${CHECKER} ${f}`, { stdio: 'pipe' });
     } catch (e) {
-      errors.push(`  ❌ ${f.replace(PAGES_DIR + '/', '')}: 괄호 불균형`);
+      // check-parens.py 실제 출력: "❌ /path/file.flx:line:col — message"
+      // 전체 경로 → 파일명만으로 교체
+      const out = (e.stdout || Buffer.alloc(0)).toString().trim();
+      const cleaned = out
+        .replace(new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), fileName)
+        .replace(/^❌ /gm, '');
+      errors.push(`  \x1b[31m❌\x1b[0m ${cleaned}`);
     }
   }
   if (errors.length) {
-    console.log('\x1b[31m❌ 괄호 오류 — 빌드 중단\x1b[0m');
+    console.log('\x1b[31m❌ 파싱 오류 — 빌드 중단\x1b[0m');
     errors.forEach(e => console.log(e));
     process.exit(1);
+  }
+}
+
+// h() {:class} — 정의된 CSS 바인딩에 없는 클래스명 경고
+function validateHAttributes(routes, helpers, bindings) {
+  if (!bindings || bindings.length === 0) return;
+  const cssNames = new Set(bindings.map(b => b.name));
+  const allFiles = [...routes.map(r => r.file), ...helpers];
+  const issues = [];
+
+  for (const f of allFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    const name = path.basename(f);
+    for (const m of src.matchAll(/\{:class\s+([\w-]+)/g)) {
+      const cls = m[1];
+      if (cssNames.has(cls)) continue;
+      const before = src.slice(0, m.index);
+      const line   = before.split('\n').length;
+      const col    = m.index - before.lastIndexOf('\n');
+      const similar = [...cssNames]
+        .map(c => ({ c, d: levenshtein(cls, c) }))
+        .filter(x => x.d <= 2)
+        .sort((a, b) => a.d - b.d)
+        .slice(0, 2)
+        .map(x => x.c);
+      const hint = similar.length ? `  → \x1b[36m${similar.join(', ')}\x1b[0m` : '';
+      issues.push(`  \x1b[33m⚠\x1b[0m {:class ${cls}}  \x1b[90m${name}:${line}:${col}\x1b[0m — CSS 미정의${hint}`);
+    }
+  }
+
+  if (issues.length) {
+    console.log('\n\x1b[33m⚠️  [경고] CSS 클래스 없음\x1b[0m');
+    issues.forEach(i => console.log(i));
+    console.log('');
   }
 }
 
@@ -718,8 +814,9 @@ detectDangerousPatterns(routes, helpers);
 const appContent = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
 
-// A. 빌드 시 미정의 함수 감지
-validateFunctions(appContent);
+// A. 빌드 시 미정의 함수 감지 (원본 .flx 파일 기준)
+validateFunctions(routes, helpers, bindings);
+validateHAttributes(routes, helpers, bindings);
 
 // C. AGENTS.md 자동 생성
 fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes), 'utf8');
