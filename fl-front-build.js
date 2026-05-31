@@ -433,7 +433,7 @@ a{color:#6366f1;text-decoration:none;font-weight:600}</style></head>
 <a href='/'>← 홈으로</a></div></body></html>"))
 `;
 
-function generate(routes, bindings = [], helpers = []) {
+function generate(routes, bindings = [], helpers = [], appCss = '') {
   const lines = [];
   lines.push('; _app.fl — 자동 생성. 직접 수정 금지.');
   lines.push(`; 생성: ${new Date().toISOString()}`);
@@ -461,7 +461,15 @@ function generate(routes, bindings = [], helpers = []) {
   if (helpers.length > 0) {
     lines.push('; ── 레이아웃·헬퍼 함수 ──');
     for (const helperPath of helpers) {
-      const raw = fs.readFileSync(helperPath, 'utf8').trim();
+      let raw = fs.readFileSync(helperPath, 'utf8').trim();
+      // _layout.flx: GLOBAL-CSS에 app.css 내용 인라인 주입
+      if (path.basename(helperPath) === '_layout.flx' && appCss) {
+        const escapedCss = appCss.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        raw = raw.replace(
+          /\(define GLOBAL-CSS[\s\S]*?"\)/,
+          `(define GLOBAL-CSS "<style>${escapedCss}</style>")`
+        );
+      }
       // style 블록 제거 (헬퍼는 Critical CSS 인라인 불필요, app.css에 포함됨)
       const src = removeStyleBlocks(raw).trim();
       lines.push(`; ── ${path.basename(helperPath)} ──`);
@@ -584,7 +592,13 @@ if (bindings.length > 0) {
   bindings.forEach(b => console.log(`    .${b.cls}  ←  ${b.name}`));
 }
 
-const appContent = generate(routes, bindings, helpers);
+// app.css 내용 읽기 (layout에 인라인 주입용)
+const cssFile = path.join(PUBLIC_DIR, 'app.css');
+const appCssContent = fs.existsSync(cssFile)
+  ? fs.readFileSync(cssFile, 'utf8').replace(/\n/g, ' ').trim()
+  : '';
+
+const appContent = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
 
 // A. 빌드 시 미정의 함수 감지
