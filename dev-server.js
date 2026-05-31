@@ -22,25 +22,81 @@ const HMR_PORT  = 40851;
 let serverProc    = null;
 let debounceTimer = null;
 let hmrClients    = [];
-const fileHashes  = new Map();  // 파일 해시 캐시
+const fileHashes  = new Map();
 
-// ── HMR SSE 서버 ──────────────────────────────────────────────
+// ── 브라우저 에러 로그 (AI 조회용) ───────────────────────────
+const errorLog = [];
+const MAX_ERRORS = 50;
+
+function addError(entry) {
+  errorLog.unshift({ ...entry, time: new Date().toISOString() });
+  if (errorLog.length > MAX_ERRORS) errorLog.pop();
+  // 터미널에도 출력
+  const color = entry.type === 'error' ? '\x1b[31m' : '\x1b[33m';
+  console.log(`${color}[browser ${entry.type}]\x1b[0m ${entry.message}`);
+  if (entry.source) console.log(`  at ${entry.source}:${entry.line}`);
+}
+
+// ── HMR + Error 서버 (포트 40851) ────────────────────────────
 const hmrServer = http.createServer((req, res) => {
+  const cors = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
+
+  // CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, cors); res.end(); return;
+  }
+
+  // HMR SSE
   if (req.url === '/~hmr') {
-    res.writeHead(200, {
+    res.writeHead(200, { ...cors,
       'Content-Type':  'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection':    'keep-alive',
-      'Access-Control-Allow-Origin': '*',
     });
     res.write('data: connected\n\n');
     hmrClients.push(res);
     req.on('close', () => {
       hmrClients = hmrClients.filter(c => c !== res);
     });
-  } else {
-    res.writeHead(404); res.end();
+    return;
   }
+
+  // 브라우저 에러 수집 (POST /~errors)
+  if (req.url === '/~errors' && req.method === 'POST') {
+    let body = '';
+    req.on('data', d => body += d);
+    req.on('end', () => {
+      try {
+        const entry = JSON.parse(body);
+        addError(entry);
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
+        res.end('{"ok":true}');
+      } catch {
+        res.writeHead(400, cors); res.end();
+      }
+    });
+    return;
+  }
+
+  // 에러 목록 조회 (GET /~errors) — Claude가 curl로 확인
+  if (req.url === '/~errors' && req.method === 'GET') {
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(errorLog, null, 2));
+    return;
+  }
+
+  // 에러 초기화 (DELETE /~errors)
+  if (req.url === '/~errors' && req.method === 'DELETE') {
+    errorLog.length = 0;
+    res.writeHead(200, cors); res.end('{"ok":true}');
+    return;
+  }
+
+  res.writeHead(404, cors); res.end();
 });
 
 function hmrReload(type = 'reload') {

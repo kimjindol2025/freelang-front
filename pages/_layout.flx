@@ -25,6 +25,21 @@
 (define HMR-SCRIPT
   "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>")
 
+; 브라우저 에러 → dev-server로 전송 (AI가 curl로 조회 가능)
+(define ERROR-COLLECTOR
+  "<script>(function(){
+var EV='http://'+location.hostname+':40851/~errors';
+function send(type,msg,src,line,col,stack){
+  fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({type:type,message:String(msg),source:src,line:line,col:col,stack:String(stack||''),url:location.href})
+  }).catch(function(){});
+}
+window.onerror=function(m,s,l,c,e){send('error',m,s,l,c,e&&e.stack);return false;};
+window.addEventListener('unhandledrejection',function(e){send('promise',e.reason&&e.reason.message||String(e.reason),'',0,0,e.reason&&e.reason.stack);});
+var _ce=console.error.bind(console);
+console.error=function(){_ce.apply(console,arguments);send('console',Array.from(arguments).join(' '),'',0,0,'');};
+})()</script>")
+
 ; SPA 클라이언트 라우터 — Island 없는 페이지에도 동작
 (define SPA-ROUTER
   "<script>(function(){
@@ -107,6 +122,7 @@ window.addEventListener('popstate',function(e){
                   (h "a" {:href "/logout" :class nav-link-base :style "opacity:.8;margin-left:auto"} "로그아웃")))
               (h "div" {:class layout_wrap} content)
               (h "footer" {:class layout_foot} "FreeLang Front v0.1 · npm install 0개 · SSR · Island")
+              ERROR-COLLECTOR
               SPA-ROUTER
               HMR-SCRIPT)))))))
 
