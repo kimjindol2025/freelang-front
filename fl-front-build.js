@@ -56,55 +56,60 @@ function isKnown(name) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// B. 빌드 시 미정의 함수 감지
+// B. 빌드 시 미정의 함수 감지 (false positive 최소화)
 // ══════════════════════════════════════════════════════════════
-function validateFunctions(appFlContent, routes) {
-  // (fn-name ...) 패턴 추출 — defn/define/let 제외
-  const callPattern = /\(([a-z][a-z0-9_-]+)[\s\n]/g;
+function validateFunctions(appFlContent) {
   const CORE_KEYWORDS = new Set([
     'defn','define','let','if','do','when','and','or','not','fn',
     'try','catch','str','get','map','filter','reduce','first','last',
-    'rest','push','assoc','dissoc','nil?','length','println',
+    'rest','push','assoc','dissoc','nil?','length','println','inc','dec',
+    'swap!','reset!','atom','deref','str-join','not=','zero?','pos?',
   ]);
-  const unknown = new Map(); // fnName → [lines]
-  const lines = appFlContent.split('\n');
-  lines.forEach((line, i) => {
-    if (line.trim().startsWith(';')) return;
-    let m;
-    const re = /\(([a-z][a-z0-9_-]{2,})/g;
-    while ((m = re.exec(line)) !== null) {
-      const fn = m[1];
-      if (CORE_KEYWORDS.has(fn)) continue;
-      if (isKnown(fn)) continue;
-      // 빌드가 자동 생성하는 내부 패턴 무시
-      if (fn.endsWith('__inner') || fn.startsWith('page_')) continue;
-      // JS Island 런타임 코드 무시
-      if (['const','function','document','arr','obj','tag','attrs',
-           'update','content','items','done','next_id','inp_val',
-           'item','handler','label','style','island','atom','swap'].includes(fn)) continue;
-      if (!unknown.has(fn)) unknown.set(fn, []);
-      unknown.get(fn).push(i + 1);
-    }
-  });
 
-  if (unknown.size === 0) return;
+  // 1. _app.fl에서 실제 정의된 함수 모두 수집 → known으로 추가
+  const defined = new Set();
+  for (const m of appFlContent.matchAll(/\(defn\s+([\w-]+)/g)) defined.add(m[1]);
+  for (const m of appFlContent.matchAll(/\(define\s+([\w-]+)/g)) defined.add(m[1]);
+
+  // 2. 문자열 리터럴 제거 후 스캔 (SQL/JS/CSS 안의 단어 무시)
+  const stripped = appFlContent
+    .replace(/;[^\n]*/g, '')           // 주석 제거
+    .replace(/"(?:[^"\\]|\\.)*"/g, '"__STR__"'); // 문자열 제거
+
+  const unknown = new Map();
+  // 오탐 블랙리스트 (SQL 키워드, CSS 값, JS 변수명 등)
+  const FALSE_POS = new Set([
+    'snake_case','datetime','label','style','nil','null','true','false',
+    'table','column','select','insert','update','delete','where','order',
+    'auto','fill','minmax','repeat','grid','flex','block','inline',
+    'search','event','card','index','server','client','text','html',
+  ]);
+
+  for (const m of stripped.matchAll(/\(([a-z][a-z0-9_-]{2,})/g)) {
+    const fn = m[1];
+    if (CORE_KEYWORDS.has(fn)) continue;
+    if (isKnown(fn)) continue;
+    if (defined.has(fn)) continue;
+    if (fn.endsWith('__inner') || fn.startsWith('page_')) continue;
+    if (FALSE_POS.has(fn)) continue;
+    if (!unknown.has(fn)) unknown.set(fn, []);
+    const idx = appFlContent.indexOf(`(${fn}`);
+    const line = appFlContent.slice(0, idx).split('\n').length;
+    unknown.get(fn).push(line);
+  }
+
+  if (unknown.size === 0) { console.log('  ✅ 미정의 함수 없음'); return; }
 
   const allKnown = [...KNOWN_STDLIB];
-  console.log('\n\x1b[33m⚠️  [AI 경고] 미정의 함수 감지 — 런타임에서 에러 발생 가능\x1b[0m');
+  console.log('\n\x1b[33m⚠️  [AI 경고] 미정의 함수 — 런타임 에러 가능\x1b[0m');
   for (const [fn, lineNums] of unknown) {
-    // 편집거리 기반 유사 함수 제안
-    const suggestions = allKnown
-      .filter(k => {
-        const a = fn.replace(/-/g,'_'), b = k.replace(/-/g,'_');
-        if (Math.abs(a.length - b.length) > 4) return false;
-        let diff = 0;
-        const len = Math.max(a.length, b.length);
-        for (let i = 0; i < len; i++) if (a[i] !== b[i]) diff++;
-        return diff <= 3 || b.includes(a.slice(0,4)) || a.includes(b.slice(0,4));
-      })
-      .slice(0, 3);
-    const hint = suggestions.length ? `  → 혹시: ${suggestions.join(', ')} ?` : '';
-    console.log(`  \x1b[31m✗\x1b[0m (${fn}) — 줄 ${lineNums.slice(0,3).join(', ')}${hint}`);
+    const suggestions = allKnown.filter(k => {
+      const a = fn.replace(/-/g,'_'), b = k.replace(/-/g,'_');
+      if (Math.abs(a.length - b.length) > 4) return false;
+      return b.includes(a.slice(0,5)) || a.includes(b.slice(0,5));
+    }).slice(0, 2);
+    const hint = suggestions.length ? `  → ${suggestions.join(', ')}` : '';
+    console.log(`  \x1b[31m✗\x1b[0m ${fn} (줄 ${lineNums[0]})${hint}`);
   }
   console.log('');
 }
@@ -515,7 +520,7 @@ const appContent = generate(routes, bindings, helpers);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
 
 // A. 빌드 시 미정의 함수 감지
-validateFunctions(appContent, routes);
+validateFunctions(appContent);
 
 // C. AGENTS.md 자동 생성
 fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes), 'utf8');
