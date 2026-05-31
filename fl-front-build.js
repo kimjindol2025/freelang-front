@@ -166,64 +166,81 @@ function generateAgentsMd(routes) {
 ## 주입된 헬퍼 (모든 .flx에서 바로 사용 가능)
 
 \`\`\`lisp
-; 폼 필드 읽기 — JSON + urlencoded 둘 다 지원
+; HTML 빌더 (h() SSR)
+(h "div" {:class btn :id "wrap"} "내용")    ; → <div class="btn__hash" id="wrap">내용</div>
+(h "div" {:class card} (str child1 child2)) ; → 자식 결합
+(h! "input" {:type "text" :name "q"})       ; → <input type="text" name="q">
+
+; 배열 결합 (h() 자식 여러 개)
+(arr-join (map render-fn items) "")         ; → 리스트 렌더링
+
+; 폼 필드 읽기
 (form-field req "name")       ; → "홍길동" 또는 ""
 (url-decode "hello+world")    ; → "hello world"
 
-; 레이아웃 (nav 포함 공통 HTML)
-(layout "페이지제목" html-content req)
+; 레이아웃
+(layout-html "제목" html-string req)        ; CSS + SPA 라우터 포함
 
 ; DB (SQLite)
 (define DB {:type "sqlite" :path "data/app.db"})
-(db-exec DB "CREATE TABLE IF NOT EXISTS ..." [])
-(db-query DB "SELECT * FROM notes" [])   ; → [{...}]
+(db-query DB "SELECT * FROM t" [])          ; → [{...}]
+(db-exec DB "INSERT INTO t (n) VALUES (?)" ["val"])
 
 ; 응답
-(server-html "...html...")       ; → 200 HTML 응답
-(server-json {:ok true})         ; → 200 JSON 응답
-(server-redirect "/path")        ; → 302 리다이렉트
-(server_status 404 "html...")    ; → 커스텀 상태코드
+(server-html "html...")       ; → 200
+(server-json {:ok true})      ; → 200 JSON
+(server-redirect "/path")     ; → 302
+(server_status 404 "html...") ; → 404
 
-; 요청 파싱
-(get req "body")                 ; → 파싱된 맵 (JSON POST)
-(server-req-path req)            ; → "/notes"
-(server-req-method req)          ; → "GET" | "POST"
-(server-req-query req "key")     ; → "value"
-(server-req-param req "id")      ; → URL 파라미터 :id
-(server-req-header req "content-type")
+; 요청
+(get req "body")              ; POST body 맵
+(server-req-param req "id")   ; :id URL 파라미터
+(server-req-query req "q")    ; ?q= 쿼리스트링
 
-; 에러 (개발 시 브라우저에 오버레이 표시)
-(dev-error-page "/route" "에러 메시지")
+; Island 글로벌 store
+; → Island 런타임(_fl)에서만 동작
+; (dispatch "key" val)        ; store 업데이트
+; (get-store "key")           ; store 읽기
+; (island X [:watch "key"] …) ; 반응형 Island
+
+; SPA 링크
+(h "a" {:href "/path" :data-spa "1"} "이동") ; 새로고침 없이 전환
 \`\`\`
 
 ## 절대 쓰지 말 것 (존재하지 않는 함수)
 
 | ❌ 쓰면 안 됨 | ✅ 올바른 함수 |
 |-------------|-------------|
-| \`url-decode\` | → 주입된 \`(url-decode s)\` 사용 |
-| \`form-field req key\` | → 주입된 \`(form-field req key)\` 사용 |
-| \`server-status\` | → \`server_status\` (언더스코어) |
-| \`server-sse\` | → ❌ 미지원 |
-| \`server-req-body\` | → ❌ 미지원, \`(get req "body")\` 사용 |
-| \`str-split\` | → \`regex_split str pattern\` |
-| \`str-includes?\` | → \`arr-includes?\` (배열용만 있음) |
+| \`server-req-body\` | \`(get req "body")\` |
+| \`str-split\` | \`regex_split str pattern\` |
+| \`str-includes?\` | \`(> (str-count s sub) 0)\` |
+| \`map-indexed\` | \`(map fn arr)\` + index 수동 |
+| \`string?\` | ❌ 없음 |
+| \`server-sse\` | ❌ 미지원 |
+| \`server_status\` | kebab: \`server-status\` ← 실제로 없음, 주입된 \`dev-error-page\` 또는 직접 server_status 사용 |
 
 ## 페이지 패턴
 
 \`\`\`lisp
-; GET 전용
+; GET — h() 사용
 (defn render [req]
-  (server-html (layout "제목" "<p>내용</p>" req)))
+  (layout-html "제목"
+    (h "div" {:class card}
+      (h "p" {} "내용"))
+    req))
 
 ; GET + POST
 (defn render [req]
-  (let [items (db-query DB "SELECT * FROM items" [])]
-    (server-html (layout "목록" (str "<ul>" ...) req))))
+  (let [items (db-query DB "SELECT * FROM t" [])]
+    (layout-html "목록"
+      (h "ul" {}
+        (arr-join (map (fn [i] (h "li" {} (get i "name"))) items) ""))
+      req)))
 
 (defn render_post [req]
   (let [name (form-field req "name")]
-    (db-exec DB "INSERT INTO items (name) VALUES (?)" [name])
-    (server-redirect "/items")))
+    (db-exec DB "INSERT INTO t (name) VALUES (?)" [name])
+    (server-redirect "/list")))
 
 ; 동적 라우트 (pages/users/[id].flx)
 (defn render [req]
