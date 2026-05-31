@@ -154,8 +154,7 @@ if (searchInput) {
                      "<div style='font-size:3rem;margin-bottom:16px'>📝</div>"
                      "<p style='margin:0'>메모가 없습니다</p></div>")
                 (str-join "" (map note-card notes)))]
-    (server-html
-      (layout "Notes" (str
+    (layout-html "Notes" (str
 
         ; 헤더
         "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px'>"
@@ -203,7 +202,7 @@ if (searchInput) {
         "</div>"
 
         EDIT-SCRIPT)
-      req))))
+      req)))
 
 ; ── POST 핸들러 ──
 (defn render_post [req]

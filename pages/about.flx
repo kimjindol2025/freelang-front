@@ -1,7 +1,6 @@
 ; HMR 테스트
 (defn render [req]
-  (server-html
-    (layout "About" (str
+  (layout-html "About" (str
       "<h2>FreeLang Front란?</h2>"
       "<p>FreeLang v11 fx 기반 풀스택 프론트엔드 언어입니다.</p>"
       "<div style='background:white;border-radius:10px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.1)'>"
@@ -14,6 +13,6 @@
       "<li><strong>Critical CSS</strong> — 페이지별 사용 CSS만 인라인</li>"
       "<li><strong>서버 폼 처리</strong> — JS 없이 POST + redirect 패턴</li>"
       "</ul>"
-      "</div>") req)))
+      "</div>") req))
 
 ; hmr-test

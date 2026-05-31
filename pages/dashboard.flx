@@ -24,8 +24,7 @@
         weekly  (get stats :weekly)
         bar     (chart-bar monthly 480 200)
         line    (chart-line weekly 480 200)]
-    (server-html
-      (layout "Dashboard" (str
+    (layout-html "Dashboard" (str
         "<h2 style='margin:0 0 4px'>📊 FreeLang Front Dashboard</h2>"
         "<p style='color:#6b7280;margin:0 0 24px'>npm install 0개 · SSR · CSS DSL · Island · SVG Chart</p>"
 
@@ -55,4 +54,4 @@
         "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📈 주간 방문 선 차트</h3>"
         line
         "</div>"
-        "</div>") req))))))
+        "</div>") req)))))

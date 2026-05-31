@@ -17,8 +17,7 @@
                  :sm-p "24px")
 
 (defn render [req]
-  (server-html
-    (layout "Styled" (str
+  (layout-html "Styled" (str
       "<h2 style='margin:0 0 8px'>CSS DSL 데모</h2>"
       "<p style='color:#6b7280;margin:0 0 24px'>scoped hash + 반응형 breakpoint — 화면 크기를 줄여보세요</p>"
 
@@ -57,4 +56,4 @@
       "<span class='" badge "'>반응형</span>"
       "<span class='" badge "'>Critical CSS</span>"
       "<span class='" badge "'>서버 폼</span>"
-      "</div>") req)))
+      "</div>") req))

@@ -1,8 +1,7 @@
 (defn render [req]
   (let [msg (server-req-query req "msg")
         err (server-req-query req "err")]
-    (server-html
-      (layout "파일 업로드" (str
+    (layout-html "파일 업로드" (str
         "<h2 style='margin:0 0 8px'>파일 업로드</h2>"
         "<p style='color:#6b7280;margin:0 0 24px'>최대 2MB · 이미지/텍스트/PDF</p>"
 
@@ -30,7 +29,7 @@
         "border-radius:8px;padding:12px;font-size:1rem;font-weight:600;cursor:pointer'>"
         "업로드"
         "</button>"
-        "</form>") req))))
+        "</form>") req)))
 
 (defn render_post [req]
   (let [files (server-req-files req)

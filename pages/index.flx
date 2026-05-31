@@ -11,8 +11,7 @@
 (style stat_item  :bg "white" :radius "12px" :shadow "sm" :p "24px")
 
 (defn render [req]
-  (server-html
-    (layout "FreeLang Front" (str
+  (layout-html "FreeLang Front" (str
 
       ; ── Hero ─────────────────────────────────────────────────
       "<div class='" hero_wrap "'>"
@@ -165,4 +164,4 @@
       "📬 Contact 폼"
       "</a>"
       "</div>"
-      "</div>") req)))
+      "</div>") req))

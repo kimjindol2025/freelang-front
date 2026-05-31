@@ -60,9 +60,8 @@
         (str (length @items) "개 항목")))))
 
 (defn render [req]
-  (server-html
-    (layout "To-do" (str
+  (layout-html "To-do" (str
       "<h2 style='margin:0 0 8px'>To-do Island</h2>"
       "<p style='color:#6b7280;margin:0 0 24px'>atom 배열 상태 · 추가 / 완료 토글 / 삭제 — 순수 클라이언트 Island</p>"
       "ISLAND_PLACEHOLDER"
-      "ISLAND_SCRIPTS") req)))
+      "ISLAND_SCRIPTS") req))

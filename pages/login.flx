@@ -1,7 +1,6 @@
 (defn render [req]
   (let [err (server-req-query req "error")]
-    (server-html
-      (layout "로그인" (str
+    (layout-html "로그인" (str
         "<div style='max-width:360px;margin:0 auto'>"
         "<h2 style='font-size:1.5rem;font-weight:700;margin:0 0 24px;text-align:center'>로그인</h2>"
         (if err
@@ -30,7 +29,7 @@
         "데모: admin / admin123"
         "</p>"
         "</form>"
-        "</div>") req))))
+        "</div>") req)))
 
 (defn render_post [req]
   (let [body     (server-req-json req)
