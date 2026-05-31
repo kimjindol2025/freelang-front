@@ -177,8 +177,8 @@ function validateFunctions(routes, helpers, bindings) {
     const src = fs.readFileSync(f, 'utf8');
     const fileName = path.basename(f);
     const strippedLines = src
-      .replace(/;[^\n]*/g, '')
-      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, '"__STR__"')  // dotAll — 멀티라인 문자열 처리
+      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, '"__STR__"')  // 문자열 먼저 (내부 ; 보호)
+      .replace(/;[^\n]*/g, '')                           // 그 다음 주석 제거
       .split('\n');
 
     for (let li = 0; li < strippedLines.length; li++) {
