@@ -46,6 +46,6 @@
         (if (> size 2097152)
           (server-redirect "/upload?err=파일이 2MB를 초과합니다")
           (do
-            (shell-exec (str "cp " tmp " " dest))
+            (shell (str "cp " tmp " " dest))
             (server-redirect (str "/upload?msg=업로드 완료: " orig " (" size "bytes)")))))
       (server-redirect "/upload?err=파일을 선택해주세요"))))

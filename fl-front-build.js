@@ -88,6 +88,9 @@ const FL_FRONT_HELPERS = new Set([
   // 서버 req 헬퍼
   'server-req-param','server-req-query','server-req-json',
   'server_req_param','server_req_query','server_req_json',
+  // INJECTED_HELPERS에서 자동 주입되는 함수들
+  'round','str-slice','str_slice','map-indexed','map_indexed',
+  'empty?','h!','h-attrs','arr-join','arr_join',
 ]);
 
 const KNOWN_STDLIB = loadFreeLangStdlib();
@@ -157,12 +160,13 @@ function validateFunctions(routes, helpers, bindings) {
 
   const allFiles = [...helpers, ...routes.map(r => r.file)];
 
-  // 1패스: 모든 .flx 파일에서 defn/define 수집
+  // 1패스: 모든 .flx 파일에서 defn/define/server-fn 수집
   const defined = new Set();
   for (const f of allFiles) {
     const src = fs.readFileSync(f, 'utf8');
-    for (const m of src.matchAll(/\(defn\s+([\w-]+)/g))   defined.add(m[1]);
-    for (const m of src.matchAll(/\(define\s+([\w-]+)/g)) defined.add(m[1]);
+    for (const m of src.matchAll(/\(defn\s+([\w-]+)/g))       defined.add(m[1]);
+    for (const m of src.matchAll(/\(define\s+([\w-]+)/g))     defined.add(m[1]);
+    for (const m of src.matchAll(/\(server-fn\s+([\w-]+)/g))  defined.add(m[1]);
   }
 
   function isKnownFn(fn) {
@@ -458,6 +462,36 @@ const INJECTED_HELPERS = `
 ; ── 누락 stdlib 보완 ──
 ; nil? — FreeLang에 없는 함수 보완
 (defn nil? [x] (= x nil))
+
+; round — 반올림 (% 연산자로 소수점 추출)
+(defn round [n]
+  (let [frac (% n 1)]
+    (if (>= frac 0.5)
+      (- n frac (- 1))
+      (- n frac))))
+
+; str-slice — 부분 문자열 추출 (regex_split "" 으로 char 분리)
+(defn str-slice [s start end]
+  (let [chars (regex_split (str s) "")
+        idx   (atom 0)]
+    (arr-join
+      (filter
+        (fn [_c]
+          (let [i (deref idx)
+                _ (swap! idx inc)]
+            (and (>= i start) (< i end))))
+        chars)
+      "")))
+
+; map-indexed — 인덱스 포함 map (atom 카운터 방식)
+(defn map-indexed [f arr]
+  (let [idx (atom 0)]
+    (map
+      (fn [item]
+        (let [i (deref idx)
+              _ (swap! idx inc)]
+          (f i item)))
+      arr)))
 
 ; server-html alias — snake_case 혼동 방지
 (defn server-html [html] (server_html html))
