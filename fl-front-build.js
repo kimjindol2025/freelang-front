@@ -86,6 +86,7 @@ const FL_FRONT_HELPERS = new Set([
   'uuid','uuid_short','uuid-short',
   // Island 전용 런타임 함수
   'dispatch','get-store','get_store',
+  'fetch!','fetch-post!',
   // 서버 req 헬퍼
   'server-req-param','server-req-query','server-req-json',
   'server_req_param','server_req_query','server_req_json',
@@ -301,6 +302,11 @@ function generateAgentsMd(routes, helpers = []) {
 ; (dispatch "key" val)        ; store 업데이트
 ; (get-store "key")           ; store 읽기
 ; (island X [:watch "key"] …) ; 반응형 Island
+
+; Island 비동기 fetch (Island 블록 안에서만 사용)
+; (fetch! "/api/users" (fn [data] (reset! items data)))          ; GET → JSON
+; (fetch-post! "/api/save" {"name" "홍"} (fn [res] ...))         ; POST JSON → JSON
+; 에러 시 /~errors 자동 수집 + 터미널 출력
 
 ; SPA 링크
 (h "a" {:href "/path" :data-spa "1"} "이동") ; 새로고침 없이 전환

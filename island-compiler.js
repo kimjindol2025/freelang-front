@@ -140,6 +140,9 @@ function emitList(node, ctx) {
   if (head?.sym === 'dispatch')     return `_fl.dispatch(${emit(args[0],ctx)}${args[1]!==undefined?','+emit(args[1],ctx):''})`;
   if (head?.sym === 'watch-store')  return `_fl.watch_store(${emit(args[0],ctx)})`;
   if (head?.sym === 'empty?')  return `(!((${emit(args[0],ctx)}) && (${emit(args[0],ctx)}).length > 0))`;
+  // fetch! / fetch-post! — Island 내부 비동기 API 호출
+  if (head?.sym === 'fetch!')       return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'fetch-post!')  return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
   // 일반 함수 호출
   const fn = emit(head, ctx);
   return `${fn}(${args.map(a => emit(a, ctx)).join(', ')})`;
@@ -255,6 +258,22 @@ const _fl={
       else el.appendChild(document.createTextNode(String(c)));
     });
     return el;
+  },
+  // ── fetch! — Island 내부 API 호출 (GET, JSON 자동 파싱) ──
+  // 사용: (fetch! "/api/users" (fn [data] (reset! items data)))
+  fetch:(url,cb)=>{
+    fetch(url,{headers:{'Accept':'application/json'}})
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch!',e,'callback'); } })
+      .catch(err=>{ _fl._err('fetch!',new Error('GET '+url+' → '+err),'request'); });
+  },
+  // fetch-post! — POST JSON → Island 콜백
+  // 사용: (fetch-post! "/api/save" {"name" "홍"} (fn [res] (reset! result res)))
+  fetch_post:(url,body,cb)=>{
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)})
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-post!',e,'callback'); } })
+      .catch(err=>{ _fl._err('fetch-post!',new Error('POST '+url+' → '+err),'request'); });
   },
   // ── Island 에러 리포터 → /~errors ──
   _err:(islandId,err,phase)=>{

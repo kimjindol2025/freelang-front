@@ -53,6 +53,11 @@
 ; (get-store "key")           ; store 읽기
 ; (island X [:watch "key"] …) ; 반응형 Island
 
+; Island 비동기 fetch (Island 블록 안에서만 사용)
+; (fetch! "/api/users" (fn [data] (reset! items data)))          ; GET → JSON
+; (fetch-post! "/api/save" {"name" "홍"} (fn [res] ...))         ; POST JSON → JSON
+; 에러 시 /~errors 자동 수집 + 터미널 출력
+
 ; SPA 링크
 (h "a" {:href "/path" :data-spa "1"} "이동") ; 새로고침 없이 전환
 ```
@@ -137,6 +142,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/counter` | pages/counter.flx |
 | `/dashboard` | pages/dashboard.flx |
 | `/demo` | pages/demo.flx |
+| `/fetch-demo` | pages/fetch-demo.flx |
 | `/` | pages/index.flx |
 | `/login` | pages/login.flx |
 | `/logout` | pages/logout.flx |

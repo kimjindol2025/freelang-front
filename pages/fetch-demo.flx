@@ -1,0 +1,30 @@
+; pages/fetch-demo.flx — fetch! Island 데모
+; /api/hello 엔드포인트에서 데이터 불러와 표시
+
+(defn render [req]
+  (layout-html "fetch! 데모"
+    (h "div" {:class card}
+      (str
+        (h "h2" {} "Island fetch! 데모")
+        (h "p" {"style" "color:#9ca3af;font-size:.9rem"} "버튼 클릭 → /api/hello 호출 → 결과 표시")
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS"))
+    req))
+
+(island FetchDemo []
+  (let [result (atom nil)
+        loading (atom false)]
+    (h "div" {}
+      (h "button" {"on-click"
+        (fn [_]
+          (reset! loading true)
+          (reset! result nil)
+          (fetch! "/api/hello"
+            (fn [data]
+              (reset! loading false)
+              (reset! result data))))}
+        (if (deref loading) "로딩중..." "데이터 불러오기"))
+      (if (not= (deref result) nil)
+        (h "pre" {"style" "margin-top:12px;padding:12px;background:#1a1a1a;color:#4ade80;border-radius:6px;font-size:.85rem"}
+          (str (deref result)))
+        (h "p" {"style" "color:#9ca3af;margin-top:8px;font-size:.85rem"} "결과가 여기 표시됩니다")))))
