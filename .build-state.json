@@ -1,0 +1,116 @@
+{
+  "ok": true,
+  "time": "2026-05-31T19:02:29.397Z",
+  "routes": [
+    {
+      "route": "/about",
+      "file": "pages/about.flx",
+      "fn": "page_about"
+    },
+    {
+      "route": "/api/hello",
+      "file": "pages/api/hello.flx",
+      "fn": "page_api_hello"
+    },
+    {
+      "route": "/contact/thanks",
+      "file": "pages/contact/thanks.flx",
+      "fn": "page_contact_thanks"
+    },
+    {
+      "route": "/contact",
+      "file": "pages/contact.flx",
+      "fn": "page_contact"
+    },
+    {
+      "route": "/counter",
+      "file": "pages/counter.flx",
+      "fn": "page_counter"
+    },
+    {
+      "route": "/dashboard",
+      "file": "pages/dashboard.flx",
+      "fn": "page_dashboard"
+    },
+    {
+      "route": "/demo",
+      "file": "pages/demo.flx",
+      "fn": "page_demo"
+    },
+    {
+      "route": "/",
+      "file": "pages/index.flx",
+      "fn": "page_index"
+    },
+    {
+      "route": "/login",
+      "file": "pages/login.flx",
+      "fn": "page_login"
+    },
+    {
+      "route": "/logout",
+      "file": "pages/logout.flx",
+      "fn": "page_logout"
+    },
+    {
+      "route": "/notes",
+      "file": "pages/notes.flx",
+      "fn": "page_notes"
+    },
+    {
+      "route": "/styled",
+      "file": "pages/styled.flx",
+      "fn": "page_styled"
+    },
+    {
+      "route": "/test-helpers",
+      "file": "pages/test-helpers.flx",
+      "fn": "page_test_helpers"
+    },
+    {
+      "route": "/todo",
+      "file": "pages/todo.flx",
+      "fn": "page_todo"
+    },
+    {
+      "route": "/upload",
+      "file": "pages/upload.flx",
+      "fn": "page_upload"
+    },
+    {
+      "route": "/users/:id",
+      "file": "pages/users/[id].flx",
+      "fn": "page_users_id"
+    }
+  ],
+  "helpers": [
+    "_layout.flx",
+    "_db.flx",
+    "_auth.flx",
+    "_error.flx",
+    "_charts.flx",
+    "_email.flx",
+    "_oauth.flx",
+    "_payment.flx",
+    "_storage.flx"
+  ],
+  "sourceMap": {
+    "122-125": "pages/about.flx",
+    "128-131": "pages/api/hello.flx",
+    "134-137": "pages/contact/thanks.flx",
+    "140-146": "pages/contact.flx",
+    "149-152": "pages/counter.flx",
+    "155-158": "pages/dashboard.flx",
+    "161-164": "pages/demo.flx",
+    "167-170": "pages/index.flx",
+    "173-179": "pages/login.flx",
+    "182-185": "pages/logout.flx",
+    "188-194": "pages/notes.flx",
+    "197-200": "pages/styled.flx",
+    "203-206": "pages/test-helpers.flx",
+    "209-212": "pages/todo.flx",
+    "215-221": "pages/upload.flx",
+    "224-227": "pages/users/[id].flx"
+  },
+  "warnings": []
+}

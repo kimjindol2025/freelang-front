@@ -67,7 +67,8 @@ function loadFreeLangStdlib() {
 
 // fl-front 자체 주입 헬퍼 (stdlib에 없는 것만)
 const FL_FRONT_HELPERS = new Set([
-  'form_field','form-field','url_decode','url-decode',
+  'form_field','form-field','form_data','form-data','form_get','form-get','form_validate','form-validate',
+  'url_decode','url-decode',
   'dev_error_page','dev-error-page','not_found_handler','not-found-handler',
   'layout','layout-html','nav_link','nav-link',
   'db_migrate','db-migrate','db_fetch_stats','db-fetch-stats',
@@ -221,10 +222,30 @@ function validateFunctions(routes, helpers, bindings) {
 // ══════════════════════════════════════════════════════════════
 // C. AGENTS.md 자동 생성 (AI 세션 시작 시 읽는 컨텍스트)
 // ══════════════════════════════════════════════════════════════
-function generateAgentsMd(routes) {
+function scanTypeAnnotations(routes, helpers) {
+  const types = [];
+  const allFiles = [...helpers, ...routes.map(r => ({ file: r.file, label: r.file }))];
+  for (const { file, label } of allFiles) {
+    try {
+      const src = fs.readFileSync(file, 'utf8');
+      for (const m of src.matchAll(/^;\s*@type\s+(.+)$/gm)) {
+        types.push({ file: path.basename(file), annotation: m[1].trim() });
+      }
+    } catch {}
+  }
+  return types;
+}
+
+function generateAgentsMd(routes, helpers = []) {
   const routeList = routes.map(r =>
     `| \`${r.route}\` | ${r.file} |`
   ).join('\n');
+
+  const typeAnnotations = scanTypeAnnotations(routes, helpers);
+  const typeSection = typeAnnotations.length > 0
+    ? `\n## @type 주석 (파일에서 자동 추출)\n\n` +
+      typeAnnotations.map(t => `- \`${t.file}\` — \`${t.annotation}\``).join('\n') + '\n'
+    : '';
 
   return `# FL-Front AI Context (자동 생성 — 직접 수정 금지)
 
@@ -249,8 +270,11 @@ function generateAgentsMd(routes) {
 ; 배열 결합 (h() 자식 여러 개)
 (arr-join (map render-fn items) "")         ; → 리스트 렌더링
 
-; 폼 필드 읽기
-(form-field req "name")       ; → "홍길동" 또는 ""
+; 폼 (통일 API — form-field 대신 이걸 사용)
+(form-get req "name")                    ; → "홍길동" 또는 ""
+(form-data req)                          ; → {"name" "홍길동" "email" "..."} 전체 맵
+(form-validate req ["name" "email"])     ; → {"valid" true "errors" []}
+(form-field req "name")       ; ← 레거시 (위와 동일하지만 form-get 권장)
 (url-decode "hello+world")    ; → "hello world"
 
 ; 레이아웃
@@ -362,6 +386,25 @@ ${routeList}
 - FreeLang stdlib: \`snake_case\` (server_req_method, db_query)
 - 주입 헬퍼: \`kebab-case\` (form-field, url-decode, dev-error-page)
 - 페이지 핸들러: \`render\` / \`render_post\` (빌드 시 자동 rename)
+
+## @type 주석 컨벤션 (AI 타입 힌트)
+
+파일 상단에 아래 형식으로 작성하면 AGENTS.md에 자동 포함됩니다:
+\`\`\`lisp
+; @type user: {id: int, name: string, email: string}
+; @type req.params.id: string
+; @type items: [{id: int, title: string, done: bool}]
+\`\`\`
+${typeSection}
+## AI 디버그 API
+
+\`\`\`bash
+# 현재 앱 상태 (라우트, 에러, 소스맵) 한 번에 조회
+curl http://localhost:40851/~ai | python3 -m json.tool
+
+# 브라우저 에러만
+curl http://localhost:40851/~errors
+\`\`\`
 `;
 }
 
@@ -507,6 +550,24 @@ const INJECTED_HELPERS = `
       (let [val (get raw key)]
         (if (= val nil) "" (str val))))))
 
+; form-data — body 전체 맵 반환
+(defn form-data [req]
+  (let [body (get req "body")]
+    (if (= body nil) {} body)))
+
+; form-get — 특정 키 읽기 (없으면 "")
+(defn form-get [req key]
+  (let [body (get req "body")]
+    (if (= body nil) ""
+      (let [v (get body key)]
+        (if (= v nil) "" (str v))))))
+
+; form-validate — 필수 키 검증 → {"valid" true/false "errors" [...누락키]}
+(defn form-validate [req keys]
+  (let [missing (filter keys (fn [k] (= (form-get req k) "")))]
+    {"valid" (= (length missing) 0)
+     "errors" missing}))
+
 ; url-decode: + → 공백 처리
 (defn url-decode [s]
   (if (= s nil) ""
@@ -595,6 +656,7 @@ a{color:#6366f1;text-decoration:none;font-weight:600}</style></head>
 
 function generate(routes, bindings = [], helpers = [], appCss = '') {
   const lines = [];
+  const sourceMap = {}; // "startLine-endLine" → "pages/X.flx"
   lines.push('; _app.fl — 자동 생성. 직접 수정 금지.');
   lines.push(`; 생성: ${new Date().toISOString()}`);
   lines.push('');
@@ -837,6 +899,7 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       src = src.replace(/"ISLAND_SCRIPTS"/g, JSON.stringify(scriptBlock));
     }
     lines.push(`; ── ${r.file} ──`);
+    const smStart = lines.length + 1; // 소스맵 시작 라인
     let renamed = src.replace(
       /\(defn render \[req\]/,
       `(defn ${r.fnName}__inner [req]`
@@ -857,6 +920,7 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       lines.push(`  (try (${r.fnName}_post__inner req)`);
       lines.push(`    (catch $err (dev-error-page "${r.route} [POST]" (str $err)))))`);
     }
+    sourceMap[`${smStart}-${lines.length}`] = r.file; // 소스맵 기록
     lines.push('');
   }
 
@@ -875,7 +939,7 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
   lines.push(`(println "FL-Front v0.1 — http://localhost:${PORT}")`);
   lines.push(`(server-start ${PORT})`);
 
-  return lines.join('\n');
+  return { content: lines.join('\n'), sourceMap };
 }
 
 const BUILD_START = Date.now();
@@ -987,7 +1051,7 @@ function validateHAttributes(routes, helpers, bindings) {
 checkAllParens(routes, helpers);
 detectDangerousPatterns(routes, helpers);
 
-const appContent = generate(routes, bindings, helpers, appCssContent);
+const { content: appContent, sourceMap } = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
 
 // A. 빌드 시 미정의 함수 감지 (원본 .flx 파일 기준)
@@ -995,7 +1059,7 @@ validateFunctions(routes, helpers, bindings);
 validateHAttributes(routes, helpers, bindings);
 
 // C. AGENTS.md 자동 생성
-fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes), 'utf8');
+fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes, helpers), 'utf8');
 
 // 빌드 캐시 저장 (다음 빌드에서 미변경 파일 감지용)
 const newCache = {};
@@ -1003,7 +1067,25 @@ for (const r of routes) newCache[r.file] = fileHash(r.file);
 for (const h of helpers) newCache[h] = fileHash(h);
 newCache['fl-front-build.js'] = fileHash(path.join(__dirname, 'fl-front-build.js'));
 newCache['style-compiler.js'] = fileHash(path.join(__dirname, 'style-compiler.js'));
+newCache.sourceMap = sourceMap;
 saveCache(newCache);
+
+// 빌드 상태 저장 → dev-server.js /~ai 엔드포인트용
+const buildState = {
+  ok: true,
+  time: new Date().toISOString(),
+  routes: routes.map(r => ({ route: r.route, file: r.file, fn: r.fnName })),
+  helpers: helpers.map(h => path.basename(h)),
+  sourceMap,
+  warnings: [],
+};
+try {
+  fs.writeFileSync(
+    path.join(__dirname, '.build-state.json'),
+    JSON.stringify(buildState, null, 2),
+    'utf8'
+  );
+} catch {}
 
 const elapsed = Date.now() - BUILD_START;
 console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);

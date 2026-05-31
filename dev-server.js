@@ -11,18 +11,38 @@ const cp     = require('child_process');
 const http   = require('http');
 const crypto = require('crypto');
 
-const ROOT      = __dirname;
-const PAGES_DIR = path.join(ROOT, 'pages');
-const APP_FL    = path.join(ROOT, '_app.fl');
-const CSS_FILE  = path.join(ROOT, 'public', 'app.css');
-const BUILD_JS  = path.join(ROOT, 'fl-front-build.js');
-const RUNTIME   = '/home/kimjin/freelang-v11/bootstrap.js';
-const HMR_PORT  = 40851;
+const ROOT           = __dirname;
+const PAGES_DIR      = path.join(ROOT, 'pages');
+const APP_FL         = path.join(ROOT, '_app.fl');
+const CSS_FILE       = path.join(ROOT, 'public', 'app.css');
+const BUILD_JS       = path.join(ROOT, 'fl-front-build.js');
+const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');
+const RUNTIME        = '/home/kimjin/freelang-v11/bootstrap.js';
+const HMR_PORT       = 40851;
 
 let serverProc    = null;
 let debounceTimer = null;
 let hmrClients    = [];
 const fileHashes  = new Map();
+
+// 빌드 상태 (fl-front-build.js가 .build-state.json에 저장)
+let lastBuildState = { ok: false, time: null, routes: [], helpers: [], sourceMap: {}, warnings: [] };
+
+function loadBuildState() {
+  try {
+    lastBuildState = JSON.parse(fs.readFileSync(BUILD_STATE_FILE, 'utf8'));
+  } catch {}
+}
+
+// 소스맵 역추적: _app.fl 라인 번호 → pages/*.flx 파일명
+function resolveSourceFile(lineNum) {
+  const map = lastBuildState.sourceMap || {};
+  for (const [range, file] of Object.entries(map)) {
+    const [s, e] = range.split('-').map(Number);
+    if (lineNum >= s && lineNum <= e) return file;
+  }
+  return null;
+}
 
 // ── 브라우저 에러 로그 (AI 조회용) ───────────────────────────
 const errorLog = [];
@@ -96,6 +116,29 @@ const hmrServer = http.createServer((req, res) => {
     return;
   }
 
+  // AI 통합 상태 조회 (GET /~ai) — curl로 현재 앱 상태 전체 파악
+  if (req.url === '/~ai' && req.method === 'GET') {
+    const state = {
+      build: {
+        ok:       lastBuildState.ok,
+        time:     lastBuildState.time,
+        warnings: lastBuildState.warnings || [],
+      },
+      routes:   (lastBuildState.routes || []).map(r => r.route),
+      helpers:  lastBuildState.helpers || [],
+      sourceMap: lastBuildState.sourceMap || {},
+      browserErrors: errorLog.slice(0, 10),
+      tip: [
+        'POST http://localhost:40851/~errors  — 브라우저 에러 수집',
+        'DELETE http://localhost:40851/~errors — 에러 초기화',
+        'GET http://localhost:40850/<route>   — 앱 접근',
+      ],
+    };
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(state, null, 2));
+    return;
+  }
+
   res.writeHead(404, cors); res.end();
 });
 
@@ -144,7 +187,12 @@ function build() {
     const p = cp.spawn('node', [BUILD_JS], { cwd: ROOT, stdio: 'inherit' });
     p.on('close', code => {
       console.log(`[dev] 빌드 ${Date.now() - start}ms`);
-      code === 0 ? resolve() : reject(new Error(`build exit ${code}`));
+      if (code === 0) {
+        loadBuildState(); // 빌드 성공 → 소스맵/라우트 상태 갱신
+        resolve();
+      } else {
+        reject(new Error(`build exit ${code}`));
+      }
     });
   });
 }
@@ -166,7 +214,16 @@ function startServer() {
         resolve();  // 포트 오픈 확인 → 즉시 HMR
       }
     });
-    serverProc.stderr.on('data', d => process.stderr.write(d.toString()));
+    serverProc.stderr.on('data', d => {
+      const msg = d.toString();
+      process.stderr.write(msg);
+      // _app.fl:N 패턴 감지 → 원본 파일 역추적
+      const m = msg.match(/_app\.fl[:\s]+(\d+)/);
+      if (m) {
+        const src = resolveSourceFile(Number(m[1]));
+        if (src) console.error(`\x1b[36m[source]\x1b[0m 원본 파일: ${src}`);
+      }
+    });
     serverProc.on('exit', (code, signal) => {
       if (signal !== 'SIGTERM') console.log(`[dev] 서버 종료 (code=${code})`);
     });
