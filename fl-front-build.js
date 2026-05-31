@@ -182,7 +182,7 @@ function validateFunctions(routes, helpers, bindings) {
       .split('\n');
 
     for (let li = 0; li < strippedLines.length; li++) {
-      for (const m of strippedLines[li].matchAll(/\(([a-z][a-z0-9_-]{2,})/g)) {
+      for (const m of strippedLines[li].matchAll(/\(([a-z][a-z0-9_-]{2,}[!?]?)/g)) {
         const fn = m[1];
         if (CORE_KEYWORDS.has(fn)) continue;
         if (isKnownFn(fn)) continue;
