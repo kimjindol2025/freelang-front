@@ -42,3 +42,4 @@
               "(h! \"input\" {:type \"text\" :placeholder \"입력\"})")))))
     req
     {"title" "FreeLang Front란?" "desc" "npm install 0개로 Next.js 대체. SSR + Island 아키텍처." "type" "article"}))
+; hmr-test-1780244644
