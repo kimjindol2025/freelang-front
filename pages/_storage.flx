@@ -1,0 +1,120 @@
+; pages/_storage.flx — S3 호환 파일 스토리지 라이브러리
+; 지원: AWS S3 / MinIO / Cloudflare R2 / Backblaze B2
+;
+; 환경변수 (.env):
+;   S3_ENDPOINT=https://s3.amazonaws.com   # MinIO: http://localhost:9000
+;   S3_REGION=ap-northeast-2
+;   S3_BUCKET=my-bucket
+;   S3_ACCESS_KEY=AKIA...
+;   S3_SECRET_KEY=xxx
+;   S3_CDN_URL=https://cdn.example.com     # 선택 (CloudFront 등)
+;
+; 사용 예:
+;   (storage-put "uploads/photo.jpg" "/tmp/photo.jpg" "image/jpeg")
+;   (storage-url "uploads/photo.jpg")
+;   (storage-presign "uploads/photo.jpg" 3600)
+;   (storage-delete "uploads/photo.jpg")
+
+; ── 설정 ──────────────────────────────────────────────────────
+
+(define S3-ENDPOINT (fl-env-get "S3_ENDPOINT"))
+(define S3-REGION   (or (fl-env-get "S3_REGION") "ap-northeast-2"))
+(define S3-BUCKET   (fl-env-get "S3_BUCKET"))
+(define S3-KEY      (fl-env-get "S3_ACCESS_KEY"))
+(define S3-SECRET   (fl-env-get "S3_SECRET_KEY"))
+(define S3-CDN      (fl-env-get "S3_CDN_URL"))
+
+; ── 내부 헬퍼 ────────────────────────────────────────────────
+
+; 오브젝트 공개 URL (CDN 있으면 CDN, 없으면 S3 직접)
+(defn s3-public-url [$key]
+  (if S3-CDN
+    (str S3-CDN "/" $key)
+    (str S3-ENDPOINT "/" S3-BUCKET "/" $key)))
+
+; S3 서명 문자열 생성 (HMAC-SHA256 기반)
+(defn s3-sign [$string-to-sign $date $region]
+  (let [$k-date   (hmac_sha256 (str "AWS4" S3-SECRET) $date)
+        $k-region (hmac_sha256 $k-date $region)
+        $k-service (hmac_sha256 $k-region "s3")
+        $k-signing (hmac_sha256 $k-service "aws4_request")]
+    (hmac_sha256 $k-signing $string-to-sign)))
+
+; ── 파일 업로드 (서버사이드 → S3) ────────────────────────────
+
+; 로컬 파일을 S3에 업로드
+(defn storage-put [$key $local-path $content-type]
+  (let [$content (file-read $local-path)
+        $url     (str S3-ENDPOINT "/" S3-BUCKET "/" $key)
+        $res     (http_put $url $content)]
+    (if (= (get $res :status) 200)
+      {"ok" true  "url" (s3-public-url $key) "key" $key}
+      {"ok" false "status" (get $res :status)})))
+
+; Base64 데이터를 S3에 업로드 (클라이언트 전송 데이터)
+(defn storage-put-base64 [$key $base64-data $content-type]
+  (let [$content (base64_decode $base64-data)
+        $url     (str S3-ENDPOINT "/" S3-BUCKET "/" $key)
+        $res     (http_put $url $content)]
+    (if (= (get $res :status) 200)
+      {"ok" true  "url" (s3-public-url $key) "key" $key}
+      {"ok" false "status" (get $res :status)})))
+
+; ── URL 생성 ──────────────────────────────────────────────────
+
+; 공개 URL (Public 버킷)
+(defn storage-url [$key]
+  (s3-public-url $key))
+
+; 프리사인드 URL (Private 버킷 임시 접근, 업로드/다운로드)
+; expires: 초 단위 (기본 3600 = 1시간)
+(defn storage-presign [$key $expires]
+  (let [$now     (format-date (now-ms) "YYYYMMDD")
+        $exp     (or $expires 3600)
+        $params  (str "X-Amz-Algorithm=AWS4-HMAC-SHA256"
+                      "&X-Amz-Credential=" S3-KEY "%2F" $now "%2F" S3-REGION "%2Fs3%2Faws4_request"
+                      "&X-Amz-Date=" $now "T000000Z"
+                      "&X-Amz-Expires=" $exp
+                      "&X-Amz-SignedHeaders=host")]
+    ; 실제 프로덕션에서는 전체 v4 서명 구현 필요
+    ; 간소화 버전: presigned URL 구조만 제공
+    (str S3-ENDPOINT "/" S3-BUCKET "/" $key "?" $params)))
+
+; 클라이언트 직접 업로드용 presigned PUT URL
+(defn storage-presign-upload [$key $content-type $expires]
+  {"url"          (storage-presign $key (or $expires 600))
+   "method"       "PUT"
+   "content-type" $content-type
+   "key"          $key
+   "final-url"    (s3-public-url $key)})
+
+; ── 파일 관리 ─────────────────────────────────────────────────
+
+; 파일 삭제
+(defn storage-delete [$key]
+  (let [$url (str S3-ENDPOINT "/" S3-BUCKET "/" $key)
+        $res (http_delete $url)]
+    {"ok" (= (get $res :status) 204)}))
+
+; 파일 존재 확인
+(defn storage-exists? [$key]
+  (let [$url (str S3-ENDPOINT "/" S3-BUCKET "/" $key)
+        $res (http_head $url)]
+    (= (get $res :status) 200)))
+
+; ── 파일 키 생성 헬퍼 ─────────────────────────────────────────
+
+; 유니크한 업로드 키 생성
+; (storage-key "avatars" "photo.jpg") → "avatars/2026/06/uuid.jpg"
+(defn storage-key [$folder $filename]
+  (let [$ext  (str-slice $filename (- (length $filename) 4) (length $filename))
+        $date (format-date (now-ms) "YYYY/MM")]
+    (str $folder "/" $date "/" (uuid) $ext)))
+
+; 이미지 업로드용 키 (user-id 기반)
+(defn storage-avatar-key [$user-id]
+  (str "avatars/" $user-id "/profile.jpg"))
+
+; 첨부파일 키 (order-id + 파일명)
+(defn storage-attachment-key [$order-id $filename]
+  (str "attachments/" $order-id "/" $filename))

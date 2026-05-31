@@ -1,0 +1,125 @@
+; pages/_payment.flx — 결제 라이브러리
+; 지원: Toss Payments (한국 표준) + 포트원(구 아임포트)
+;
+; 환경변수 (.env):
+;   TOSS_SECRET_KEY=test_sk_...
+;   PORTONE_API_KEY=...
+;   PORTONE_API_SECRET=...
+;
+; 사용 예:
+;   (payment-confirm "pay_key_xxx" 10000 "order_001")
+;   (payment-cancel "pay_key_xxx" "고객 변심")
+;   (payment-virtual-account 10000 "order_001" "홍길동")
+
+; ── Toss Payments ─────────────────────────────────────────────
+
+(define TOSS-BASE  "https://api.tosspayments.com/v1")
+(define TOSS-KEY   (fl-env-get "TOSS_SECRET_KEY"))
+
+; Toss Basic Auth 헤더 생성
+(defn toss-auth []
+  (str "Basic " (base64_encode (str TOSS-KEY ":"))))
+
+; 결제 승인 (클라이언트 SDK → 서버 최종 승인)
+; paymentKey: Toss SDK에서 받은 키
+; amount: 결제 금액 (위조 방지: DB 주문 금액과 반드시 비교 후 호출)
+; orderId: 주문 번호
+(defn payment-confirm [$payment-key $amount $order-id]
+  (let [$res (http_post_json
+               (str TOSS-BASE "/payments/confirm")
+               {"paymentKey" $payment-key
+                "amount"     $amount
+                "orderId"    $order-id}
+               {"Authorization" (toss-auth)
+                "Content-Type"  "application/json"})]
+    (if (http_ok? $res)
+      {"ok"      true
+       "data"    (http_body $res)
+       "status"  (get (http_body $res) "status")}
+      {"ok"      false
+       "code"    (get (http_body $res) "code")
+       "message" (get (http_body $res) "message")})))
+
+; 결제 조회
+(defn payment-get [$payment-key]
+  (let [$res (http_get_json
+               (str TOSS-BASE "/payments/" $payment-key)
+               {"Authorization" (toss-auth)})]
+    (if (http_ok? $res) (http_body $res) nil)))
+
+; 결제 취소 (전액)
+(defn payment-cancel [$payment-key $reason]
+  (let [$res (http_post_json
+               (str TOSS-BASE "/payments/" $payment-key "/cancel")
+               {"cancelReason" $reason}
+               {"Authorization" (toss-auth)
+                "Content-Type"  "application/json"})]
+    {"ok" (http_ok? $res)
+     "data" (http_body $res)}))
+
+; 결제 부분 취소
+(defn payment-partial-cancel [$payment-key $amount $reason]
+  (let [$res (http_post_json
+               (str TOSS-BASE "/payments/" $payment-key "/cancel")
+               {"cancelReason"  $reason
+                "cancelAmount"  $amount}
+               {"Authorization" (toss-auth)
+                "Content-Type"  "application/json"})]
+    {"ok" (http_ok? $res)
+     "data" (http_body $res)}))
+
+; 가상계좌 발급
+(defn payment-virtual-account [$amount $order-id $customer-name]
+  (let [$res (http_post_json
+               (str TOSS-BASE "/virtual-accounts")
+               {"amount"       $amount
+                "orderId"      $order-id
+                "orderName"    $order-id
+                "customerName" $customer-name
+                "bank"         "카카오뱅크"
+                "validHours"   24}
+               {"Authorization" (toss-auth)
+                "Content-Type"  "application/json"})]
+    (if (http_ok? $res)
+      {"ok" true "data" (http_body $res)}
+      {"ok" false "message" (get (http_body $res) "message")})))
+
+; 주문 금액 위조 방지 헬퍼
+; DB에서 실제 금액 확인 후 결제 승인해야 함
+(defn payment-safe-confirm [$payment-key $db-amount $req-amount $order-id]
+  (if (= $db-amount $req-amount)
+    (payment-confirm $payment-key $db-amount $order-id)
+    {"ok" false "message" "결제 금액 불일치 — 위조 의심"}))
+
+; ── 포트원 (구 아임포트) ──────────────────────────────────────
+
+(define PORTONE-BASE   "https://api.iamport.kr")
+(define PORTONE-KEY    (fl-env-get "PORTONE_API_KEY"))
+(define PORTONE-SECRET (fl-env-get "PORTONE_API_SECRET"))
+
+; 포트원 액세스 토큰 발급
+(defn portone-token []
+  (let [$res (http_post_json
+               (str PORTONE-BASE "/users/getToken")
+               {"imp_key"    PORTONE-KEY
+                "imp_secret" PORTONE-SECRET}
+               {"Content-Type" "application/json"})]
+    (if (http_ok? $res)
+      (get (get (http_body $res) "response") "access_token")
+      nil)))
+
+; 포트원 결제 검증
+(defn portone-verify [$imp-uid $expected-amount]
+  (let [$token (portone-token)]
+    (if (= $token nil)
+      {"ok" false "message" "포트원 인증 실패"}
+      (let [$res (http_get_json
+                   (str PORTONE-BASE "/payments/" $imp-uid)
+                   {"Authorization" $token})]
+        (if (http_ok? $res)
+          (let [$payment (get (http_body $res) "response")
+                $paid    (get $payment "amount")]
+            (if (= $paid $expected-amount)
+              {"ok" true "data" $payment}
+              {"ok" false "message" "결제 금액 불일치"}))
+          {"ok" false "message" "결제 정보 조회 실패"})))))

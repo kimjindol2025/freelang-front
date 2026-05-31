@@ -1,0 +1,202 @@
+; pages/_oauth.flx — OAuth2 소셜 로그인 라이브러리
+; 지원: Google / Kakao / GitHub / Naver
+;
+; 환경변수 (.env):
+;   OAUTH_REDIRECT_BASE=https://myapp.com
+;   GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
+;   GOOGLE_CLIENT_SECRET=GOCSPX-xxx
+;   KAKAO_CLIENT_ID=xxx
+;   KAKAO_CLIENT_SECRET=xxx
+;   GITHUB_CLIENT_ID=xxx
+;   GITHUB_CLIENT_SECRET=xxx
+;   NAVER_CLIENT_ID=xxx
+;   NAVER_CLIENT_SECRET=xxx
+;
+; 사용 예:
+;   ; 1. 로그인 URL로 redirect
+;   (server-redirect (oauth-google-url "/auth/google/callback"))
+;
+;   ; 2. 콜백에서 사용자 정보 받기
+;   (let [user (oauth-google-callback code "/auth/google/callback")]
+;     (if (get user "ok")
+;       (let [email (get user "email")] ...)
+;       (server-redirect "/login?error=oauth")))
+
+; ── 설정 ──────────────────────────────────────────────────────
+
+(define OAUTH-BASE      (fl-env-get "OAUTH_REDIRECT_BASE"))
+(define GOOGLE-ID       (fl-env-get "GOOGLE_CLIENT_ID"))
+(define GOOGLE-SECRET   (fl-env-get "GOOGLE_CLIENT_SECRET"))
+(define KAKAO-ID        (fl-env-get "KAKAO_CLIENT_ID"))
+(define KAKAO-SECRET    (fl-env-get "KAKAO_CLIENT_SECRET"))
+(define GITHUB-ID       (fl-env-get "GITHUB_CLIENT_ID"))
+(define GITHUB-SECRET   (fl-env-get "GITHUB_CLIENT_SECRET"))
+(define NAVER-ID        (fl-env-get "NAVER_CLIENT_ID"))
+(define NAVER-SECRET    (fl-env-get "NAVER_CLIENT_SECRET"))
+
+; ── Google OAuth ──────────────────────────────────────────────
+
+; Google 로그인 URL 생성
+(defn oauth-google-url [$redirect-path]
+  (str "https://accounts.google.com/o/oauth2/v2/auth"
+       "?client_id=" GOOGLE-ID
+       "&redirect_uri=" OAUTH-BASE $redirect-path
+       "&response_type=code"
+       "&scope=openid%20email%20profile"
+       "&access_type=offline"
+       "&prompt=select_account"))
+
+; Google 콜백 처리 → 사용자 정보 반환
+(defn oauth-google-callback [$code $redirect-path]
+  (let [; 1. code → access_token 교환
+        $token-res (http_post_json
+                     "https://oauth2.googleapis.com/token"
+                     {"code"          $code
+                      "client_id"     GOOGLE-ID
+                      "client_secret" GOOGLE-SECRET
+                      "redirect_uri"  (str OAUTH-BASE $redirect-path)
+                      "grant_type"    "authorization_code"}
+                     {"Content-Type" "application/json"})]
+    (if (not (http_ok? $token-res))
+      {"ok" false "error" "token_exchange_failed"}
+      ; 2. access_token → 사용자 정보
+      (let [$token   (get (http_body $token-res) "access_token")
+            $user-res (http_get_json
+                        "https://www.googleapis.com/oauth2/v2/userinfo"
+                        {"Authorization" (str "Bearer " $token)})]
+        (if (not (http_ok? $user-res))
+          {"ok" false "error" "userinfo_failed"}
+          (let [$user (http_body $user-res)]
+            {"ok"      true
+             "email"   (get $user "email")
+             "name"    (get $user "name")
+             "picture" (get $user "picture")
+             "id"      (get $user "id")
+             "provider" "google"}))))))
+
+; ── Kakao OAuth ───────────────────────────────────────────────
+
+(defn oauth-kakao-url [$redirect-path]
+  (str "https://kauth.kakao.com/oauth/authorize"
+       "?client_id=" KAKAO-ID
+       "&redirect_uri=" OAUTH-BASE $redirect-path
+       "&response_type=code"))
+
+(defn oauth-kakao-callback [$code $redirect-path]
+  (let [; 1. code → access_token
+        $token-res (http_post_form
+                     "https://kauth.kakao.com/oauth/token"
+                     (str "grant_type=authorization_code"
+                          "&client_id=" KAKAO-ID
+                          "&client_secret=" KAKAO-SECRET
+                          "&redirect_uri=" OAUTH-BASE $redirect-path
+                          "&code=" $code))]
+    (if (not (http_ok? $token-res))
+      {"ok" false "error" "token_exchange_failed"}
+      (let [$token    (get (json_parse (get $token-res :body)) "access_token")
+            ; 2. access_token → 사용자 정보
+            $user-res (http_get_json
+                        "https://kapi.kakao.com/v2/user/me"
+                        {"Authorization" (str "Bearer " $token)})]
+        (if (not (http_ok? $user-res))
+          {"ok" false "error" "userinfo_failed"}
+          (let [$user    (http_body $user-res)
+                $kakao   (get $user "kakao_account")
+                $profile (get $kakao "profile")]
+            {"ok"      true
+             "email"   (get $kakao "email")
+             "name"    (get $profile "nickname")
+             "picture" (get $profile "profile_image_url")
+             "id"      (str (get $user "id"))
+             "provider" "kakao"}))))))
+
+; ── GitHub OAuth ──────────────────────────────────────────────
+
+(defn oauth-github-url [$redirect-path]
+  (str "https://github.com/login/oauth/authorize"
+       "?client_id=" GITHUB-ID
+       "&redirect_uri=" OAUTH-BASE $redirect-path
+       "&scope=user:email"))
+
+(defn oauth-github-callback [$code $redirect-path]
+  (let [; 1. code → access_token
+        $token-res (http_post_json
+                     "https://github.com/login/oauth/access_token"
+                     {"client_id"     GITHUB-ID
+                      "client_secret" GITHUB-SECRET
+                      "code"          $code
+                      "redirect_uri"  (str OAUTH-BASE $redirect-path)}
+                     {"Accept"       "application/json"
+                      "Content-Type" "application/json"})]
+    (if (not (http_ok? $token-res))
+      {"ok" false "error" "token_exchange_failed"}
+      (let [$token    (get (http_body $token-res) "access_token")
+            ; 2. 사용자 정보
+            $user-res (http_get_json
+                        "https://api.github.com/user"
+                        {"Authorization" (str "Bearer " $token)
+                         "User-Agent"    "fl-front"})]
+        (if (not (http_ok? $user-res))
+          {"ok" false "error" "userinfo_failed"}
+          (let [$user (http_body $user-res)]
+            {"ok"      true
+             "email"   (get $user "email")
+             "name"    (get $user "name")
+             "picture" (get $user "avatar_url")
+             "id"      (str (get $user "id"))
+             "provider" "github"}))))))
+
+; ── Naver OAuth ───────────────────────────────────────────────
+
+(defn oauth-naver-url [$redirect-path $state]
+  (str "https://nid.naver.com/oauth2.0/authorize"
+       "?response_type=code"
+       "&client_id=" NAVER-ID
+       "&redirect_uri=" OAUTH-BASE $redirect-path
+       "&state=" $state))
+
+(defn oauth-naver-callback [$code $state $redirect-path]
+  (let [$token-res (http_post_json
+                     "https://nid.naver.com/oauth2.0/token"
+                     {"grant_type"    "authorization_code"
+                      "client_id"     NAVER-ID
+                      "client_secret" NAVER-SECRET
+                      "code"          $code
+                      "state"         $state}
+                     {"Content-Type" "application/json"})]
+    (if (not (http_ok? $token-res))
+      {"ok" false "error" "token_exchange_failed"}
+      (let [$token    (get (http_body $token-res) "access_token")
+            $user-res (http_get_json
+                        "https://openapi.naver.com/v1/nid/me"
+                        {"Authorization" (str "Bearer " $token)})]
+        (if (not (http_ok? $user-res))
+          {"ok" false "error" "userinfo_failed"}
+          (let [$user (get (http_body $user-res) "response")]
+            {"ok"      true
+             "email"   (get $user "email")
+             "name"    (get $user "name")
+             "picture" (get $user "profile_image")
+             "id"      (get $user "id")
+             "provider" "naver"}))))))
+
+; ── 통합 헬퍼 ────────────────────────────────────────────────
+
+; 어떤 provider든 DB upsert하는 패턴
+; user = {"ok" true "email" "..." "name" "..." "provider" "google"}
+(defn oauth-upsert-user [$provider-user]
+  (if (not (get $provider-user "ok"))
+    nil
+    (let [$email    (get $provider-user "email")
+          $name     (get $provider-user "name")
+          $provider (get $provider-user "provider")
+          $existing (db-query DB
+                      "SELECT id FROM users WHERE email = ?" [$email])]
+      (if (> (length $existing) 0)
+        ; 기존 사용자 → 로그인
+        (get (first $existing) "id")
+        ; 신규 사용자 → 자동 가입
+        (let [$_ (db-exec DB
+                   "INSERT INTO users (email, name, provider, created_at) VALUES (?,?,?,datetime('now'))"
+                   [$email $name $provider])]
+          (get (first (db-query DB "SELECT id FROM users WHERE email = ?" [$email])) "id"))))))
