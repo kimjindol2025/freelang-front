@@ -8,6 +8,27 @@ const styleCompiler  = require('./style-compiler');
 const islandCompiler = require('./island-compiler');
 
 const PAGES_DIR   = path.join(__dirname, 'pages');
+
+// (style ...) 블록을 괄호 깊이 추적으로 정확히 제거
+function removeStyleBlocks(src) {
+  let result = '';
+  let i = 0;
+  while (i < src.length) {
+    const idx = src.indexOf('(style ', i);
+    if (idx === -1) { result += src.slice(i); break; }
+    result += src.slice(i, idx);
+    let depth = 0, j = idx;
+    while (j < src.length) {
+      if (src[j] === '(') depth++;
+      else if (src[j] === ')') { depth--; if (depth === 0) { j++; break; } }
+      j++;
+    }
+    // 뒤따르는 개행도 제거
+    while (j < src.length && (src[j] === '\n' || src[j] === '\r')) j++;
+    i = j;
+  }
+  return result;
+}
 const OUT_FILE    = path.join(__dirname, '_app.fl');
 const AGENTS_FILE = path.join(__dirname, 'AGENTS.md');
 const PORT        = 40850;
@@ -379,12 +400,16 @@ function generate(routes, bindings = [], helpers = []) {
   lines.push(INJECTED_HELPERS);
   lines.push('');
 
-  // CSS 스타일 바인딩 — (define card "card__6486")
+  // CSS 스타일 바인딩 — snake_case + kebab-case 둘 다 정의
   if (bindings.length > 0) {
     lines.push('; ── CSS 스타일 클래스 바인딩 ──');
     for (const { name, cls } of bindings) {
-      const flName = name.replace(/-/g, '_');
-      lines.push(`(define ${flName} "${cls}")`);
+      const snakeName = name.replace(/-/g, '_');
+      lines.push(`(define ${snakeName} "${cls}")`);
+      // 하이픈 이름도 alias (FreeLang에서 -는 변수명에 허용됨)
+      if (name !== snakeName) {
+        lines.push(`(define ${name} "${cls}")`);
+      }
     }
     lines.push('');
   }
@@ -395,7 +420,7 @@ function generate(routes, bindings = [], helpers = []) {
     for (const helperPath of helpers) {
       const raw = fs.readFileSync(helperPath, 'utf8').trim();
       // style 블록 제거 (헬퍼는 Critical CSS 인라인 불필요, app.css에 포함됨)
-      const src = raw.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
+      const src = removeStyleBlocks(raw).trim();
       lines.push(`; ── ${path.basename(helperPath)} ──`);
       lines.push(src);
       lines.push('');
@@ -419,7 +444,7 @@ function generate(routes, bindings = [], helpers = []) {
         JSON.stringify(criticalCss)
       );
     }
-    src = src.replace(/\(style\s+[\w-]+[^)]*\)\n?/g, '').trim();
+    src = removeStyleBlocks(src).trim();
     // layout 호출 content 앞에 Critical CSS <style> 태그 주입
     if (rawCss) {
       const styleTag = JSON.stringify(`<style>${rawCss}</style>`);
