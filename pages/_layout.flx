@@ -73,6 +73,24 @@ button.danger:hover{background:#b91c1c}
 @media(max-width:640px){body{font-size:15px}.table-wrap{overflow-x:auto}table{min-width:480px}}
 </style>")
 
+; 다크모드 토글 — localStorage 기반 영구 저장
+(define DARK-MODE-SCRIPT
+  "<script>(function(){
+var root=document.documentElement;
+var btn=document.getElementById('dark-btn');
+var DARK='fl-dark';
+function apply(dark){
+  root.style.colorScheme=dark?'dark':'light';
+  if(btn){btn.textContent=dark?'☀️':'🌙';btn.style.color=dark?'#fbbf24':'#94a3b8';}
+}
+apply(localStorage.getItem(DARK)==='1');
+if(btn){btn.addEventListener('click',function(){
+  var next=root.style.colorScheme!=='dark';
+  localStorage.setItem(DARK,next?'1':'0');
+  apply(next);
+});}
+})()</script>")
+
 ; HMR 클라이언트 스크립트
 (define HMR-SCRIPT
   "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>")
@@ -178,11 +196,13 @@ window.addEventListener('popstate',function(e){
                   (nav-link "/todo" "To-do" path)
                   (nav-link "/notes" "Notes" path)
                   (nav-link "/about" "About" path)
-                  (h "a" {:href "/logout" :class nav-link-base :style "opacity:.8;margin-left:auto"} "로그아웃")))
+                  (h "a" {:href "/logout" :class nav-link-base :style "opacity:.8;margin-left:auto"} "로그아웃")
+                  (h "button" {:id "dark-btn" :title "다크모드" :style "background:none;border:1px solid rgba(255,255,255,.2);color:#94a3b8;border-radius:6px;padding:5px 10px;font-size:.85rem;cursor:pointer;margin-left:8px;transition:all .15s;flex-shrink:0"} "🌙")))
               (h "div" {:class layout_wrap} content)
               (h "footer" {:class layout_foot} "FreeLang Front v0.1 · npm install 0개 · SSR · Island")
               ERROR-COLLECTOR
               SPA-ROUTER
+              DARK-MODE-SCRIPT
               HMR-SCRIPT)))))))
 
 ; layout — 기존 호환 유지
