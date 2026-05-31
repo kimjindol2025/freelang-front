@@ -1,0 +1,66 @@
+{
+  "project": "fl-front",
+  "date": "2026-06-01",
+  "hot": "task-flfront-ai-optimization-2026-06-01",
+  "path": "/home/kimjin/failure-analysis-engine/freelang-front",
+  "repo": "https://gogs.dclub.kr/kim/freelang-front",
+  "last_commit": "66d7c84",
+  "ports": {"app": 40850, "hmr": 40851},
+  "start": "node dev-server.js",
+
+  "goal": "AI용 프론트엔드 프레임워크 — AI가 혼자 유지보수 가능한 수준",
+  "ai_automation": "55% → 목표 85%",
+
+  "done": [
+    "_payment/_email/_storage/_oauth 라이브러리 4종",
+    "Island fetch!/fetch-post! (비동기 API)",
+    "Island 에러 → /~errors 자동 수집",
+    "Source Map: _app.fl:N → pages/*.flx 역추적",
+    "/~ai 통합 상태 조회 API",
+    "form-data/form-get/form-validate 통일",
+    "@type 주석 컨벤션 + AGENTS.md 자동 포함"
+  ],
+
+  "next": [
+    {
+      "id": "P1",
+      "title": "HMR 신호 JSON화",
+      "time": "~30분",
+      "files": ["dev-server.js", "pages/_layout.flx"],
+      "what": "hmrReload()가 string('reload')만 보냄 → JSON({type,ok,error})으로 변경. 빌드 실패 시 브라우저 하단에 빨간 오버레이 표시"
+    },
+    {
+      "id": "P2",
+      "title": "AGENTS.md 대수술",
+      "time": "~40분",
+      "files": ["fl-front-build.js → generateAgentsMd()"],
+      "what": "Island 제약사항 테이블(DB쿼리 불가 등) + Island 전용 API 테이블(fetch!/dispatch/atom) + 에러패턴 카탈로그(에러메시지→해결책) 추가"
+    },
+    {
+      "id": "P3",
+      "title": "@type 예제 + 빌드 경고",
+      "time": "~20분",
+      "files": ["pages/dashboard.flx", "pages/todo.flx", "fl-front-build.js"],
+      "what": "인증 페이지에 ; @type user: {id,name,email} 주석 추가. warnMissingTypes() 함수로 @type 누락 페이지 빌드 시 경고"
+    }
+  ],
+
+  "plan_file": "/home/kimjin/.claude/plans/warm-prancing-tulip.md",
+
+  "key_files": {
+    "dev-server.js": "파일 감시 + HMR SSE(40851) + /~ai /~errors 엔드포인트",
+    "fl-front-build.js": "pages/*.flx 스캔 → _app.fl 생성 + AGENTS.md 자동생성",
+    "island-compiler.js": "Island(FreeLang) → 바닐라 JS + _fl 런타임",
+    "pages/_layout.flx": "공통 레이아웃 + HMR_SCRIPT + ERROR-COLLECTOR",
+    "AGENTS.md": "AI용 컨텍스트 (빌드 시 자동 갱신 — 직접 수정 금지)"
+  },
+
+  "rules": [
+    "AGENTS.md는 빌드 시 자동 생성 — 직접 수정 금지, fl-front-build.js 수정",
+    "_app.fl은 자동 생성 — 직접 수정 금지, pages/*.flx 수정",
+    "Island 안에서 DB쿼리/server-fn 불가 — render에서 처리 후 props 전달",
+    "pm2 reload 사용 (restart 금지)"
+  ],
+
+  "verify": "node fl-front-build.js && curl http://localhost:40851/~ai"
+}
