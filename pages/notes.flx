@@ -1,19 +1,25 @@
-; pages/notes.flx — 서버 저장 메모장
-; GET  /notes      → 전체 목록 (SSR)
-; POST /notes      → 메모 추가 → redirect
-; POST /notes/del  → 메모 삭제 (별도 라우트로 처리)
+; pages/notes.flx — 개선된 메모장
+; GET  /notes        → 목록 (검색 포함)
+; POST /notes        → 추가 / 수정 / 삭제 / 핀 (action 필드로 구분)
 
 ; ── DB 마이그레이션 ──
 (db-exec DB "CREATE TABLE IF NOT EXISTS notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   content TEXT NOT NULL,
-  color TEXT DEFAULT '#ffffff',
-  created_at TEXT DEFAULT (datetime('now','localtime'))
+  color TEXT DEFAULT '#fff9c4',
+  pinned INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now','localtime')),
+  updated_at TEXT DEFAULT (datetime('now','localtime'))
 )" [])
+; 기존 테이블에 컬럼 없으면 추가 (ALTER TABLE은 에러 무시)
+(try (db-exec DB "ALTER TABLE notes ADD COLUMN pinned INTEGER DEFAULT 0" []) (catch $e nil))
+(try (db-exec DB "ALTER TABLE notes ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))" []) (catch $e nil))
 
 ; ── DB 헬퍼 ──
-(defn notes-fetch []
-  (db-query DB "SELECT * FROM notes ORDER BY id DESC" []))
+(defn notes-fetch [q]
+  (if (= q "")
+    (db-query DB "SELECT * FROM notes ORDER BY pinned DESC, id DESC" [])
+    (db-query DB "SELECT * FROM notes WHERE content LIKE ? ORDER BY pinned DESC, id DESC" [(str "%" q "%")])))
 
 (defn notes-add [content color]
   (db-exec DB "INSERT INTO notes (content, color) VALUES (?, ?)" [content color]))
@@ -21,88 +27,203 @@
 (defn notes-del [id]
   (db-exec DB "DELETE FROM notes WHERE id = ?" [id]))
 
+(defn notes-update [id content]
+  (db-exec DB "UPDATE notes SET content=?, updated_at=datetime('now','localtime') WHERE id=?" [content id]))
+
+(defn notes-pin [id pinned]
+  (db-exec DB "UPDATE notes SET pinned=? WHERE id=?" [pinned id]))
+
 ; ── 색상 팔레트 ──
-(define NOTE-COLORS ["#fff9c4" "#c8e6c9" "#bbdefb" "#f8bbd0" "#e1bee7" "#ffffff"])
+(define NOTE-COLORS ["#fff9c4" "#c8e6c9" "#bbdefb" "#f8bbd0" "#e1bee7" "#ffe0b2" "#ffffff"])
 
-(defn color-btn [c]
-  (str "<button type='button' onclick=\"document.getElementById('color-inp').value='" c "';"
-       "document.querySelectorAll('.cbtn').forEach(b=>b.style.outline='none');"
-       "this.style.outline='3px solid #6366f1'\""
-       " class='cbtn'"
-       " style='width:28px;height:28px;border-radius:50%;background:" c ";border:1px solid #d1d5db;"
-       "cursor:pointer'></button>"))
+(defn color-btns []
+  (str-join "" (map (fn [c]
+    (str "<button type='button' onclick=\"document.getElementById('color-inp').value='"
+         c "';document.querySelectorAll('.cbtn').forEach(b=>b.style.outline='none');"
+         "this.style.outline='3px solid #6366f1'\" class='cbtn'"
+         " style='width:26px;height:26px;border-radius:50%;background:" c
+         ";border:1px solid #d1d5db;cursor:pointer'></button>"))
+    NOTE-COLORS)))
 
+; ── 메모 카드 ──
 (defn note-card [note]
   (let [id      (str (get note "id"))
         content (get note "content")
         color   (get note "color")
-        at      (get note "created_at")]
+        pinned  (get note "pinned")
+        at      (get note "updated_at")]
     (str
-      "<div style='background:" color ";border-radius:12px;padding:20px 20px 14px;"
-      "box-shadow:0 2px 8px rgba(0,0,0,.08);position:relative;min-height:100px'>"
-      "<p style='margin:0 0 32px;font-size:.95rem;line-height:1.6;white-space:pre-wrap'>"
-      content "</p>"
-      "<div style='display:flex;justify-content:space-between;align-items:center'>"
-      "<span style='font-size:.75rem;color:#9ca3af'>" at "</span>"
+      "<div id='card-" id "' style='background:" color
+      ";border-radius:12px;padding:0;box-shadow:0 2px 8px rgba(0,0,0,.09);"
+      "position:relative;display:flex;flex-direction:column;"
+      (if (= pinned 1) "border:2px solid #6366f1;" "") "'>"
+
+      ; 핀 배지
+      (if (= pinned 1)
+        "<div style='position:absolute;top:-8px;left:12px;background:#6366f1;color:white;"
+        "font-size:.65rem;padding:2px 8px;border-radius:10px;font-weight:700'>📌 고정</div>"
+        "")
+
+      ; 내용 영역 — 클릭하면 인라인 편집
+      "<div style='padding:20px 20px 8px;flex:1'>"
+      "<div id='view-" id "' style='font-size:.95rem;line-height:1.65;white-space:pre-wrap;cursor:pointer;min-height:48px' "
+      "onclick=\"startEdit('" id "')\" title='클릭하여 수정'>" content "</div>"
+      "<textarea id='edit-" id "' style='display:none;width:100%;border:none;background:transparent;"
+      "font-size:.95rem;line-height:1.65;resize:none;outline:none;font-family:inherit;min-height:80px'"
+      " onblur=\"saveEdit('" id "')\" onkeydown=\"if(event.key==='Escape')cancelEdit('" id "')\"></textarea>"
+      "</div>"
+
+      ; 하단 액션 바
+      "<div style='display:flex;justify-content:space-between;align-items:center;"
+      "padding:8px 12px 12px;border-top:1px solid rgba(0,0,0,.06);margin-top:4px'>"
+      "<span style='font-size:.72rem;color:#9ca3af'>" at "</span>"
+      "<div style='display:flex;gap:4px'>"
+
+      ; 핀 토글
+      "<form method='POST' action='/notes' style='margin:0'>"
+      "<input type='hidden' name='action' value='pin'>"
+      "<input type='hidden' name='id' value='" id "'>"
+      "<input type='hidden' name='pinned' value='" (if (= pinned 1) "0" "1") "'>"
+      "<button type='submit' title='" (if (= pinned 1) "핀 해제" "핀 고정") "'"
+      " style='background:none;border:none;cursor:pointer;font-size:1rem;padding:4px;opacity:" (if (= pinned 1) "1" ".4") "'>"
+      "📌</button></form>"
+
+      ; 삭제
       "<form method='POST' action='/notes' style='margin:0'>"
       "<input type='hidden' name='action' value='del'>"
       "<input type='hidden' name='id' value='" id "'>"
-      "<button type='submit' style='background:none;border:none;color:#ef4444;"
-      "cursor:pointer;font-size:1.1rem;padding:4px;line-height:1' title='삭제'>🗑</button>"
+      "<button type='submit' title='삭제'"
+      " style='background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:4px'>🗑</button>"
       "</form>"
-      "</div></div>")))
+      "</div></div></div>")))
 
-(defn notes-page [req]
-  (let [notes (notes-fetch)
+; ── 인라인 편집 Island 스크립트 ──
+(define EDIT-SCRIPT
+  "<script>
+function startEdit(id) {
+  var view = document.getElementById('view-'+id);
+  var edit = document.getElementById('edit-'+id);
+  edit.value = view.textContent;
+  view.style.display = 'none';
+  edit.style.display = 'block';
+  edit.focus();
+  edit.style.height = 'auto';
+  edit.style.height = edit.scrollHeight + 'px';
+}
+function cancelEdit(id) {
+  document.getElementById('view-'+id).style.display = 'block';
+  document.getElementById('edit-'+id).style.display = 'none';
+}
+async function saveEdit(id) {
+  var edit = document.getElementById('edit-'+id);
+  var view = document.getElementById('view-'+id);
+  var content = edit.value.trim();
+  if (!content) { cancelEdit(id); return; }
+  if (content === view.textContent.trim()) { cancelEdit(id); return; }
+  await fetch('/notes', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({action:'edit', id:id, content:content})
+  });
+  view.textContent = content;
+  view.style.display = 'block';
+  edit.style.display = 'none';
+}
+// 검색 — 실시간 필터
+var searchInput = document.getElementById('search-inp');
+if (searchInput) {
+  searchInput.addEventListener('input', function() {
+    var q = this.value.toLowerCase();
+    document.querySelectorAll('[id^=card-]').forEach(function(card) {
+      var text = card.textContent.toLowerCase();
+      card.style.display = text.includes(q) ? '' : 'none';
+    });
+  });
+}
+</script>")
+
+; ── GET 핸들러 ──
+(defn render [req]
+  (let [q-raw  (server-req-query req "q")
+        q      (if (nil? q-raw) "" (str q-raw))
+        notes (notes-fetch q)
         count (length notes)
+        pinned-count (length (filter (fn [n] (= (get n "pinned") 1)) notes))
         cards (if (= count 0)
-                "<p style='color:#9ca3af;text-align:center;padding:48px 0'>아직 메모가 없습니다</p>"
+                (str "<div style='text-align:center;padding:64px;color:#9ca3af'>"
+                     "<div style='font-size:3rem;margin-bottom:16px'>📝</div>"
+                     "<p style='margin:0'>메모가 없습니다</p></div>")
                 (str-join "" (map note-card notes)))]
     (server-html
       (layout "Notes" (str
-        "<div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:24px'>"
-        "<div><h2 style='margin:0 0 4px'>📝 Notes</h2>"
-        "<p style='margin:0;color:#6b7280;font-size:.9rem'>" (str count) "개 메모</p></div>"
+
+        ; 헤더
+        "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px'>"
+        "<div><h2 style='margin:0 0 4px;font-size:1.6rem'>📝 Notes</h2>"
+        "<p style='margin:0;color:#6b7280;font-size:.9rem'>"
+        (str count) "개 메모"
+        (if (> pinned-count 0) (str " · 📌 " (str pinned-count) "개 고정") "")
+        "</p></div></div>"
+
+        ; 검색바
+        "<div style='position:relative;margin-bottom:20px'>"
+        "<input id='search-inp' type='text' placeholder='메모 검색...'"
+        " value='" (if (= q "nil") "" q) "'"
+        " style='width:100%;padding:10px 16px 10px 40px;border:1px solid #e5e7eb;"
+        "border-radius:8px;font-size:.95rem;outline:none;box-sizing:border-box;"
+        "background:white;transition:border .15s'"
+        " onfocus=\"this.style.borderColor='#6366f1'\" onblur=\"this.style.borderColor='#e5e7eb'\">"
+        "<span style='position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9ca3af'>🔍</span>"
         "</div>"
 
-        "<form method='POST' action='/notes' style='background:white;border-radius:12px;"
-        "padding:24px;margin-bottom:32px;box-shadow:0 1px 4px rgba(0,0,0,.08)'>"
+        ; 입력 폼
+        "<form method='POST' action='/notes'"
+        " style='background:white;border-radius:12px;padding:20px;margin-bottom:28px;"
+        "box-shadow:0 1px 4px rgba(0,0,0,.08)'>"
         "<input type='hidden' name='action' value='add'>"
-        "<textarea name='content' rows='3' placeholder='메모를 입력하세요...'"
-        " style='width:100%;border:1px solid #e5e7eb;border-radius:8px;padding:12px;"
-        "font-size:.95rem;resize:vertical;font-family:inherit;outline:none' required></textarea>"
-        "<div style='display:flex;align-items:center;gap:8px;margin:12px 0'>"
-        "<span style='font-size:.85rem;color:#6b7280'>색상:</span>"
-        (str-join "" (map color-btn NOTE-COLORS))
+        "<textarea name='content' rows='2' placeholder='새 메모... (Ctrl+Enter 추가)'"
+        " maxlength='1000'"
+        " style='width:100%;border:none;outline:none;font-size:.95rem;resize:none;"
+        "font-family:inherit;line-height:1.6;box-sizing:border-box'"
+        " onkeydown=\"if(event.ctrlKey&&event.key==='Enter')this.closest('form').submit()\""
+        " required></textarea>"
+        "<div style='display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6'>"
+        "<div style='display:flex;align-items:center;gap:6px'>"
+        (color-btns)
         "<input type='hidden' name='color' id='color-inp' value='#fff9c4'>"
         "</div>"
-        "<button type='submit' style='background:#6366f1;color:white;border:none;"
-        "border-radius:8px;padding:10px 24px;font-size:.95rem;cursor:pointer;font-weight:600'>"
-        "추가</button>"
-        "</form>"
+        "<button type='submit'"
+        " style='background:#6366f1;color:white;border:none;border-radius:8px;"
+        "padding:8px 20px;font-size:.9rem;cursor:pointer;font-weight:600'>추가</button>"
+        "</div></form>"
 
+        ; 메모 그리드
         "<div style='display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px'>"
         cards
-        "</div>")
+        "</div>"
+
+        EDIT-SCRIPT)
       req))))
 
-; ── GET /notes ──
-(defn render [req]
-  (notes-page req))
-
-; ── POST /notes ──
+; ── POST 핸들러 ──
 (defn render_post [req]
-  (let [parsed  (server-req-json req)
+  (let [parsed  (get req "body")
         action  (get parsed "action")
-        content (get parsed "content")
-        color   (get parsed "color")
-        id      (get parsed "id")]
+        id      (str (get parsed "id"))
+        content (str (get parsed "content"))
+        color   (str (get parsed "color"))
+        pinned  (str (get parsed "pinned"))]
     (if (= action "del")
+      (do (notes-del id) (server-redirect "/notes"))
+    (if (= action "pin")
+      (do (notes-pin id (if (= pinned "1") 1 0)) (server-redirect "/notes"))
+    (if (= action "edit")
       (do
-        (notes-del (str id))
-        (server-redirect "/notes"))
-      (do
-        (if (and (not (= content nil)) (not (= content "")))
-          (notes-add content (if (= color nil) "#fff9c4" color))
-          nil)
-        (server-redirect "/notes")))))
+        (if (not (= content "")) (notes-update id content) nil)
+        (server-json {:ok true}))
+    ; add
+    (do
+      (if (not (= content ""))
+        (notes-add content (if (= color "") "#fff9c4" color))
+        nil)
+      (server-redirect "/notes")))))))
