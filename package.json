@@ -4,7 +4,8 @@
   "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드",
   "scripts": {
     "build": "node fl-front-build.js",
-    "start": "node fl-front-build.js && node /root/kim/freelang-v11/bootstrap.js run _app.fl",
-    "dev": "node fl-front-build.js && node /root/kim/freelang-v11/bootstrap.js run _app.fl"
+    "start": "node fl-front-build.js && node /home/kimjin/freelang-v11/bootstrap.js run _app.fl",
+    "dev": "node dev-server.js",
+    "init": "node fl-front-init.js"
   }
 }

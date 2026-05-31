@@ -37,5 +37,5 @@
         password (get body "password")
         cookie   (auth-login username password)]
     (if cookie
-      (server-redirect-cookie "/dashboard" cookie)
+      (server_redirect_cookie "/dashboard" cookie)
       (server-redirect "/login?error=1"))))

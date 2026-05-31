@@ -52,7 +52,8 @@
         {:users   (get row "users")
          :revenue (get row "revenue")
          :orders  (get row "orders")
-         :monthly monthly
+          ; SQLite string key → keyword key 변환 (chart-bar 호환)
+         :monthly (map (fn [r] {:label (get r "label") :value (get r "value")}) monthly)
          :weekly  weekly}))))
 
 ; 마이그레이션 즉시 실행

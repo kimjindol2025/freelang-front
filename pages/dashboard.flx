@@ -1,12 +1,44 @@
-; server-fn — DB에서 통계 조회
-(server-fn fetch-stats []
-  (db-fetch-stats))
+; Dashboard — 인증 필요, DB 통계 표시
+(defn render [req]
+  (auth-required req (fn [user]
+    (let [stats   (fetch-stats)
+          users   (get stats :users)
+          revenue (get stats :revenue)
+          orders  (get stats :orders)
+          monthly (get stats :monthly)]
+      (layout-html (str "대시보드 · " user)
+        (str
+          "<h1 style='margin-bottom:4px'>📊 대시보드</h1>"
+          "<p class='muted' style='margin-bottom:28px'>안녕하세요, " user "님</p>"
 
-(style stat_card :bg "white" :p "24px" :radius "12px" :shadow "sm")
-(style grid      :display "grid" :cols 3 :gap "16px")
-(style chart_box :bg "white" :p "24px" :radius "12px" :shadow "sm")
+          ; 통계 카드
+          "<div class='grid-3'>"
+          "<div class='stat'><div class='v'>" users "</div><div class='l'>총 사용자</div></div>"
+          "<div class='stat'><div class='v'>₩" (fmt-num revenue) "</div><div class='l'>총 매출</div></div>"
+          "<div class='stat'><div class='v'>" orders "</div><div class='l'>총 주문</div></div>"
+          "</div>"
 
-; 숫자 포맷 (백만 단위)
+          ; 월별 데이터 테이블
+          "<h2>월별 현황</h2>"
+          "<div class='table-wrap'>"
+          "<table><thead><tr><th>월</th><th>값</th><th>비율</th></tr></thead><tbody>"
+          (arr-join
+            (map (fn [d]
+              (let [pct (round (* 100 (/ (get d :value) 2800)))]
+                (str "<tr><td>" (get d :label) "</td>"
+                     "<td>" (get d :value) "</td>"
+                     "<td><div style='background:#e5e7eb;border-radius:4px;height:8px;width:100%'>"
+                     "<div style='background:var(--c-primary);height:8px;border-radius:4px;width:" pct "%'></div>"
+                     "</div></td></tr>")))
+              monthly)
+            "")
+          "</tbody></table></div>"
+
+          "<div style='margin-top:20px'>"
+          "<a href='/logout' class='badge badge-danger'>로그아웃</a>"
+          "</div>")
+        req)))))
+
 (defn fmt-num [n]
   (let [s   (str n)
         len (length s)]
@@ -14,44 +46,6 @@
       (str (str-slice s 0 (- len 6)) "백" (str-slice s (- len 6) (- len 4)) "만")
       s)))
 
-(defn render [req]
-  (auth-required req (fn [user]
-  (let [stats   (fetch-stats)
-        users   (get stats :users)
-        revenue (get stats :revenue)
-        orders  (get stats :orders)
-        monthly (get stats :monthly)
-        weekly  (get stats :weekly)
-        bar     (chart-bar monthly 480 200)
-        line    (chart-line weekly 480 200)]
-    (layout-html "Dashboard" (str
-        "<h2 style='margin:0 0 4px'>📊 FreeLang Front Dashboard</h2>"
-        "<p style='color:#6b7280;margin:0 0 24px'>npm install 0개 · SSR · CSS DSL · Island · SVG Chart</p>"
-
-        ; 통계 카드 3개
-        "<div class='" grid "' style='margin-bottom:24px'>"
-        "<div class='" stat_card "'>"
-        "<div style='font-size:2rem;font-weight:700'>" users "</div>"
-        "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>총 사용자</div>"
-        "</div>"
-        "<div class='" stat_card "'>"
-        "<div style='font-size:2rem;font-weight:700'>₩" (fmt-num revenue) "</div>"
-        "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>총 매출</div>"
-        "</div>"
-        "<div class='" stat_card "'>"
-        "<div style='font-size:2rem;font-weight:700'>" orders "</div>"
-        "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>총 주문</div>"
-        "</div>"
-        "</div>"
-
-        ; 차트 2개 — 나란히
-        "<div style='display:grid;grid-template-columns:1fr 1fr;gap:16px'>"
-        "<div class='" chart_box "'>"
-        "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📊 월별 매출 막대 차트</h3>"
-        bar
-        "</div>"
-        "<div class='" chart_box "'>"
-        "<h3 style='margin:0 0 12px;font-size:.95rem;color:#374151'>📈 주간 방문 선 차트</h3>"
-        line
-        "</div>"
-        "</div>") req)))))
+; fetch-stats 정의
+(server-fn fetch-stats []
+  (db-fetch-stats))

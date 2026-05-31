@@ -467,7 +467,7 @@ const INJECTED_HELPERS = `
 (defn round [n]
   (let [frac (% n 1)]
     (if (>= frac 0.5)
-      (- n frac (- 1))
+      (+ (- n frac) 1)
       (- n frac))))
 
 ; str-slice — 부분 문자열 추출 (regex_split "" 으로 char 분리)
