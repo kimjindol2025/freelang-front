@@ -478,7 +478,7 @@ const INJECTED_HELPERS = `
       (filter
         (fn [_c]
           (let [i (deref idx)
-                _ (swap! idx inc)]
+                _ (swap! idx (fn [n] (+ n 1)))]
             (and (>= i start) (< i end))))
         chars)
       "")))
@@ -489,7 +489,7 @@ const INJECTED_HELPERS = `
     (map
       (fn [item]
         (let [i (deref idx)
-              _ (swap! idx inc)]
+              _ (swap! idx (fn [n] (+ n 1)))]
           (f i item)))
       arr)))
 

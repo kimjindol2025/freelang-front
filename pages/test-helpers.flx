@@ -1,0 +1,107 @@
+; 주입 헬퍼 검증 페이지 — round / str-slice / map-indexed
+
+(defn render [req]
+  (let [; ── round 테스트 ──
+        r1 (round 3.7)
+        r2 (round 3.2)
+        r3 (round 1.5)
+        r4 (round 0.4)
+
+        ; ── str-slice 테스트 ──
+        s1 (str-slice "Hello, World!" 0 5)
+        s2 (str-slice "FreeLang" 4 8)
+        s3 (str-slice "abcdef" 2 4)
+
+        ; ── map-indexed 테스트 ──
+        items ["사과" "바나나" "체리" "딸기"]
+        rows  (map-indexed
+                (fn [i item]
+                  (h "tr" {}
+                    (str
+                      (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb;color:#6b7280"} (str i))
+                      (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} item))))
+                items)]
+
+    (server_html
+      (str
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<title>헬퍼 검증</title>"
+        "<style>body{font-family:monospace;padding:40px;background:#f9fafb}"
+        "h2{color:#374151;margin-top:32px;margin-bottom:8px}"
+        ".box{background:white;border:1px solid #e5e7eb;border-radius:8px;padding:20px;margin-bottom:16px}"
+        ".ok{color:#16a34a;font-weight:700}"
+        ".fail{color:#dc2626;font-weight:700}"
+        "table{border-collapse:collapse;width:100%}"
+        "</style></head><body>"
+
+        "<h1 style='color:#111'>주입 헬퍼 검증</h1>"
+
+        ; ── round ──
+        "<h2>1. round()</h2>"
+        "<div class='box'>"
+        "<table>"
+        (h "tr" {}
+          (str
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "입력")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "결과")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "기댓값")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "상태")))
+        (arr-join
+          (map (fn [row]
+            (h "tr" {}
+              (str
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 0))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (str (get row 1)))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (str (get row 2)))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"}
+                  (if (= (str (get row 1)) (str (get row 2)))
+                    (h "span" {:class "ok"} "✅ PASS")
+                    (h "span" {:class "fail"} "❌ FAIL"))))))
+            [["3.7" r1 4] ["3.2" r2 3] ["1.5" r3 2] ["0.4" r4 0]])
+          "")
+        "</table></div>"
+
+        ; ── str-slice ──
+        "<h2>2. str-slice()</h2>"
+        "<div class='box'>"
+        "<table>"
+        (h "tr" {}
+          (str
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "입력")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "범위")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "결과")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "기댓값")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "상태")))
+        (arr-join
+          (map (fn [row]
+            (h "tr" {}
+              (str
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 0))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 1))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb;font-weight:bold"} (str (get row 2)))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 3))
+                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"}
+                  (if (= (get row 2) (get row 3))
+                    (h "span" {:class "ok"} "✅ PASS")
+                    (h "span" {:class "fail"} "❌ FAIL"))))))
+            [["Hello, World!" "0~5" s1 "Hello"]
+             ["FreeLang"      "4~8" s2 "Lang"]
+             ["abcdef"        "2~4" s3 "cd"]])
+          "")
+        "</table></div>"
+
+        ; ── map-indexed ──
+        "<h2>3. map-indexed()</h2>"
+        "<div class='box'>"
+        "<table>"
+        (h "tr" {}
+          (str
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "인덱스")
+            (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "값")))
+        (arr-join rows "")
+        "</table>"
+        "<p style='margin-top:12px;color:#6b7280;font-size:.9rem'>"
+        "인덱스 0~3, 순서 맞으면 ✅</p>"
+        "</div>"
+
+        "</body></html>"))))
