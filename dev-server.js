@@ -51,10 +51,19 @@ const MAX_ERRORS = 50;
 function addError(entry) {
   errorLog.unshift({ ...entry, time: new Date().toISOString() });
   if (errorLog.length > MAX_ERRORS) errorLog.pop();
-  // 터미널에도 출력
-  const color = entry.type === 'error' ? '\x1b[31m' : '\x1b[33m';
-  console.log(`${color}[browser ${entry.type}]\x1b[0m ${entry.message}`);
-  if (entry.source) console.log(`  at ${entry.source}:${entry.line}`);
+  // 터미널 출력 — Island 에러는 별도 색상
+  if (entry.type === 'island') {
+    console.log(`\x1b[35m[island error]\x1b[0m ${entry.message}`);
+    if (entry.source) console.log(`  phase: ${entry.source}`);
+    if (entry.stack && entry.stack !== 'undefined') {
+      const line = entry.stack.split('\n')[1];
+      if (line) console.log(`  ${line.trim()}`);
+    }
+  } else {
+    const color = entry.type === 'error' ? '\x1b[31m' : '\x1b[33m';
+    console.log(`${color}[browser ${entry.type}]\x1b[0m ${entry.message}`);
+    if (entry.source) console.log(`  at ${entry.source}:${entry.line}`);
+  }
 }
 
 // ── HMR + Error 서버 (포트 40851) ────────────────────────────
@@ -128,6 +137,7 @@ const hmrServer = http.createServer((req, res) => {
       helpers:  lastBuildState.helpers || [],
       sourceMap: lastBuildState.sourceMap || {},
       browserErrors: errorLog.slice(0, 10),
+      islandErrors: errorLog.filter(e => e.type === 'island').slice(0, 5),
       tip: [
         'POST http://localhost:40851/~errors  — 브라우저 에러 수집',
         'DELETE http://localhost:40851/~errors — 에러 초기화',

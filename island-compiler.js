@@ -256,13 +256,32 @@ const _fl={
     });
     return el;
   },
+  // ── Island 에러 리포터 → /~errors ──
+  _err:(islandId,err,phase)=>{
+    const EV='http://'+location.hostname+':40851/~errors';
+    const msg=err&&err.message?err.message:String(err);
+    const stack=err&&err.stack?err.stack:'';
+    fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({type:'island',message:'['+islandId+'] '+msg,source:phase,line:0,col:0,stack:stack,url:location.href})
+    }).catch(function(){});
+    console.error('[Island:'+islandId+']',err);
+  },
   // ── Island 마운트 (store watch 통합) ──
   mount:(id,renderFn)=>{
     const el=document.getElementById(id);
     if(!el)return;
-    const update=()=>{while(el.firstChild)el.removeChild(el.firstChild);const r=renderFn(update);if(r)el.appendChild(r);};
-    update();
-    return update;  // store watch에서 재렌더 가능하도록 반환
+    const update=()=>{
+      try{
+        while(el.firstChild)el.removeChild(el.firstChild);
+        const r=renderFn(update);
+        if(r)el.appendChild(r);
+      }catch(e){
+        _fl._err(id,e,'render');
+        el.innerHTML='<div style="color:#ef4444;font-family:monospace;font-size:.8rem;padding:8px;background:#1a1a1a;border-radius:4px">[Island Error] '+String(e.message)+'</div>';
+      }
+    };
+    try{ update(); }catch(e){ _fl._err(id,e,'mount'); }
+    return update;
   },
   // ── store 구독 + 자동 재렌더 ──
   mount_reactive:(id,renderFn,keys)=>{
