@@ -92,11 +92,11 @@ var _ce=console.error.bind(console);
 console.error=function(){_ce.apply(console,arguments);send('console',Array.from(arguments).join(' '),'',0,0,'');};
 })()</script>")
 
-; SPA 클라이언트 라우터 — Island 없는 페이지에도 동작
+; SPA 클라이언트 라우터 — View Transitions API 적용
 (define SPA-ROUTER
   "<script>(function(){
-function spa(href){
-  fetch(href,{headers:{'X-SPA':'1'}})
+function doNav(href){
+  return fetch(href,{headers:{'X-SPA':'1'}})
     .then(function(r){return r.text();})
     .then(function(html){
       var doc=new DOMParser().parseFromString(html,'text/html');
@@ -111,6 +111,13 @@ function spa(href){
       window.scrollTo(0,0);
     })
     .catch(function(){location.href=href;});
+}
+function spa(href){
+  if(document.startViewTransition){
+    document.startViewTransition(function(){return doNav(href);});
+  }else{
+    doNav(href);
+  }
 }
 document.addEventListener('click',function(e){
   var a=e.target.closest('[data-spa]');

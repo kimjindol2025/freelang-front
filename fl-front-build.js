@@ -675,6 +675,41 @@ button.danger:hover{background:#b91c1c}
 .stat .v{font-size:1.8rem;font-weight:800;color:var(--c-primary);line-height:1}
 .stat .l{font-size:.8rem;color:var(--c-muted);margin-top:6px;text-wrap:balance}
 @media(max-width:640px){table{min-width:480px}.table-wrap{overflow-x:auto}}
+
+/* ━━━ Scroll-driven Animations ━━━ */
+@keyframes fade-in-up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fade-in-left{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scale-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.scroll-fade{animation:fade-in-up linear both;animation-timeline:view();animation-range:entry 0% entry 35%}
+.scroll-left{animation:fade-in-left linear both;animation-timeline:view();animation-range:entry 0% entry 35%}
+.scroll-scale{animation:scale-in linear both;animation-timeline:view();animation-range:entry 0% entry 30%}
+.card{animation:fade-in-up linear both;animation-timeline:view();animation-range:entry 0% entry 30%}
+.stat{animation:scale-in linear both;animation-timeline:view();animation-range:entry 0% entry 25%}
+
+/* ━━━ View Transitions ━━━ */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:.28s cubic-bezier(.4,0,1,1) both vt-slide-out}
+::view-transition-new(root){animation:.3s cubic-bezier(0,0,.2,1) both vt-slide-in}
+@keyframes vt-slide-out{to{opacity:0;transform:translateX(-18px) scale(.98)}}
+@keyframes vt-slide-in{from{opacity:0;transform:translateX(18px) scale(.98)}}
+::view-transition-group(hero){animation-duration:.5s}
+
+/* ━━━ Anchor Positioning ━━━ */
+.tooltip-wrap{position:relative;display:inline-block}
+.tooltip-trigger{anchor-name:--tip}
+.tooltip{
+  position:absolute;
+  position-anchor:--tip;
+  top:anchor(bottom);left:anchor(center);
+  translate:-50% 8px;
+  background:#1e2433;color:#e2e8f0;font-size:.78rem;padding:6px 12px;
+  border-radius:6px;white-space:nowrap;pointer-events:none;
+  opacity:0;transform:translateY(-4px);
+  transition:opacity .18s,transform .18s var(--ease-spring);
+  box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:200;
+}
+.tooltip-wrap:has(.tooltip-trigger:hover) .tooltip,
+.tooltip-wrap:has(.tooltip-trigger:focus) .tooltip{opacity:1;transform:translateY(0)}
 `.trim();
         const escapedBase = BASE_CSS.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
         const escapedApp  = appCss ? appCss.replace(/\\/g, '\\\\').replace(/"/g, '\\"') : '';
