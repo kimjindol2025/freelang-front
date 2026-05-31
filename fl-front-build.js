@@ -400,6 +400,16 @@ pre{background:#1a1a1a;border:1px solid #333;border-radius:8px;
 const INJECTED_HELPERS = `
 ; ── fl-front 내장 헬퍼 (자동 주입) ──
 
+; ── 누락 stdlib 보완 ──
+; nil? — FreeLang에 없는 함수 보완
+(defn nil? [x] (= x nil))
+
+; server-html alias — snake_case 혼동 방지
+(defn server-html [html] (server_html html))
+
+; empty? — 빈 컬렉션 체크
+(defn empty? [x] (if (= x nil) true (= (length x) 0)))
+
 ; form-field: JSON + urlencoded 둘 다 지원
 (defn form-field [req key]
   (let [raw (get req "body")]
@@ -660,6 +670,50 @@ const cssFile = path.join(PUBLIC_DIR, 'app.css');
 const appCssContent = fs.existsSync(cssFile)
   ? fs.readFileSync(cssFile, 'utf8').replace(/\n/g, ' ').trim()
   : '';
+
+// Fix 4: (catch $e []) 패턴 감지
+function detectDangerousPatterns(routes, helpers) {
+  const issues = [];
+  const allFiles = [...routes.map(r => r.file), ...helpers];
+  for (const f of allFiles) {
+    const src = fs.readFileSync(f, 'utf8');
+    const name = f.replace(PAGES_DIR + '/', '');
+    // 빈 벡터 catch
+    if (/\(catch\s+\$\w+\s+\[\]/.test(src))
+      issues.push(`  ⚠ ${name}: (catch $e []) → (catch $e nil) 로 변경`);
+    // 3자 이하 ALL_CAPS + 숫자없음 — API, URL, SQL 등이 가끔 파싱 에러
+    // (DB, HMR, SPA 등은 실제 잘 동작하므로 경고 제외)
+    if (/\(define\s+API\b|\(define\s+URL\b|\(define\s+SQL\b/.test(src))
+      issues.push(`  ⚠ ${name}: API/URL/SQL 심볼 → api-base/url-base/sql-str 같이 소문자 사용 권장`);
+  }
+  if (issues.length) {
+    console.log('\x1b[33m⚠ 위험 패턴 감지:\x1b[0m');
+    issues.forEach(i => console.log(i));
+  }
+}
+
+// Fix 5: check-parens.py 자동 실행
+function checkAllParens(routes, helpers) {
+  const CHECKER = '/home/kimjin/freelang-v11/scripts/check-parens.py';
+  if (!fs.existsSync(CHECKER)) return;
+  const allFiles = [...routes.map(r => r.file), ...helpers];
+  const errors = [];
+  for (const f of allFiles) {
+    try {
+      cp.execSync(`python3 ${CHECKER} ${f}`, { stdio: 'pipe' });
+    } catch (e) {
+      errors.push(`  ❌ ${f.replace(PAGES_DIR + '/', '')}: 괄호 불균형`);
+    }
+  }
+  if (errors.length) {
+    console.log('\x1b[31m❌ 괄호 오류 — 빌드 중단\x1b[0m');
+    errors.forEach(e => console.log(e));
+    process.exit(1);
+  }
+}
+
+checkAllParens(routes, helpers);
+detectDangerousPatterns(routes, helpers);
 
 const appContent = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
