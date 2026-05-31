@@ -223,17 +223,45 @@ function generateAgentsMd(routes) {
 (h "a" {:href "/path" :data-spa "1"} "이동") ; 새로고침 없이 전환
 \`\`\`
 
-## 절대 쓰지 말 것 (존재하지 않는 함수)
+## 절대 쓰지 말 것 (존재하지 않는 함수 + 자주 틀리는 것)
 
 | ❌ 쓰면 안 됨 | ✅ 올바른 함수 |
 |-------------|-------------|
 | \`server-req-body\` | \`(get req "body")\` |
+| \`server-html\` | \`server_html\` (언더스코어) |
 | \`str-split\` | \`regex_split str pattern\` |
 | \`str-includes?\` | \`(> (str-count s sub) 0)\` |
+| \`nil?\` | \`(= x nil)\` |
 | \`map-indexed\` | \`(map fn arr)\` + index 수동 |
 | \`string?\` | ❌ 없음 |
 | \`server-sse\` | ❌ 미지원 |
-| \`server_status\` | kebab: \`server-status\` ← 실제로 없음, 주입된 \`dev-error-page\` 또는 직접 server_status 사용 |
+| \`(catch $e [])\` | \`(catch $e nil)\` → 빈 벡터 반환은 에러 |
+
+## FreeLang 변수명 규칙 (반드시 준수)
+
+- **소문자만** — \`api-base\` ✅, \`API\` ❌ (대문자 심볼 파싱 에러)
+- **하이픈 허용** — \`my-var\`, \`api-base\` 모두 가능
+- **underscore도 허용** — \`my_var\`, \`api_base\`
+- **stdlib**: snake_case (\`server_html\`, \`db_query\`)
+- **주입 헬퍼**: kebab-case (\`form-field\`, \`arr-join\`, \`dispatch-html\`)
+
+## h() 괄호 디버깅 팁
+
+중첩 h()를 쓸 때 괄호 불균형이 자주 발생합니다:
+\`\`\`bash
+# 빌드 전 반드시 검증
+python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
+\`\`\`
+
+복잡한 중첩은 defn으로 분리:
+\`\`\`lisp
+; ❌ 한 번에 쓰면 괄호 추적 어려움
+(h "div" {} (h "ul" {} (arr-join (map (fn [i] (h "li" {} ...)) items) "")))
+
+; ✅ 헬퍼 함수로 분리
+(defn render-item [i] (h "li" {} (get i "name")))
+(h "div" {} (h "ul" {} (arr-join (map render-item items) "")))
+\`\`\`
 
 ## 페이지 패턴
 
