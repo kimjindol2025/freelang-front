@@ -108,6 +108,8 @@ function validateFunctions(appFlContent) {
     'search','event','card','index','server','client','text','html',
     // JS 문법 키워드 (Island 코드 잔재)
     'string','function','handler','auto-fill','object','class','extends',
+    // CSS 의사 클래스 이름 (style 속성 값)
+    'hover','focus','active','disabled','checked','visited',
     // CSS 값 (문자열 제거 후 잔재)
     'translate','rotate','scale','linear','radial','solid','dashed',
   ]);

@@ -1,8 +1,8 @@
-; pages/notes.flx — 개선된 메모장
+; pages/notes.flx — 개선된 메모장 (h() + style DSL 완전 적용)
 ; GET  /notes        → 목록 (검색 포함)
 ; POST /notes        → 추가 / 수정 / 삭제 / 핀 (action 필드로 구분)
 
-; ── 스타일 정의 (style-compiler.js가 빌드타임에 CSS로 변환) ──
+; ── 스타일 정의 ──
 (style note-card
   :radius "12px"
   :shadow "sm"
@@ -66,6 +66,92 @@
   :radius "10px"
   :weight "700")
 
+(style note-header
+  :display "flex"
+  :justify "space-between"
+  :items "flex-start"
+  :mb "20px")
+
+(style note-count
+  :m "0"
+  :color "#6b7280"
+  :size ".9rem")
+
+(style note-title
+  :m "0 0 4px"
+  :size "1.6rem")
+
+(style note-content-area
+  :p "20px 20px 8px"
+  :flex "1")
+
+(style note-view
+  :size ".95rem"
+  :lh "1.65"
+  :ws "pre-wrap"
+  :cursor "pointer"
+  :min-h "48px")
+
+(style note-meta
+  :size ".72rem"
+  :color "#9ca3af")
+
+(style form-toolbar
+  :display "flex"
+  :items "center"
+  :justify "space-between"
+  :mt "12px"
+  :pt "12px"
+  :border-top "1px solid #f3f4f6")
+
+(style color-row
+  :display "flex"
+  :items "center"
+  :gap "6px")
+
+(style note-empty
+  :align "center"
+  :p "64px"
+  :color "#9ca3af")
+
+(style note-actions
+  :display "flex"
+  :gap "4px")
+
+(style icon-btn
+  :bg "none"
+  :border "none"
+  :cursor "pointer"
+  :size "1rem"
+  :p "4px")
+
+(style del-btn
+  :bg "none"
+  :border "none"
+  :cursor "pointer"
+  :size "1rem"
+  :p "4px"
+  :color "#ef4444")
+
+(style search-wrap
+  :position "relative"
+  :mb "20px")
+
+(style search-icon
+  :position "absolute"
+  :color "#9ca3af"
+  :pointer "none")
+
+(style pin-form
+  :m "0")
+
+(style textarea-input
+  :width "100%"
+  :border "none"
+  :outline "none"
+  :size ".95rem"
+  :overflow "hidden")
+
 ; ── DB 마이그레이션 ──
 (db-exec DB "CREATE TABLE IF NOT EXISTS notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,7 +161,6 @@
   created_at TEXT DEFAULT (datetime('now','localtime')),
   updated_at TEXT DEFAULT (datetime('now','localtime'))
 )" [])
-; 기존 테이블에 컬럼 없으면 추가 (ALTER TABLE은 에러 무시)
 (try (db-exec DB "ALTER TABLE notes ADD COLUMN pinned INTEGER DEFAULT 0" []) (catch $e nil))
 (try (db-exec DB "ALTER TABLE notes ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))" []) (catch $e nil))
 
@@ -100,153 +185,124 @@
 ; ── 색상 팔레트 ──
 (define NOTE-COLORS ["#fff9c4" "#c8e6c9" "#bbdefb" "#f8bbd0" "#e1bee7" "#ffe0b2" "#ffffff"])
 
-(defn color-btns []
-  (str-join "" (map (fn [c]
-    (str "<button type='button' onclick=\"document.getElementById('color-inp').value='"
-         c "';document.querySelectorAll('.cbtn').forEach(b=>b.style.outline='none');"
-         "this.style.outline='3px solid #6366f1'\" class='cbtn'"
-         " style='width:26px;height:26px;border-radius:50%;background:" c
-         ";border:1px solid #d1d5db;cursor:pointer'></button>"))
-    NOTE-COLORS)))
+(defn color-btn [c]
+  (str "<button type='button'"
+       " onclick=\"document.getElementById('color-inp').value='" c "';"
+       "document.querySelectorAll('.cbtn').forEach(b=>b.style.outline='none');"
+       "this.style.outline='3px solid #6366f1'\""
+       " class='cbtn'"
+       " style='width:26px;height:26px;border-radius:50%;background:" c
+       ";border:1px solid #d1d5db;cursor:pointer'></button>"))
 
 ; ── 메모 카드 ──
 (defn note-card [note]
-  (let [id      (str (get note "id"))
-        content (get note "content")
-        color   (get note "color")
-        pinned  (get note "pinned")
-        at      (get note "updated_at")]
+  (let [id     (str (get note "id"))
+        text   (get note "content")
+        color  (get note "color")
+        pinned (get note "pinned")
+        at     (get note "updated_at")
+        is-pin (= pinned 1)]
     (str
-      "<div id='card-" id "' class='" note-card "'"
-      " style='background:" color (if (= pinned 1) ";border:2px solid #6366f1" "") "'>"
+      (h "div" {:id (str "card-" id)
+                :class note-card
+                :style (str "background:" color (if is-pin ";border:2px solid #6366f1" ""))}
+        (str
+          ; 핀 배지
+          (if is-pin
+            (h "div" {:class pin-badge :style "top:-8px;left:12px"} "📌 고정")
+            "")
 
-      (if (= pinned 1)
-        (str "<div class='" pin-badge "' style='top:-8px;left:12px'>📌 고정</div>")
-        "")
+          ; 내용 영역
+          (h "div" {:class note-content-area}
+            (str
+              (h "div" {:id (str "view-" id)
+                        :class note-view
+                        :onclick (str "startEdit('" id "')")
+                        :title "클릭하여 수정"} text)
+              (h "textarea" {:id (str "edit-" id)
+                             :style "display:none;width:100%;border:none;background:transparent;font-size:.95rem;line-height:1.65;resize:none;outline:none;font-family:inherit;min-height:80px"
+                             :onblur (str "saveEdit('" id "')")
+                             :onkeydown (str "if(event.key==='Escape')cancelEdit('" id "')")} "")))
 
-      "<div style='padding:20px 20px 8px;flex:1'>"
-      "<div id='view-" id "' style='font-size:.95rem;line-height:1.65;white-space:pre-wrap;cursor:pointer;min-height:48px'"
-      " onclick=\"startEdit('" id "')\" title='클릭하여 수정'>" content "</div>"
-      "<textarea id='edit-" id "' style='display:none;width:100%;border:none;background:transparent;"
-      "font-size:.95rem;line-height:1.65;resize:none;outline:none;font-family:inherit;min-height:80px'"
-      " onblur=\"saveEdit('" id "')\" onkeydown=\"if(event.key==='Escape')cancelEdit('" id "')\"></textarea>"
-      "</div>"
+          ; 액션 바
+          (h "div" {:class note-action-bar}
+            (str
+              (h "span" {:class note-meta} at)
+              (h "div" {:class note-actions}
+                (str
+                  (h "form" {:method "POST" :action "/notes" :class pin-form}
+                    (str
+                      (h! "input" {:type "hidden" :name "action" :value "pin"})
+                      (h! "input" {:type "hidden" :name "id" :value id})
+                      (h! "input" {:type "hidden" :name "pinned" :value (if is-pin "0" "1")})
+                      (h "button" {:type "submit"
+                                   :class icon-btn
+                                   :style (str "opacity:" (if is-pin "1" ".4"))
+                                   :title (if is-pin "핀 해제" "핀 고정")} "📌")))
+                  (h "form" {:method "POST" :action "/notes" :class pin-form}
+                    (str
+                      (h! "input" {:type "hidden" :name "action" :value "del"})
+                      (h! "input" {:type "hidden" :name "id" :value id})
+                      (h "button" {:type "submit" :class del-btn :title "삭제"} "🗑"))))))))))))
 
-      "<div class='" note-action-bar "'>"
-      "<span style='font-size:.72rem;color:#9ca3af'>" at "</span>"
-      "<div style='display:flex;gap:4px'>"
-      "<form method='POST' action='/notes' style='margin:0'>"
-      "<input type='hidden' name='action' value='pin'>"
-      "<input type='hidden' name='id' value='" id "'>"
-      "<input type='hidden' name='pinned' value='" (if (= pinned 1) "0" "1") "'>"
-      "<button type='submit' title='" (if (= pinned 1) "핀 해제" "핀 고정") "'"
-      " style='background:none;border:none;cursor:pointer;font-size:1rem;padding:4px;opacity:" (if (= pinned 1) "1" ".4") "'>"
-      "📌</button></form>"
-      "<form method='POST' action='/notes' style='margin:0'>"
-      "<input type='hidden' name='action' value='del'>"
-      "<input type='hidden' name='id' value='" id "'>"
-      "<button type='submit' title='삭제'"
-      " style='background:none;border:none;color:#ef4444;cursor:pointer;font-size:1rem;padding:4px'>🗑</button>"
-      "</form>"
-      "</div></div></div>")))
-
-; ── 인라인 편집 Island 스크립트 ──
+; ── 인라인 편집 스크립트 ──
 (define EDIT-SCRIPT
   "<script>
-function startEdit(id) {
-  var view = document.getElementById('view-'+id);
-  var edit = document.getElementById('edit-'+id);
-  edit.value = view.textContent;
-  view.style.display = 'none';
-  edit.style.display = 'block';
-  edit.focus();
-  edit.style.height = 'auto';
-  edit.style.height = edit.scrollHeight + 'px';
-}
-function cancelEdit(id) {
-  document.getElementById('view-'+id).style.display = 'block';
-  document.getElementById('edit-'+id).style.display = 'none';
-}
-async function saveEdit(id) {
-  var edit = document.getElementById('edit-'+id);
-  var view = document.getElementById('view-'+id);
-  var content = edit.value.trim();
-  if (!content) { cancelEdit(id); return; }
-  if (content === view.textContent.trim()) { cancelEdit(id); return; }
-  await fetch('/notes', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({action:'edit', id:id, content:content})
-  });
-  view.textContent = content;
-  view.style.display = 'block';
-  edit.style.display = 'none';
-}
-// 검색 — 실시간 필터
-var searchInput = document.getElementById('search-inp');
-if (searchInput) {
-  searchInput.addEventListener('input', function() {
-    var q = this.value.toLowerCase();
-    document.querySelectorAll('[id^=card-]').forEach(function(card) {
-      var text = card.textContent.toLowerCase();
-      card.style.display = text.includes(q) ? '' : 'none';
-    });
-  });
-}
+function startEdit(id){var v=document.getElementById('view-'+id),e=document.getElementById('edit-'+id);e.value=v.textContent;v.style.display='none';e.style.display='block';e.focus();e.style.height='auto';e.style.height=e.scrollHeight+'px';}
+function cancelEdit(id){document.getElementById('view-'+id).style.display='block';document.getElementById('edit-'+id).style.display='none';}
+async function saveEdit(id){var e=document.getElementById('edit-'+id),v=document.getElementById('view-'+id),c=e.value.trim();if(!c||c===v.textContent.trim()){cancelEdit(id);return;}await fetch('/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit',id:id,content:c})});v.textContent=c;v.style.display='block';e.style.display='none';}
+document.getElementById('search-inp')?.addEventListener('input',function(){var q=this.value.toLowerCase();document.querySelectorAll('[id^=card-]').forEach(function(c){c.style.display=c.textContent.toLowerCase().includes(q)?'':'none';});});
 </script>")
 
 ; ── GET 핸들러 ──
 (defn render [req]
-  (let [q-raw  (server-req-query req "q")
-        q      (if (nil? q-raw) "" (str q-raw))
+  (let [q-raw (server-req-query req "q")
+        q     (if (nil? q-raw) "" (str q-raw))
         notes (notes-fetch q)
         count (length notes)
-        pinned-count (length (filter (fn [n] (= (get n "pinned") 1)) notes))
+        pin-c (length (filter (fn [n] (= (get n "pinned") 1)) notes))
         cards (if (= count 0)
-                (str "<div style='text-align:center;padding:64px;color:#9ca3af'>"
-                     "<div style='font-size:3rem;margin-bottom:16px'>📝</div>"
-                     "<p style='margin:0'>메모가 없습니다</p></div>")
-                (str-join "" (map note-card notes)))]
-    (layout-html "Notes" (str
-
+                (h "div" {:class note-empty}
+                  (str (h "div" {:style "font-size:3rem;margin-bottom:16px"} "📝")
+                       (h "p" {:style "margin:0"} "메모가 없습니다")))
+                (arr-join (map note-card notes) ""))]
+    (layout-html "Notes"
+      (str
         ; 헤더
-        "<div style='display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px'>"
-        "<div><h2 style='margin:0 0 4px;font-size:1.6rem'>📝 Notes</h2>"
-        "<p style='margin:0;color:#6b7280;font-size:.9rem'>"
-        (str count) "개 메모"
-        (if (> pinned-count 0) (str " · 📌 " (str pinned-count) "개 고정") "")
-        "</p></div></div>"
+        (h "div" {:class note-header}
+          (h "div" {}
+            (str (h "h2" {:class note-title} "📝 Notes")
+                 (h "p" {:class note-count}
+                   (str (str count) "개 메모"
+                        (if (> pin-c 0) (str " · 📌 " (str pin-c) "개 고정") ""))))))
 
         ; 검색바
-        "<div style='position:relative;margin-bottom:20px'>"
-        "<input id='search-inp' class='" search-bar "' type='text' placeholder='메모 검색...'"
-        " value='" q "'"
-        " onfocus=\"this.classList.add('focused')\" onblur=\"this.classList.remove('focused')\">"
-        "<span style='position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9ca3af;pointer-events:none'>🔍</span>"
-        "</div>"
+        (h "div" {:class search-wrap}
+          (str
+            (h! "input" {:id "search-inp" :class search-bar :type "text"
+                         :placeholder "메모 검색..." :value q})
+            (h "span" {:class search-icon :style "left:14px;top:50%;transform:translateY(-50%)"} "🔍")))
 
         ; 입력 폼
-        "<form method='POST' action='/notes' class='" note-input-box "'>"
-        "<input type='hidden' name='action' value='add'>"
-        "<textarea name='content' rows='2' placeholder='새 메모... (Ctrl+Enter 추가)'"
-        " maxlength='1000'"
-        " style='width:100%;border:none;outline:none;font-size:.95rem;resize:none;"
-        "font-family:inherit;line-height:1.6;box-sizing:border-box'"
-        " onkeydown=\"if(event.ctrlKey&&event.key==='Enter')this.closest('form').submit()\""
-        " required></textarea>"
-        "<div style='display:flex;align-items:center;justify-content:space-between;"
-        "margin-top:12px;padding-top:12px;border-top:1px solid #f3f4f6'>"
-        "<div style='display:flex;align-items:center;gap:6px'>"
-        (color-btns)
-        "<input type='hidden' name='color' id='color-inp' value='#fff9c4'>"
-        "</div>"
-        "<button type='submit' class='" add-btn "'>추가</button>"
-        "</div></form>"
+        (h "form" {:method "POST" :action "/notes" :class note-input-box}
+          (str
+            (h! "input" {:type "hidden" :name "action" :value "add"})
+            (h "textarea" {:name "content" :rows "2"
+                           :placeholder "새 메모... (Ctrl+Enter 추가)"
+                           :maxlength "1000"
+                           :style "width:100%;border:none;outline:none;font-size:.95rem;resize:none;font-family:inherit;line-height:1.6;box-sizing:border-box"
+                           :onkeydown "if(event.ctrlKey&&event.key==='Enter')this.closest('form').submit()"
+                           :required "true"} "")
+            (h "div" {:class form-toolbar}
+              (str
+                (h "div" {:class color-row}
+                  (str (arr-join (map color-btn NOTE-COLORS) "")
+                       (h! "input" {:type "hidden" :name "color" :id "color-inp" :value "#fff9c4"})))
+                (h "button" {:type "submit" :class add-btn} "추가")))))
 
         ; 메모 그리드
-        "<div class='" note-grid "' style='grid-template-columns:repeat(auto-fill,minmax(260px,1fr))'>"
-        cards
-        "</div>"
+        (h "div" {:class note-grid :style "grid-template-columns:repeat(auto-fill,minmax(260px,1fr))"}
+          cards)
 
         EDIT-SCRIPT)
       req)))
@@ -267,7 +323,6 @@ if (searchInput) {
       (do
         (if (not (= content "")) (notes-update id content) nil)
         (server-json {:ok true}))
-    ; add
     (do
       (if (not (= content ""))
         (notes-add content (if (= color "") "#fff9c4" color))
