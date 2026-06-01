@@ -5,10 +5,12 @@
   "path": "/root/kim/freelang-front",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
   "last_commit": "01b5ef6",
-  "ports": { "app": 40850, "hmr": 40851 },
+  "ports": {
+    "app": 40850,
+    "hmr": 40851
+  },
   "start": "cd /root/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
-
   "done": [
     "pages/intro.flx — AI 개발 운영체제 선언 랜딩 페이지 (/intro)",
     "pages/index.flx — 삼중따옴표 전면 적용, 다크 테마, AI-Native 포지셔닝",
@@ -23,31 +25,35 @@
     "freelang-v11 interpreter.js: lastStringStart 에러 힌트 추가",
     "블로그 연재 3편 (ID: 950, 951, 953)"
   ],
-
   "next": [
     {
       "id": "P0",
       "title": "삼중따옴표 안 ${변수} 보간",
       "what": "\"\"\"...\"\"\" 안에서 ${변수} 직접 쓸 수 있어야 HTML 완전히 자연스러워짐. bootstrap.js에는 있었지만 interpreter.js에 미구현.",
-      "files": ["freelang-v11/self/runtime/interpreter.js"],
+      "files": [
+        "freelang-v11/self/runtime/interpreter.js"
+      ],
       "time": "~2시간"
     },
     {
       "id": "P1",
       "title": "auto_errors 중복 제거",
       "what": "같은 에러가 재시작마다 중복 기록됨. 동일 message면 open 상태로 유지, 중복 추가 안 하도록.",
-      "files": ["dev-server.js"],
+      "files": [
+        "dev-server.js"
+      ],
       "time": "~30분"
     },
     {
       "id": "P2",
       "title": "삼중따옴표 안 유니코드 직접 허용 확인",
       "what": "bootstrap.js 경로로 실행 시 ✓ · → 이모지가 삼중따옴표 안에서 동작 확인됨. interpreter.js 경로(fl-node)는 미확인.",
-      "files": ["freelang-v11/self/runtime/interpreter.js"],
+      "files": [
+        "freelang-v11/self/runtime/interpreter.js"
+      ],
       "time": "~30분"
     }
   ],
-
   "mistakes": [
     {
       "what": "freelang-v11 remote 상태 미확인 후 bootstrap.js 수정",
@@ -74,13 +80,11 @@
       "lesson": "언어 DX는 쓰기만이 아니라 전체 루프다. 고쳐도 됐는지 아는 것이 핵심."
     }
   ],
-
   "insights": [
     "새 기능보다 진단 신뢰도가 먼저. 오늘 삼중따옴표+소스맵+루프 세 개가 새 함수 수십 개보다 체감 효과가 컸음.",
     "언어를 쓰면서 언어를 고쳤다. 이게 AI-Native의 실제 의미.",
     "쓰고 싶은 언어의 조건: 에러가 나면 위치를 믿을 수 있고, 고치면 됐다고 알려주는 것."
   ],
-
   "env": {
     "os": "Android PRoot Ubuntu (aarch64)",
     "node": "v24.15.0",
@@ -88,15 +92,25 @@
     "bootstrap": "git stash pop → /root/freelang-v11/bootstrap.js 복원",
     "note": "watchdog.sh 비활성화(chmod -x). dev-server.js가 bootstrap.js를 자동으로 찾아서 실행."
   },
-
   "known_issues": [
     "bootstrap.js: v11.9.0에서 삭제됨. git stash pop으로 매 세션 복원 필요. stash 분실 시 fl-front 실행 불가.",
     "삼중따옴표 안 ${변수}: bootstrap.js 경로에서는 미동작(보간 없음). str로 쪼개야 함.",
     "auto_errors: 재시작마다 동일 에러 중복 기록됨. P1에서 수정 예정.",
     "fl-node(compiler 경로): 삼중따옴표 미지원. bootstrap.js run으로만 동작 확인됨."
   ],
-
   "auto_errors": [
+    {
+      "time": "2026-06-01T10:01:33.462Z",
+      "message": "✖ Unexpected character '�' at line 2044, col 26 (U+D83D — FL 문자열 밖에서 유니코드 사용 불가. 문자열 안에서는 HTML 엔티티 사용: &amp;middot; &amp;rarr; &amp;check;)",
+      "status": "resolved",
+      "resolved_at": "2026-06-01T10:02:17.305Z"
+    },
+    {
+      "time": "2026-06-01T10:01:08.728Z",
+      "message": "✖ Unexpected character '이' at line 2005, col 75 (U+C774 — FL 문자열 밖에서 유니코드 사용 불가. 문자열 안에서는 HTML 엔티티 사용: &amp;middot; &amp;rarr; &amp;check;)",
+      "status": "resolved",
+      "resolved_at": "2026-06-01T10:01:33.363Z"
+    },
     {
       "time": "2026-06-01T09:50:11.362Z",
       "message": "Unexpected character '✓' — pages/index.flx:221",
