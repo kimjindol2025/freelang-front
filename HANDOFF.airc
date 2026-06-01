@@ -1,79 +1,122 @@
 {
   "project": "fl-front",
   "date": "2026-06-01",
-  "session": "intro-page + dx-fix",
+  "session": "ai-native-dx — 쓰고 싶은 언어 만들기",
   "path": "/root/kim/freelang-front",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
-  "last_commit": "d66f5dd",
-  "ports": {"app": 40850, "hmr": 40851},
-  "start": "node /root/freelang-v11/bootstrap.js run _app.fl",
+  "last_commit": "01b5ef6",
+  "ports": { "app": 40850, "hmr": 40851 },
+  "start": "cd /root/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
 
   "done": [
     "pages/intro.flx — AI 개발 운영체제 선언 랜딩 페이지 (/intro)",
-    "fl-front-build.js: BOOTSTRAP 경로 하드코딩 제거 → 환경변수/fallback",
-    "dev-server.js: EADDRINUSE 핸들러 + SIGTERM 핸들러 + SIGKILL fallback",
-    "freelang-v11 self/runtime/interpreter.js: 유니코드 에러 메시지 개선",
-    "블로그 연재 3편 업로드 (ID: 950, 951, 953)"
+    "pages/index.flx — 삼중따옴표 전면 적용, 다크 테마, AI-Native 포지셔닝",
+    "fl-front-build.js: BOOTSTRAP 경로 fallback (환경변수→/root→/home/kimjin)",
+    "fl-front-build.js: 삼중따옴표 인식 — 정규식 마스킹 + removeStyleBlocks 보호",
+    "fl-front-build.js: sourceMap 정확화 — 배열 요소 수 → 실제 텍스트 라인 (마커 기반)",
+    "dev-server.js: EADDRINUSE 핸들러 + SIGTERM + SIGKILL fallback",
+    "dev-server.js: translateLines() — at line N → pages/*.flx:N 자동 치환",
+    "dev-server.js: 에러→수정→검증 자동 루프 — [loop] ✅/❌/🎉 리포트",
+    "dev-server.js: HANDOFF.airc auto_errors 자동 기록/resolved 처리",
+    "freelang-v11 interpreter.js: 삼중따옴표 파싱 구현",
+    "freelang-v11 interpreter.js: lastStringStart 에러 힌트 추가",
+    "블로그 연재 3편 (ID: 950, 951, 953)"
   ],
 
   "next": [
     {
       "id": "P0",
-      "title": "빌드 시 유니코드 자동 엔티티 변환",
-      "what": "fl-front-build.js가 .flx 처리 시 문자열 밖 유니코드를 HTML 엔티티로 자동 치환. 개발자가 직접 치환할 필요 없어야 함",
-      "files": ["fl-front-build.js"],
-      "time": "~1시간"
-    },
-    {
-      "id": "P1",
-      "title": "에러 메시지 원인 라인 정확도 개선",
-      "what": "파서 에러가 실제 원인 라인이 아닌 영향받은 라인을 가리키는 문제. lexer에서 문자열 시작 위치와 에러 발생 위치를 함께 표시",
+      "title": "삼중따옴표 안 ${변수} 보간",
+      "what": "\"\"\"...\"\"\" 안에서 ${변수} 직접 쓸 수 있어야 HTML 완전히 자연스러워짐. bootstrap.js에는 있었지만 interpreter.js에 미구현.",
       "files": ["freelang-v11/self/runtime/interpreter.js"],
       "time": "~2시간"
     },
     {
+      "id": "P1",
+      "title": "auto_errors 중복 제거",
+      "what": "같은 에러가 재시작마다 중복 기록됨. 동일 message면 open 상태로 유지, 중복 추가 안 하도록.",
+      "files": ["dev-server.js"],
+      "time": "~30분"
+    },
+    {
       "id": "P2",
-      "title": "HMR 신호 JSON화",
-      "what": "hmrReload()가 string('reload')만 보냄. JSON({type,ok,error})으로 변경. 빌드 실패 시 브라우저 하단 오버레이 표시",
-      "files": ["dev-server.js", "pages/_layout.flx"],
+      "title": "삼중따옴표 안 유니코드 직접 허용 확인",
+      "what": "bootstrap.js 경로로 실행 시 ✓ · → 이모지가 삼중따옴표 안에서 동작 확인됨. interpreter.js 경로(fl-node)는 미확인.",
+      "files": ["freelang-v11/self/runtime/interpreter.js"],
       "time": "~30분"
     }
   ],
 
   "mistakes": [
     {
-      "what": "freelang-v11 bootstrap.js 수정 전 remote 상태 미확인",
-      "detail": "bootstrap.js를 직접 수정하고 push 시도했으나 remote에서 이미 해당 파일이 삭제된 상태(v11.9.0 Phase 4). git rebase 충돌 발생",
-      "fix": "git fetch 후 git log origin/master 먼저 확인하고 수정 대상 파일 결정",
-      "lesson": "공유 리포에서 장기 부재 후 재개 시 반드시 remote 상태 먼저 확인"
+      "what": "freelang-v11 remote 상태 미확인 후 bootstrap.js 수정",
+      "detail": "v11.9.0에서 bootstrap.js가 이미 삭제됐는데 수정 시도 → rebase 충돌. 세션 중 3번 stash pop 반복.",
+      "fix": "공유 리포 작업 전 git fetch && git log origin/master 필수",
+      "lesson": "bootstrap.js는 stash에서만 존재. 세션 시작 시 git stash pop 필요."
     },
     {
       "what": "유니코드 에러 원인을 빌드 시스템 탓으로 잘못 분석",
-      "detail": "초기 분석에서 fl-front-build.js가 싱글쿼트 FL 문자열을 생성한다고 봤으나, 실제 원인은 intro.flx 안 더블쿼트 FL 문자열 안에 이스케이프되지 않은 '\"'가 있어서 문자열이 조기 종료된 것",
-      "fix": "HTML 엔티티로 대체 (&ldquo; &rdquo;)",
-      "lesson": "에러 위치가 실제 원인과 다를 때 파서 동작을 역추적해야 함. 에러 메시지를 그대로 믿지 말 것"
+      "detail": "FL 문자열 안 이스케이프 안 된 \"가 조기 종료시키는 것인데, 빌드 시스템이 싱글쿼트 생성한다고 봤음.",
+      "fix": "에러 위치가 다를 때 파서 동작 역추적. 에러 메시지 그대로 믿지 말 것.",
+      "lesson": "소스맵이 없으면 에러 위치가 틀릴 수 있다. 이게 오늘 소스맵 만든 이유."
     },
     {
-      "what": "dev-server 앱 포트(40850)와 HMR 포트(40851) 혼동",
-      "detail": "서버가 안 뜨는 원인을 40850 문제로 착각. 실제로는 40851 HMR 포트 충돌이었음",
-      "fix": "python3 -c \"import socket; s=socket.socket(); s.bind(('', PORT))\" 로 포트별 개별 확인",
-      "lesson": "두 포트를 쓰는 서버는 포트별로 따로 확인"
+      "what": "삼중따옴표 안에 삼중따옴표 넣어서 문자열 조기 종료",
+      "detail": "코드 예시 안에 \"\"\"...\"\"\" 패턴 보여주려다 바깥 삼중따옴표가 닫힘.",
+      "fix": "&quot;&quot;&quot; 엔티티로 대체",
+      "lesson": "삼중따옴표 안에 \"\"\"는 사용 불가. 코드 예시는 엔티티 처리 필요."
+    },
+    {
+      "what": "루프 분석 처음에 쓰기/에러 고치기에만 집중",
+      "detail": "사용자가 '그 다음'을 물어보기 전까지 검증 루프가 없다는 걸 몰랐음.",
+      "fix": "에러→수정→검증 루프 구현",
+      "lesson": "언어 DX는 쓰기만이 아니라 전체 루프다. 고쳐도 됐는지 아는 것이 핵심."
     }
+  ],
+
+  "insights": [
+    "새 기능보다 진단 신뢰도가 먼저. 오늘 삼중따옴표+소스맵+루프 세 개가 새 함수 수십 개보다 체감 효과가 컸음.",
+    "언어를 쓰면서 언어를 고쳤다. 이게 AI-Native의 실제 의미.",
+    "쓰고 싶은 언어의 조건: 에러가 나면 위치를 믿을 수 있고, 고치면 됐다고 알려주는 것."
   ],
 
   "env": {
     "os": "Android PRoot Ubuntu (aarch64)",
     "node": "v24.15.0",
-    "freelang": "v11.9.0",
-    "runtime": "node /root/freelang-v11/bootstrap.js run _app.fl",
-    "note": "watchdog.sh 비활성화됨 (chmod -x). 서버 수동 시작 필요"
+    "freelang": "v11.9.0 (bootstrap.js는 stash에서 복원 필요)",
+    "bootstrap": "git stash pop → /root/freelang-v11/bootstrap.js 복원",
+    "note": "watchdog.sh 비활성화(chmod -x). dev-server.js가 bootstrap.js를 자동으로 찾아서 실행."
   },
 
   "known_issues": [
-    "FL 파서: 문자열 밖 유니코드 미지원 → HTML 엔티티 수동 변환 필요",
-    "FL 파서: 에러 위치가 실제 원인 라인과 다를 수 있음",
-    "dev-server: HMR 포트 40851이 PRoot 환경에서 좀비 상태로 남을 수 있음 — kill -9 로 해결",
-    "intro.flx: 더블쿼트 포함 텍스트는 반드시 HTML 엔티티 사용"
+    "bootstrap.js: v11.9.0에서 삭제됨. git stash pop으로 매 세션 복원 필요. stash 분실 시 fl-front 실행 불가.",
+    "삼중따옴표 안 ${변수}: bootstrap.js 경로에서는 미동작(보간 없음). str로 쪼개야 함.",
+    "auto_errors: 재시작마다 동일 에러 중복 기록됨. P1에서 수정 예정.",
+    "fl-node(compiler 경로): 삼중따옴표 미지원. bootstrap.js run으로만 동작 확인됨."
+  ],
+
+  "auto_errors": [
+    {
+      "time": "2026-06-01T09:50:11.362Z",
+      "message": "Unexpected character '✓' — pages/index.flx:221",
+      "status": "resolved",
+      "resolved_at": "2026-06-01T09:50:24.234Z"
+    },
+    {
+      "message": "'fl-env-get' 정의 없음 (_email/_oauth/_storage 헬퍼)",
+      "status": "open",
+      "note": "실제 운영 기능 미구현. 현재 사용 안 하므로 무시 가능."
+    },
+    {
+      "message": "'http_ok?' 정의 없음 (_email/_oauth/_payment 헬퍼)",
+      "status": "open",
+      "note": "동일. 무시 가능."
+    },
+    {
+      "message": "'format-date' 정의 없음 (_storage 헬퍼)",
+      "status": "open",
+      "note": "동일. 무시 가능."
+    }
   ]
 }
