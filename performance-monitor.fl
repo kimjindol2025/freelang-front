@@ -1,5 +1,5 @@
 ; performance-monitor.fl — 클라이언트 성능 모니터링
-; v0.3.0 성능 대시보드 + 실시간 스트림
+; v0.7.0 실시간 알림 시스템 추가
 
 (load "freelang-stdlib-extensions.fl")
 
@@ -7,6 +7,17 @@
 (def performance-log (atom []))
 (def MAX-PERF-RECORDS 500)
 (def performance-watchers (atom []))
+
+; ── 알림 저장소 & 임계값 (v0.7.0) ──
+(def alert-log (atom []))
+(def MAX-ALERTS 200)
+(def alert-thresholds {
+  "page-load" 2000
+  "api-call" 1000
+  "memory" 80
+  "long-task" 500
+})
+(def alert-watchers (atom []))
 
 ; ── EventSource 등록 함수 ──
 (defn register-watcher [$callback]
@@ -44,7 +55,10 @@
                    (get perf-record "unit")))
 
     ; EventSource 워처 알림
-    (notify-watchers perf-record)))
+    (notify-watchers perf-record)
+
+    ; 알림 감지 (v0.7.0)
+    (detect-performance-alert perf-record)))
 
 ; ── 성능 통계 함수 (5가지 메트릭) ──
 (defn get-performance-stats []
@@ -239,3 +253,51 @@
     (catch $e
       (log-error (str "Error handling DELETE /api/metrics: " $e))
       (server-json {"error" "Failed to clear metrics"} 500))))
+
+; ── 알림 감지 함수 (v0.7.0) ──
+(defn detect-performance-alert [$record]
+  (let [$metric (get $record "metric")
+        $value (get $record "value")
+        $threshold (get alert-thresholds $metric)]
+    (if (and $threshold (> $value $threshold))
+      (let [$alert {
+        "id" (str (random))
+        "type" "performance"
+        "metric" $metric
+        "value" $value
+        "threshold" $threshold
+        "severity" (if (> $value (* $threshold 1.5)) "high" "warning")
+        "message" (str $metric " 초과: " $value "ms (임계값: " $threshold "ms)")
+        "timestamp" (str (date-now))
+      }]
+        ; atom에 저장 (최근 200개만 유지)
+        (swap! alert-log
+          (fn [$alerts]
+            (let [$new-alerts (conj $alerts $alert)]
+              (if (>= (length $new-alerts) MAX-ALERTS)
+                (rest $new-alerts)
+                $new-alerts))))
+
+        ; 로깅
+        (log-warn (str "[ALERT] " (get $alert "message")))
+
+        ; 알림 워처 알림
+        (let [$watchers (deref alert-watchers)]
+          (doseq [$callback $watchers]
+            (try
+              ($callback $alert)
+              (catch $e
+                (log-warn (str "Alert watcher error: " $e))))))))))
+
+; ── 알림 워처 등록 함수 (v0.7.0) ──
+(defn register-alert-watcher [$callback]
+  (swap! alert-watchers conj $callback))
+
+; ── 알림 조회 함수 (v0.7.0) ──
+(defn get-alerts [$limit]
+  (let [$all (deref alert-log)
+        $sorted (reverse $all)]
+    {
+      "total" (length $all)
+      "alerts" (take $limit $sorted)
+    }))

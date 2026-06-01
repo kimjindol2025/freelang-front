@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "time": "2026-06-01T13:34:06.484Z",
+  "time": "2026-06-01T13:38:35.302Z",
   "routes": [
     {
       "route": "/about",
@@ -11,6 +11,11 @@
       "route": "/api/hello",
       "file": "pages/api/hello.flx",
       "fn": "page_api_hello"
+    },
+    {
+      "route": "/api-alerts",
+      "file": "pages/api-alerts.flx",
+      "fn": "page_api_alerts"
     },
     {
       "route": "/api-errors",
@@ -36,6 +41,11 @@
       "route": "/counter",
       "file": "pages/counter.flx",
       "fn": "page_counter"
+    },
+    {
+      "route": "/dashboard/alerts",
+      "file": "pages/dashboard/alerts.flx",
+      "fn": "page_dashboard_alerts"
     },
     {
       "route": "/dashboard/charts",
@@ -139,28 +149,30 @@
   "sourceMap": {
     "1939-1973": "pages/about.flx",
     "1976-1980": "pages/api/hello.flx",
-    "1983-2007": "pages/api-errors.flx",
-    "2010-2099": "pages/api-metrics.flx",
-    "2102-2135": "pages/contact/thanks.flx",
-    "2138-2207": "pages/contact.flx",
-    "2210-2239": "pages/counter.flx",
-    "2242-2249": "pages/dashboard/charts.flx",
-    "2252-2259": "pages/dashboard/index.flx",
-    "2262-2459": "pages/demo.flx",
-    "2462-2528": "pages/errors-stats.flx",
-    "2531-2545": "pages/fetch-demo.flx",
-    "2548-2679": "pages/freelang.flx",
-    "2682-2692": "pages/index.flx",
-    "2695-3179": "pages/intro.flx",
-    "3182-3228": "pages/login.flx",
-    "3231-3236": "pages/logout.flx",
-    "3239-3425": "pages/notes.flx",
-    "3428-3475": "pages/styled.flx",
-    "3478-3499": "pages/tasks.flx",
-    "3502-3611": "pages/test-helpers.flx",
-    "3614-3622": "pages/todo.flx",
-    "3625-3681": "pages/upload.flx",
-    "3684-3733": "pages/users/[id].flx"
+    "1983-2031": "pages/api-alerts.flx",
+    "2034-2058": "pages/api-errors.flx",
+    "2061-2150": "pages/api-metrics.flx",
+    "2153-2186": "pages/contact/thanks.flx",
+    "2189-2258": "pages/contact.flx",
+    "2261-2290": "pages/counter.flx",
+    "2293-2300": "pages/dashboard/alerts.flx",
+    "2303-2310": "pages/dashboard/charts.flx",
+    "2313-2320": "pages/dashboard/index.flx",
+    "2323-2520": "pages/demo.flx",
+    "2523-2589": "pages/errors-stats.flx",
+    "2592-2606": "pages/fetch-demo.flx",
+    "2609-2740": "pages/freelang.flx",
+    "2743-2753": "pages/index.flx",
+    "2756-3240": "pages/intro.flx",
+    "3243-3289": "pages/login.flx",
+    "3292-3297": "pages/logout.flx",
+    "3300-3486": "pages/notes.flx",
+    "3489-3536": "pages/styled.flx",
+    "3539-3560": "pages/tasks.flx",
+    "3563-3672": "pages/test-helpers.flx",
+    "3675-3683": "pages/todo.flx",
+    "3686-3742": "pages/upload.flx",
+    "3745-3796": "pages/users/[id].flx"
   },
   "warnings": []
 }
