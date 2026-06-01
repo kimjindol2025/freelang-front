@@ -2,3 +2,4 @@ data/
 public/uploads/
 _app.fl
 .build-cache.json
+_app.fl.out.js

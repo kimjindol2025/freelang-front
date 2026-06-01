@@ -63,8 +63,10 @@ const PORT        = 40850;
 // A. FreeLang stdlib 함수 목록 자동 로드 (빌드 시 1회)
 // ══════════════════════════════════════════════════════════════
 const BOOTSTRAP = (() => {
+  const local = path.join(__dirname, 'runtime', 'bootstrap.js');
   const candidates = [
     process.env.FL_BOOTSTRAP,
+    local,
     '/root/freelang-v11/bootstrap.js',
     '/home/kimjin/freelang-v11/bootstrap.js',
   ].filter(Boolean);
