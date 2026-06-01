@@ -1,6 +1,6 @@
 ; pages/api-custom-metrics.flx — 커스텀 메트릭 API (v0.8.0)
 
-(load "../performance-monitor.fl")
+(load "performance-monitor.fl")
 
 (defn render [$req]
   (let [$path (get $req "path")

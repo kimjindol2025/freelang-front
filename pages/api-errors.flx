@@ -3,7 +3,7 @@
 ; POST /api/errors — 에러 저장
 ; DELETE /api/errors — 에러 초기화
 
-(load "../error-api.fl")
+(load "error-api.fl")
 
 (defn render [$req]
   (let [$method (get $req "method")]

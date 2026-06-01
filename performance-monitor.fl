@@ -4,34 +4,34 @@
 (load "freelang-stdlib-extensions.fl")
 
 ; ── 성능 데이터 저장소 (atom-based) ──
-(def performance-log (atom []))
-(def MAX-PERF-RECORDS 500)
-(def performance-watchers (atom []))
+(define performance-log (atom []))
+(define MAX-PERF-RECORDS 500)
+(define performance-watchers (atom []))
 
 ; ── 알림 저장소 & 임계값 (v0.7.0) ──
-(def alert-log (atom []))
-(def MAX-ALERTS 200)
-(def alert-thresholds {
+(define alert-log (atom []))
+(define MAX-ALERTS 200)
+(define alert-thresholds {
   "page-load" 2000
   "api-call" 1000
   "memory" 80
   "long-task" 500
 })
-(def alert-watchers (atom []))
+(define alert-watchers (atom []))
 
 ; ── 커스텀 메트릭 저장소 (v0.8.0) ──
-(def custom-metrics (atom {}))
-(def custom-metric-data (atom []))
-(def MAX-CUSTOM-RECORDS 300)
+(define custom-metrics (atom {}))
+(define custom-metric-data (atom []))
+(define MAX-CUSTOM-RECORDS 300)
 
 ; ── SLO/SLA 정의 (v0.9.0) ──
-(def slo-definitions {
+(define slo-definitions {
   "page-load" {"target" 3000 "threshold" 95}     ; 95% < 3초
   "api-call" {"target" 1500 "threshold" 98}      ; 98% < 1.5초
   "availability" {"target" 99.9 "threshold" 99.9} ; 99.9% uptime
 })
 
-(def sla-tracking (atom {
+(define sla-tracking (atom {
   "page-load" {"total" 0 "passed" 0 "percentage" 0}
   "api-call" {"total" 0 "passed" 0 "percentage" 0}
   "availability" {"uptime" 100}

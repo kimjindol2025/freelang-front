@@ -6,7 +6,7 @@
 ; GET /api/metrics/export — CSV/JSON 내보내기 (v0.3.0)
 ; GET /api/metrics/stream — EventSource 실시간 스트림 (v0.3.0)
 
-(load "../performance-monitor.fl")
+(load "performance-monitor.fl")
 
 (defn render [$req]
   (let [$method (get $req "method")
