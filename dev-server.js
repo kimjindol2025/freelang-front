@@ -34,14 +34,25 @@ function loadBuildState() {
   } catch {}
 }
 
-// 소스맵 역추적: _app.fl 라인 번호 → pages/*.flx 파일명
-function resolveSourceFile(lineNum) {
+// 소스맵 역추적: _app.fl 라인 번호 → { file, line } (pages/*.flx 내 상대 라인)
+function resolveSourceLine(lineNum) {
   const map = lastBuildState.sourceMap || {};
   for (const [range, file] of Object.entries(map)) {
     const [s, e] = range.split('-').map(Number);
-    if (lineNum >= s && lineNum <= e) return file;
+    if (lineNum >= s && lineNum <= e) {
+      return { file, line: lineNum - s + 1 };
+    }
   }
   return null;
+}
+
+// 에러 출력에서 "at line N, col M" → 원본 파일 위치로 치환
+function translateLines(msg) {
+  return msg.replace(/at line (\d+), col (\d+)/g, (match, l, c) => {
+    const src = resolveSourceLine(Number(l));
+    if (src) return `at line ${src.line}, col ${c} \x1b[36m← ${src.file}:${src.line}\x1b[0m`;
+    return match;
+  });
 }
 
 // ── 브라우저 에러 로그 (AI 조회용) ───────────────────────────
@@ -218,21 +229,14 @@ function startServer() {
 
     // stdout/stderr 출력 + 포트 오픈 감지
     serverProc.stdout.on('data', d => {
-      const msg = d.toString();
+      const msg = translateLines(d.toString());
       process.stdout.write(msg);
       if (msg.includes('listening') || msg.includes('server listening')) {
-        resolve();  // 포트 오픈 확인 → 즉시 HMR
+        resolve();
       }
     });
     serverProc.stderr.on('data', d => {
-      const msg = d.toString();
-      process.stderr.write(msg);
-      // _app.fl:N 패턴 감지 → 원본 파일 역추적
-      const m = msg.match(/_app\.fl[:\s]+(\d+)/);
-      if (m) {
-        const src = resolveSourceFile(Number(m[1]));
-        if (src) console.error(`\x1b[36m[source]\x1b[0m 원본 파일: ${src}`);
-      }
+      process.stderr.write(translateLines(d.toString()));
     });
     serverProc.on('exit', (code, signal) => {
       if (signal !== 'SIGTERM') console.log(`[dev] 서버 종료 (code=${code})`);

@@ -963,7 +963,24 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
   lines.push(`(println "FL-Front v0.1 — http://localhost:${PORT}")`);
   lines.push(`(server-start ${PORT})`);
 
-  return { content: lines.join('\n'), sourceMap };
+  // 마커 기반 정확한 sourceMap 재계산
+  // lines.push(renamed)는 배열 1개지만 실제로는 수백 줄 → 배열 카운트 기반 sourceMap은 틀림
+  const content = lines.join('\n');
+  const contentLines = content.split('\n');
+  const markerRe = /^; ── (pages\/[^\s]+\.flx) ──/;
+  const accurateMap = {};
+  let curFile = null, curStart = 0;
+  contentLines.forEach((line, idx) => {
+    const m = line.match(markerRe);
+    if (m) {
+      if (curFile) accurateMap[`${curStart}-${idx - 1}`] = curFile;
+      curFile = m[1];
+      curStart = idx + 2; // 마커 다음 줄, 1-indexed
+    }
+  });
+  if (curFile) accurateMap[`${curStart}-${contentLines.length}`] = curFile;
+
+  return { content, sourceMap: accurateMap };
 }
 
 const BUILD_START = Date.now();
