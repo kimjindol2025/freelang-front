@@ -17,7 +17,7 @@ const APP_FL         = path.join(ROOT, '_app.fl');
 const CSS_FILE       = path.join(ROOT, 'public', 'app.css');
 const BUILD_JS       = path.join(ROOT, 'fl-front-build.js');
 const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');
-const RUNTIME        = '/home/kimjin/freelang-v11/bootstrap.js';
+const RUNTIME        = '/root/freelang-v11/bootstrap.js';
 const HMR_PORT       = 40851;
 
 let serverProc    = null;
