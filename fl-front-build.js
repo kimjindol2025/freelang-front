@@ -35,6 +35,16 @@ function removeStyleBlocks(src) {
     result += src.slice(i, idx);
     let depth = 0, j = idx;
     while (j < src.length) {
+      if (src.slice(j, j+3) === '"""') {
+        j += 3;
+        while (j+2 < src.length && src.slice(j, j+3) !== '"""') j++;
+        j += 3; continue;
+      }
+      if (src[j] === '"') {
+        j++;
+        while (j < src.length && src[j] !== '"') { if (src[j] === '\\') j++; j++; }
+        j++; continue;
+      }
       if (src[j] === '(') depth++;
       else if (src[j] === ')') { depth--; if (depth === 0) { j++; break; } }
       j++;
@@ -190,8 +200,9 @@ function validateFunctions(routes, helpers, bindings) {
     const src = fs.readFileSync(f, 'utf8');
     const fileName = path.basename(f);
     const strippedLines = src
-      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, '"__STR__"')  // 문자열 먼저 (내부 ; 보호)
-      .replace(/;[^\n]*/g, '')                           // 그 다음 주석 제거
+      .replace(/"""[\s\S]*?"""/g, '"__TRIPLE__"')        // 삼중따옴표 먼저
+      .replace(/"(?:[^"\\]|\\[\s\S])*"/g, '"__STR__"')  // 더블쿼트
+      .replace(/;[^\n]*/g, '')                           // 주석 제거
       .split('\n');
 
     for (let li = 0; li < strippedLines.length; li++) {
