@@ -1,13 +1,13 @@
 {
   "name": "freelang-front",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드",
   "language": "FreeLang v11",
   "status": "in_progress",
-  "phase": "Phase B: 기능 확장 (에러 대시보드)",
+  "phase": "Phase B: 기능 확장 (성능 모니터링)",
   "ports": [40850],
   "entry": "_app.fl",
-  "pages_count": 31,
+  "pages_count": 32,
   "components": "pages/*.flx",
   "build_system": "fl-front-build.js",
   "commands": {

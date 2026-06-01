@@ -1,7 +1,7 @@
 {
   "name": "freelang-front",
-  "version": "0.2.2",
-  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 (에러 대시보드 추가)",
+  "version": "0.2.3",
+  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 (성능 모니터링 추가)",
   "author": "Claude",
   "license": "MIT",
   "repository": {
@@ -30,10 +30,10 @@
   },
   "devDependencies": {},
   "meta": {
-    "pages": 31,
+    "pages": 32,
     "phase": "B",
-    "build_time_ms": 1150,
-    "bundle_size_kb": 195,
+    "build_time_ms": 1200,
+    "bundle_size_kb": 210,
     "features": {
       "error_reporting": true,
       "error_collection_api": true,
@@ -41,9 +41,12 @@
       "error_dashboard": true,
       "error_deduplication": true,
       "error_statistics": true,
-      "performance_measurement": true
+      "performance_measurement": true,
+      "performance_monitoring": true,
+      "api_tracking": true,
+      "memory_monitoring": true
     },
-    "last_updated": "2026-06-02T00:05:00Z"
+    "last_updated": "2026-06-02T00:15:00Z"
   }
 }
 

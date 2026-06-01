@@ -1,0 +1,22 @@
+; pages/api-metrics.flx — 성능 메트릭 API 라우트
+; GET /api/metrics — 성능 통계 조회
+; POST /api/metrics — 성능 데이터 저장
+; DELETE /api/metrics — 성능 로그 초기화
+
+(load "../performance-monitor.fl")
+
+(defn render [$req]
+  (let [$method (get $req "method")]
+    (cond
+      (= $method "POST")
+        (handle-post-metrics $req)
+
+      (= $method "GET")
+        (handle-get-metrics $req)
+
+      (= $method "DELETE")
+        (handle-delete-metrics $req)
+
+      ; 다른 메서드는 405
+      true
+        (server-json {"error" "Method not allowed"} 405))))

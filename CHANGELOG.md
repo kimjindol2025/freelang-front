@@ -1,5 +1,45 @@
 # 📝 CHANGELOG — freelang-front 버전 히스토리
 
+## [0.2.3] — 2026-06-02 (Patch: 성능 모니터링)
+
+### 새로운 기능
+- **성능 메트릭 자동 수집** (PERFORMANCE-MONITOR 스크립트)
+  - 페이지 로드 시간 (page-load)
+  - API 호출 시간 (api-call, api-error)
+  - 메모리 사용량 (memory, 5초마다)
+  - fetch 오버라이드로 모든 요청 추적
+
+- **성능 분석 API** (performance-monitor.fl)
+  - `record-performance`: 메트릭 기록
+  - `get-performance-stats`: 통계 조회
+  - `get-performance-metrics`: 메트릭별 조회
+  - `analyze-performance-range`: min/max/avg/p95 분석
+
+### 파일 추가
+- `performance-monitor.fl` (성능 모니터링, 152줄)
+- `pages/api-metrics.flx` (메트릭 API 라우트, 12줄)
+
+### 파일 수정
+- `pages/_layout.flx` (PERFORMANCE-MONITOR 스크립트 추가)
+
+### API 엔드포인트
+- POST /api/metrics (메트릭 저장)
+- GET /api/metrics (통계 조회, ?metric=page-load&limit=20)
+- DELETE /api/metrics (로그 초기화)
+
+### 상태
+- Phase: **B 계속 진행**
+- 페이지: 31개 → **32개** (api-metrics.flx 추가)
+- 번들: 195KB → **210KB** (+7.7%)
+- 빌드: 1.15s → **1.2s** (+4%)
+
+### 성능
+- 메트릭 기록: < 50ms
+- 통계 조회: < 100ms
+- 메모리 오버헤드: ~2-5MB
+
+---
+
 ## [0.2.2] — 2026-06-02 (Patch: 에러 대시보드 & 최적화)
 
 ### 새로운 기능

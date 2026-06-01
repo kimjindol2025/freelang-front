@@ -118,6 +118,47 @@ var _ce=console.error.bind(console);
 console.error=function(){_ce.apply(console,arguments);send('console',Array.from(arguments).join(' '),'',0,0,'');};
 })()</script>")
 
+; 성능 모니터링 스크립트 — 페이지 로드, API 호출, 렌더링 시간 추적
+; v0.2.3: 성능 메트릭 자동 수집
+(define PERFORMANCE-MONITOR
+  "<script>(function(){
+var perfStart=performance.now();
+var apiCallStart={};
+
+// 페이지 로드 시간
+window.addEventListener('load',function(){
+  var loadTime=performance.now()-perfStart;
+  fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'page-load',value:Math.round(loadTime),unit:'ms'})}).catch(function(){});
+});
+
+// API 호출 시간 추적
+var origFetch=window.fetch;
+window.fetch=function(){
+  var callId=Math.random().toString(36);
+  apiCallStart[callId]=performance.now();
+  var args=Array.from(arguments);
+  var url=args[0];
+  return origFetch.apply(this,args).then(function(r){
+    var elapsed=Math.round(performance.now()-apiCallStart[callId]);
+    var metric={metric:'api-call',value:elapsed,unit:'ms',endpoint:String(url).split('?')[0]};
+    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metric)}).catch(function(){});
+    return r;
+  }).catch(function(e){
+    var elapsed=Math.round(performance.now()-apiCallStart[callId]);
+    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'api-error',value:elapsed,unit:'ms',error:String(e)})}).catch(function(){});
+    throw e;
+  });
+};
+
+// 메모리 모니터링 (5초마다)
+if(performance.memory){
+  setInterval(function(){
+    var used=Math.round(performance.memory.usedJSHeapSize/1048576);
+    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'memory',value:used,unit:'MB'})}).catch(function(){});
+  },5000);
+}
+})()</script>")
+
 ; SPA 클라이언트 라우터 — View Transitions API 적용
 (define SPA-ROUTER
   "<script>(function(){
@@ -209,6 +250,7 @@ window.addEventListener('popstate',function(e){
               (h "div" {:class layout_wrap} content)
               (h "footer" {:class layout_foot} "FreeLang Front v0.1 · npm install 0개 · SSR · Island")
               ERROR-COLLECTOR
+              PERFORMANCE-MONITOR
               SPA-ROUTER
               DARK-MODE-SCRIPT
               HMR-SCRIPT)))))))

@@ -1,0 +1,150 @@
+; performance-monitor.fl — 클라이언트 성능 모니터링
+; v0.2.3 성능 추적 시스템
+
+(load "freelang-stdlib-extensions.fl")
+
+; ── 성능 데이터 저장소 (atom-based) ──
+(def performance-log (atom []))
+(def MAX-PERF-RECORDS 500)
+
+; ── 성능 기록 함수 ──
+(defn record-performance [$metric]
+  (let [perf-record {
+    "metric" (get $metric "metric")
+    "value" (get $metric "value")
+    "unit" (get $metric "unit")
+    "page" (get $metric "page")
+    "timestamp" (str (date-now))
+  }]
+
+    ; atom에 저장 (최근 500개만 유지)
+    (swap! performance-log
+      (fn [$logs]
+        (let [$new-logs (conj $logs perf-record)]
+          (if (>= (length $new-logs) MAX-PERF-RECORDS)
+            (rest $new-logs)
+            $new-logs))))
+
+    ; 로깅
+    (log-info (str "[PERF] " (get perf-record "metric")
+                   ": " (get perf-record "value")
+                   (get perf-record "unit")))))
+
+; ── 성능 통계 함수 ──
+(defn get-performance-stats []
+  (let [$all (deref performance-log)
+        $page-loads (filter (fn [$p] (= (get $p "metric") "page-load")) $all)
+        $api-calls (filter (fn [$p] (= (get $p "metric") "api-call")) $all)
+        $renders (filter (fn [$p] (= (get $p "metric") "render")) $all)]
+    {
+      "total-records" (length $all)
+      "page-loads" {
+        "count" (length $page-loads)
+        "average" (if (> (length $page-loads) 0)
+          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $page-loads))
+             (length $page-loads))
+          0)
+      }
+      "api-calls" {
+        "count" (length $api-calls)
+        "average" (if (> (length $api-calls) 0)
+          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $api-calls))
+             (length $api-calls))
+          0)
+      }
+      "renders" {
+        "count" (length $renders)
+        "average" (if (> (length $renders) 0)
+          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $renders))
+             (length $renders))
+          0)
+      }
+      "recent" (take 10 (reverse $all))
+    }))
+
+; ── 성능 조회 함수 ──
+(defn get-performance-metrics [$metric-type $limit]
+  (let [$all (deref performance-log)
+        $filtered (if $metric-type
+          (filter (fn [$p] (= (get $p "metric") $metric-type)) $all)
+          $all)
+        $sorted (reverse $filtered)]
+    {
+      "metric" $metric-type
+      "count" (length $sorted)
+      "limit" $limit
+      "metrics" (take $limit $sorted)
+    }))
+
+; ── 성능 범위별 분석 ──
+(defn analyze-performance-range [$metric-type]
+  (let [$metrics (get-performance-metrics $metric-type 100)
+        $values (map (fn [$m] (get $m "value")) (get $metrics "metrics"))]
+    {
+      "metric" $metric-type
+      "count" (length $values)
+      "min" (if (> (length $values) 0) (reduce min 99999 $values) 0)
+      "max" (if (> (length $values) 0) (reduce max 0 $values) 0)
+      "average" (if (> (length $values) 0)
+        (/ (reduce + 0 $values) (length $values))
+        0)
+      "p95" (if (> (length $values) 0)
+        (let [$sorted (sort $values)
+              $idx (- (length $sorted) (max 1 (round (/ (length $sorted) 20))))]
+          (get $sorted $idx))
+        0)
+    }))
+
+; ── API: POST /api/metrics (성능 데이터 저장) ──
+(defn handle-post-metrics [$req]
+  (try
+    (let [$body (get $req "body")
+          $metric (when-nil (get $body "metric") "unknown")
+          $value (when-nil (get $body "value") 0)
+          $unit (when-nil (get $body "unit") "ms")
+          $page (req-query-default $req "page" "")]
+
+      ; 검증
+      (validate-range $value 0 999999 "value")
+      (validate-length $metric 3 50 "metric")
+
+      ; 기록
+      (record-performance {
+        "metric" $metric
+        "value" $value
+        "unit" $unit
+        "page" $page
+      })
+
+      (server-json {"ok" true "recorded" true} 200))
+
+    (catch $e
+      (log-error (str "Error handling POST /api/metrics: " $e))
+      (server-json {"error" "Failed to record metric"} 500))))
+
+; ── API: GET /api/metrics (성능 통계) ──
+(defn handle-get-metrics [$req]
+  (try
+    (let [$metric (req-query-default $req "metric" nil)
+          $limit (or (req-query-default $req "limit" "20") "20")
+          $limit-num (str-to-num $limit)
+          $result (if $metric
+            (analyze-performance-range $metric)
+            (get-performance-stats))]
+
+      (server-json $result 200))
+
+    (catch $e
+      (log-error (str "Error handling GET /api/metrics: " $e))
+      (server-json {"error" "Failed to retrieve metrics"} 500))))
+
+; ── API: DELETE /api/metrics (성능 로그 초기화) ──
+(defn handle-delete-metrics [$req]
+  (try
+    (reset! performance-log [])
+    (log-info "Performance log cleared")
+    (server-json {"ok" true} 200)
+
+    (catch $e
+      (log-error (str "Error handling DELETE /api/metrics: " $e))
+      (server-json {"error" "Failed to clear metrics"} 500))))
