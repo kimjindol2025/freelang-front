@@ -52,7 +52,14 @@ const PORT        = 40850;
 // ══════════════════════════════════════════════════════════════
 // A. FreeLang stdlib 함수 목록 자동 로드 (빌드 시 1회)
 // ══════════════════════════════════════════════════════════════
-const BOOTSTRAP = '/home/kimjin/freelang-v11/bootstrap.js';
+const BOOTSTRAP = (() => {
+  const candidates = [
+    process.env.FL_BOOTSTRAP,
+    '/root/freelang-v11/bootstrap.js',
+    '/home/kimjin/freelang-v11/bootstrap.js',
+  ].filter(Boolean);
+  return candidates.find(p => { try { require('fs').accessSync(p); return true; } catch { return false; } }) || candidates[0];
+})();
 
 function loadFreeLangStdlib() {
   try {

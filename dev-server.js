@@ -335,6 +335,13 @@ function snapshotHashes() {
     console.log(`[hmr] SSE → http://localhost:${HMR_PORT}/~hmr`)
   );
 
+  hmrServer.on('error', (err) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error(`[hmr] 포트 ${HMR_PORT} 이미 사용 중 — 기존 dev-server 프로세스를 종료 후 재시작하세요`);
+      process.exit(1);
+    }
+  });
+
   snapshotHashes();
 
   try { await build(); } catch (e) {
@@ -345,10 +352,16 @@ function snapshotHashes() {
   await startServer();
   watchAll();
 
-  process.on('SIGINT', () => {
+  function shutdown() {
     console.log('\n[dev] 종료');
-    if (serverProc) serverProc.kill('SIGTERM');
-    hmrServer.close();
-    process.exit(0);
-  });
+    if (serverProc) {
+      serverProc.kill('SIGTERM');
+      setTimeout(() => { if (serverProc && !serverProc.killed) serverProc.kill('SIGKILL'); }, 2000);
+    }
+    hmrServer.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 3000);
+  }
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 })();
