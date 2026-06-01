@@ -201,15 +201,72 @@ function isCssOnlyChange(changedFile) {
   return hasStyle && !hasRender;
 }
 
+// ── 에러 루프 상태 추적 ───────────────────────────────────────
+let lastBuildErrors = new Set();  // 직전 빌드의 에러 메시지 집합
+
+// HANDOFF.airc에 에러 자동 기록
+function recordToAIRC(errors, resolved) {
+  try {
+    const handoffPath = path.join(ROOT, 'HANDOFF.airc');
+    const handoff = JSON.parse(fs.readFileSync(handoffPath, 'utf8'));
+    if (!handoff.auto_errors) handoff.auto_errors = [];
+    const now = new Date().toISOString();
+    for (const msg of errors) {
+      handoff.auto_errors.unshift({ time: now, message: msg, status: 'open' });
+    }
+    for (const msg of resolved) {
+      handoff.auto_errors = handoff.auto_errors.map(e =>
+        e.message === msg ? { ...e, status: 'resolved', resolved_at: now } : e
+      );
+    }
+    // 최근 20개만 유지
+    handoff.auto_errors = handoff.auto_errors.slice(0, 20);
+    fs.writeFileSync(handoffPath, JSON.stringify(handoff, null, 2));
+  } catch {}
+}
+
+// 빌드 에러 파싱 (출력에서 ✗ 패턴 추출)
+function parseBuildErrors(output) {
+  const errors = new Set();
+  for (const line of output.split('\n')) {
+    const m = line.match(/✗.*—\s*(.+)/);
+    if (m) errors.add(m[1].trim());
+    // 파서 에러
+    const p = line.match(/Unexpected character.+at line \d+/);
+    if (p) errors.add(p[0]);
+  }
+  return errors;
+}
+
 // ── 빌드 ──────────────────────────────────────────────────────
 function build() {
   return new Promise((resolve, reject) => {
     const start = Date.now();
-    const p = cp.spawn('node', [BUILD_JS], { cwd: ROOT, stdio: 'inherit' });
+    let output = '';
+    const p = cp.spawn('node', [BUILD_JS], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
+    p.stdout.on('data', d => { const s = d.toString(); process.stdout.write(s); output += s; });
+    p.stderr.on('data', d => { const s = d.toString(); process.stderr.write(s); output += s; });
     p.on('close', code => {
       console.log(`[dev] 빌드 ${Date.now() - start}ms`);
       if (code === 0) {
-        loadBuildState(); // 빌드 성공 → 소스맵/라우트 상태 갱신
+        loadBuildState();
+        // 빌드 성공 시 에러 델타 계산
+        const currentErrors = parseBuildErrors(output);
+        const resolved = [...lastBuildErrors].filter(e => !currentErrors.has(e));
+        const newErrors = [...currentErrors].filter(e => !lastBuildErrors.has(e));
+        if (resolved.length > 0) {
+          console.log(`\x1b[32m[loop] ✅ 해결됨:\x1b[0m ${resolved.join(', ')}`);
+        }
+        if (newErrors.length > 0) {
+          console.log(`\x1b[31m[loop] ❌ 새 오류:\x1b[0m ${newErrors.join(', ')}`);
+        }
+        if (resolved.length > 0 && newErrors.length === 0) {
+          console.log(`\x1b[32m[loop] 🎉 모든 오류 해결 — 루프 완료\x1b[0m`);
+        }
+        if (resolved.length > 0 || newErrors.length > 0) {
+          recordToAIRC(newErrors, resolved);
+        }
+        lastBuildErrors = currentErrors;
         resolve();
       } else {
         reject(new Error(`build exit ${code}`));
@@ -228,15 +285,40 @@ function startServer() {
     });
 
     // stdout/stderr 출력 + 포트 오픈 감지
+    let runtimeOk = false;
+    const handleOutput = (raw) => {
+      // 런타임 파서 에러 감지 (stdout + stderr 공통)
+      if (raw.includes('Unexpected character') || raw.includes('실행 오류')) {
+        const errLines = raw.split('\n').filter(l => l.includes('Unexpected character'));
+        const newErrors = errLines.map(l => l.replace(/\x1b\[[0-9;]*m/g, '').trim()).filter(Boolean);
+        if (newErrors.length > 0) {
+          newErrors.forEach(e => lastBuildErrors.add(e));
+          recordToAIRC(newErrors, []);
+          console.log(`\x1b[31m[loop] ❌ 런타임 에러:\x1b[0m ${newErrors.join(' | ')}`);
+        }
+      }
+    };
     serverProc.stdout.on('data', d => {
-      const msg = translateLines(d.toString());
+      const raw = d.toString();
+      const msg = translateLines(raw);
       process.stdout.write(msg);
+      handleOutput(raw);
       if (msg.includes('listening') || msg.includes('server listening')) {
+        runtimeOk = true;
+        // 정상 기동 → 이전 런타임 에러 해결 체크
+        const runtimeErrors = [...lastBuildErrors].filter(e => e.includes('Unexpected character'));
+        if (runtimeErrors.length > 0) {
+          console.log(`\x1b[32m[loop] ✅ 런타임 에러 해결됨\x1b[0m`);
+          recordToAIRC([], runtimeErrors);
+          runtimeErrors.forEach(e => lastBuildErrors.delete(e));
+        }
         resolve();
       }
     });
     serverProc.stderr.on('data', d => {
-      process.stderr.write(translateLines(d.toString()));
+      const raw = d.toString();
+      process.stderr.write(translateLines(raw));
+      handleOutput(raw);
     });
     serverProc.on('exit', (code, signal) => {
       if (signal !== 'SIGTERM') console.log(`[dev] 서버 종료 (code=${code})`);
