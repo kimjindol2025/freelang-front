@@ -1,7 +1,7 @@
 {
   "name": "freelang-front",
-  "version": "0.2.4",
-  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 (CSS 페어링 + DX 개선)",
+  "version": "0.2.5",
+  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 (삼중따옴표 보간 + 가독성 개선)",
   "author": "Claude",
   "license": "MIT",
   "repository": {
@@ -34,8 +34,8 @@
     "phase": "B",
     "build_time_ms": 1180,
     "bundle_size_kb": 205,
-    "code_lines_freelang_flx": 128,
-    "dx_improvements": ["css_pairing", "file_separation", "reduced_inline_css"],
+    "code_lines_freelang_flx": 129,
+    "dx_improvements": ["css_pairing", "file_separation", "triple_quote_interpolation", "multiline_formatting"],
     "features": {
       "error_reporting": true,
       "error_collection_api": true,
@@ -48,9 +48,11 @@
       "api_tracking": true,
       "memory_monitoring": true,
       "css_pairing": true,
-      "file_separation": true
+      "file_separation": true,
+      "triple_quote_strings": true,
+      "multiline_html": true
     },
-    "last_updated": "2026-06-02T00:30:00Z"
+    "last_updated": "2026-06-02T00:40:00Z"
   }
 }
 

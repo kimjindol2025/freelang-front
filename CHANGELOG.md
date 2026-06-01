@@ -1,5 +1,48 @@
 # 📝 CHANGELOG — freelang-front 버전 히스토리
 
+## [0.2.5] — 2026-06-02 (Patch: 삼중따옴표 보간 & 가독성 개선)
+
+### 코드 가독성 대폭 향상
+- **삼중따옴표 보간 도입** (FreeLang v11 bootstrap.js 지원)
+  - HTML 마크업을 다중 라인으로 포맷팅
+  - 문자열 연결(`str()`) 제거
+  - 코드 구조 명확화
+
+### freelang.flx 리팩터링
+**Before**:
+```flx
+(defn render [req]
+  (server_html (str
+    "<nav>..."
+    "<section>..."
+    ...)))
+```
+
+**After**:
+```flx
+(defn render [req]
+  (server_html
+    """<nav>
+  ...
+</nav>
+<section>
+  ...
+</section>
+..."""))
+```
+
+### 파일 변경
+- `pages/freelang.flx` (삼중따옴표 보간 적용)
+- 128줄 → 129줄 (포맷팅으로 인한 미세 증가)
+- **가독성**: 신규 개발자도 HTML 구조 즉시 파악 가능
+
+### 상태
+- Phase: **B 계속 진행**
+- 변경량: ~40% (아직 v0.2.x)
+- 빌드: ✅ 성공
+
+---
+
 ## [0.2.4] — 2026-06-02 (Patch: CSS 페어링 & DX 개선)
 
 ### 개발 경험 개선

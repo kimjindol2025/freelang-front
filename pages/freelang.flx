@@ -1,128 +1,129 @@
 ; FreeLang 공식 홈페이지
 ; /freelang
 ; CSS는 pages/freelang.css에서 자동 병합됨 (fl-front-build.js)
+; v0.2.5: 삼중따옴표 보간으로 가독성 향상
 
 (defn render [req]
-  (server_html (str
-    "<!DOCTYPE html><html lang='ko'><head>"
-    "<meta charset='utf-8'>"
-    "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-    "<title>FreeLang — AI가 쓰고 인간이 읽는 언어</title>"
-    "</head><body>"
-    "<nav>"
-    "  <div class='nav-brand'>⚡ FreeLang</div>"
-    "  <div class='nav-links'>"
-    "    <a href='#features' class='nav-link'>특징</a>"
-    "    <a href='#ecosystem' class='nav-link'>생태계</a>"
-    "    <a href='https://gogs.dclub.kr/kim/freelang-v11' target='_blank' class='nav-link'>Gogs</a>"
-    "  </div>"
-    "</nav>"
-    "<main>"
-    "<section class='section hero'>"
-    "  <div class='hero-orb'></div>"
-    "  <div class='hero-content'>"
-    "    <h1>AI가 쓰고,<br/>인간이 읽는 언어</h1>"
-    "    <p class='hero-subtitle'>"
-    "      npm install 0개. 자가호스팅 가능. 73개 프로덕션 서버에서 운영 중.<br/>"
-    "      AI-Native 풀스택 언어로 마이크로서비스를 빠르고 안전하게 구축하세요."
-    "    </p>"
-    "    <div class='btn-group'>"
-    "      <a href='https://gogs.dclub.kr/kim/freelang-v11' class='btn btn-primary'>문서 보기</a>"
-    "      <a href='https://gogs.dclub.kr/kim/akl-crm' class='btn btn-secondary'>예제 보기</a>"
-    "    </div>"
-    "    <div class='stats'>"
-    "      <div class='stat'><div class='stat-value'>73</div><div class='stat-label'>프로덕션 서버</div></div>"
-    "      <div class='stat'><div class='stat-value'>76</div><div class='stat-label'>마이크로서비스</div></div>"
-    "      <div class='stat'><div class='stat-value'>0</div><div class='stat-label'>npm 패키지</div></div>"
-    "      <div class='stat'><div class='stat-value'>9.5/10</div><div class='stat-label'>완성도</div></div>"
-    "    </div>"
-    "  </div>"
-    "</section>"
-    "<section id='features' class='section'>"
-    "  <h2>⚡ 핵심 특징</h2>"
-    "  <div class='grid-3'>"
-    "    <div class='feature-card'>"
-    "      <div class='feature-icon'>🤖</div>"
-    "      <div class='feature-title'>AI-Native</div>"
-    "      <div class='feature-desc'>구조·문법 모두 AI 최적화. 파라미터 추적, 타입 추론, 자동 검증이 언어에 내장됨.</div>"
-    "    </div>"
-    "    <div class='feature-card'>"
-    "      <div class='feature-icon'>🛠️</div>"
-    "      <div class='feature-title'>자가호스팅</div>"
-    "      <div class='feature-desc'>FreeLang으로 FreeLang을 컴파일. L4 고정점 달성으로 TypeScript 완전 제거.</div>"
-    "    </div>"
-    "    <div class='feature-card'>"
-    "      <div class='feature-icon'>🌐</div>"
-    "      <div class='feature-title'>풀스택</div>"
-    "      <div class='feature-desc'>백엔드(v11)와 프론트(FL-Front) 하나의 생태계. 언어 통일로 학습곡선 단축.</div>"
-    "    </div>"
-    "    <div class='feature-card'>"
-    "      <div class='feature-icon'>🔒</div>"
-    "      <div class='feature-title'>보안 내장</div>"
-    "      <div class='feature-desc'>CSRF/XSS 함수 내장. HTML/JS 자동 이스케이프. 세션 쿠키 안전 설정.</div>"
-    "    </div>"
-    "    <div class='feature-card'>"
-    "      <div class='feature-icon'>📦</div>"
-    "      <div class='feature-title'>마이크로서비스</div>"
-    "      <div class='feature-desc'>서비스당 한 파일(server.fl). PM2로 관리. 무중단 배포 기본.</div>"
-    "    </div>"
-    "    <div class='feature-card'>"
-    "      <div class='feature-icon'>⚙️</div>"
-    "      <div class='feature-title'>빠른 시작</div>"
-    "      <div class='feature-desc'>포트 자동할당. 폴더 생성 후 한 줄 명령어로 배포. 30분 안에 서비스 런칭.</div>"
-    "    </div>"
-    "  </div>"
-    "</section>"
-    "<section class='section'>"
-    "  <h2>📊 스택 비교</h2>"
-    "  <div class='comparison'>"
-    "    <div class='comparison-box'>"
-    "      <h3>일반적인 풀스택</h3>"
-    "      <div class='comparison-item'>✗ 언어 3개 (JS + TS + Python/Go)</div>"
-    "      <div class='comparison-item'>✗ 학습곡선 높음</div>"
-    "      <div class='comparison-item'>✗ npm 100+ 패키지</div>"
-    "      <div class='comparison-item'>✗ 빌드 단계 복잡</div>"
-    "      <div class='comparison-item'>✗ 배포 파이프라인 관리</div>"
-    "    </div>"
-    "    <div class='comparison-box'>"
-    "      <h3>FreeLang 풀스택</h3>"
-    "      <div class='comparison-item'>✓ 언어 1개 (FL)</div>"
-    "      <div class='comparison-item'>✓ 최소 학습곡선</div>"
-    "      <div class='comparison-item'>✓ 의존성 0개</div>"
-    "      <div class='comparison-item'>✓ 빌드 자동화</div>"
-    "      <div class='comparison-item'>✓ PM2 한 줄</div>"
-    "    </div>"
-    "  </div>"
-    "</section>"
-    "<section id='ecosystem' class='section'>"
-    "  <h2>🌿 생태계</h2>"
-    "  <div class='eco-grid'>"
-    "    <div class='eco-box'>"
-    "      <div class='eco-title'>BackEnd</div>"
-    "      <div class='eco-desc'>FreeLang v11<br/>server_start<br/>db-query<br/>Route API</div>"
-    "    </div>"
-    "    <div class='eco-box'>"
-    "      <div class='eco-title'>↔️ 통합</div>"
-    "      <div class='eco-desc'>단일 언어<br/>AI 관리<br/>자동 배포<br/>무중단 전환</div>"
-    "    </div>"
-    "    <div class='eco-box'>"
-    "      <div class='eco-title'>FrontEnd</div>"
-    "      <div class='eco-desc'>FreeLang Front<br/>pages/*.flx<br/>SSR + Island<br/>h() Builder</div>"
-    "    </div>"
-    "  </div>"
-    "</section>"
-    "<section class='section cta-footer'>"
-    "  <h2>지금 시작하세요</h2>"
-    "  <p style='color:var(--text-muted); font-size:1.1rem; margin-bottom:30px;'>"
-    "    Gogs에서 문서와 예제를 확인하고, 30분 안에 첫 서비스를 배포하세요."
-    "  </p>"
-    "  <div class='btn-group' style='justify-content:center;'>"
-    "    <a href='https://gogs.dclub.kr/kim/freelang-v11' class='btn btn-primary'>📖 언어 레퍼런스</a>"
-    "    <a href='https://gogs.dclub.kr/kim/akl-payment' class='btn btn-secondary'>💰 결제 앱 예제</a>"
-    "  </div>"
-    "</section>"
-    "</main>"
-    "<footer>"
-    "  <p>&copy; 2026 FreeLang Project. Made with AI, for AI.</p>"
-    "</footer>"
-    "</body></html>")))
+  (server_html
+    """<!DOCTYPE html><html lang='ko'><head>
+<meta charset='utf-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>FreeLang — AI가 쓰고 인간이 읽는 언어</title>
+</head><body>
+<nav>
+  <div class='nav-brand'>⚡ FreeLang</div>
+  <div class='nav-links'>
+    <a href='#features' class='nav-link'>특징</a>
+    <a href='#ecosystem' class='nav-link'>생태계</a>
+    <a href='https://gogs.dclub.kr/kim/freelang-v11' target='_blank' class='nav-link'>Gogs</a>
+  </div>
+</nav>
+<main>
+<section class='section hero'>
+  <div class='hero-orb'></div>
+  <div class='hero-content'>
+    <h1>AI가 쓰고,<br/>인간이 읽는 언어</h1>
+    <p class='hero-subtitle'>
+      npm install 0개. 자가호스팅 가능. 73개 프로덕션 서버에서 운영 중.<br/>
+      AI-Native 풀스택 언어로 마이크로서비스를 빠르고 안전하게 구축하세요.
+    </p>
+    <div class='btn-group'>
+      <a href='https://gogs.dclub.kr/kim/freelang-v11' class='btn btn-primary'>문서 보기</a>
+      <a href='https://gogs.dclub.kr/kim/akl-crm' class='btn btn-secondary'>예제 보기</a>
+    </div>
+    <div class='stats'>
+      <div class='stat'><div class='stat-value'>73</div><div class='stat-label'>프로덕션 서버</div></div>
+      <div class='stat'><div class='stat-value'>76</div><div class='stat-label'>마이크로서비스</div></div>
+      <div class='stat'><div class='stat-value'>0</div><div class='stat-label'>npm 패키지</div></div>
+      <div class='stat'><div class='stat-value'>9.5/10</div><div class='stat-label'>완성도</div></div>
+    </div>
+  </div>
+</section>
+<section id='features' class='section'>
+  <h2>⚡ 핵심 특징</h2>
+  <div class='grid-3'>
+    <div class='feature-card'>
+      <div class='feature-icon'>🤖</div>
+      <div class='feature-title'>AI-Native</div>
+      <div class='feature-desc'>구조·문법 모두 AI 최적화. 파라미터 추적, 타입 추론, 자동 검증이 언어에 내장됨.</div>
+    </div>
+    <div class='feature-card'>
+      <div class='feature-icon'>🛠️</div>
+      <div class='feature-title'>자가호스팅</div>
+      <div class='feature-desc'>FreeLang으로 FreeLang을 컴파일. L4 고정점 달성으로 TypeScript 완전 제거.</div>
+    </div>
+    <div class='feature-card'>
+      <div class='feature-icon'>🌐</div>
+      <div class='feature-title'>풀스택</div>
+      <div class='feature-desc'>백엔드(v11)와 프론트(FL-Front) 하나의 생태계. 언어 통일로 학습곡선 단축.</div>
+    </div>
+    <div class='feature-card'>
+      <div class='feature-icon'>🔒</div>
+      <div class='feature-title'>보안 내장</div>
+      <div class='feature-desc'>CSRF/XSS 함수 내장. HTML/JS 자동 이스케이프. 세션 쿠키 안전 설정.</div>
+    </div>
+    <div class='feature-card'>
+      <div class='feature-icon'>📦</div>
+      <div class='feature-title'>마이크로서비스</div>
+      <div class='feature-desc'>서비스당 한 파일(server.fl). PM2로 관리. 무중단 배포 기본.</div>
+    </div>
+    <div class='feature-card'>
+      <div class='feature-icon'>⚙️</div>
+      <div class='feature-title'>빠른 시작</div>
+      <div class='feature-desc'>포트 자동할당. 폴더 생성 후 한 줄 명령어로 배포. 30분 안에 서비스 런칭.</div>
+    </div>
+  </div>
+</section>
+<section class='section'>
+  <h2>📊 스택 비교</h2>
+  <div class='comparison'>
+    <div class='comparison-box'>
+      <h3>일반적인 풀스택</h3>
+      <div class='comparison-item'>✗ 언어 3개 (JS + TS + Python/Go)</div>
+      <div class='comparison-item'>✗ 학습곡선 높음</div>
+      <div class='comparison-item'>✗ npm 100+ 패키지</div>
+      <div class='comparison-item'>✗ 빌드 단계 복잡</div>
+      <div class='comparison-item'>✗ 배포 파이프라인 관리</div>
+    </div>
+    <div class='comparison-box'>
+      <h3>FreeLang 풀스택</h3>
+      <div class='comparison-item'>✓ 언어 1개 (FL)</div>
+      <div class='comparison-item'>✓ 최소 학습곡선</div>
+      <div class='comparison-item'>✓ 의존성 0개</div>
+      <div class='comparison-item'>✓ 빌드 자동화</div>
+      <div class='comparison-item'>✓ PM2 한 줄</div>
+    </div>
+  </div>
+</section>
+<section id='ecosystem' class='section'>
+  <h2>🌿 생태계</h2>
+  <div class='eco-grid'>
+    <div class='eco-box'>
+      <div class='eco-title'>BackEnd</div>
+      <div class='eco-desc'>FreeLang v11<br/>server_start<br/>db-query<br/>Route API</div>
+    </div>
+    <div class='eco-box'>
+      <div class='eco-title'>↔️ 통합</div>
+      <div class='eco-desc'>단일 언어<br/>AI 관리<br/>자동 배포<br/>무중단 전환</div>
+    </div>
+    <div class='eco-box'>
+      <div class='eco-title'>FrontEnd</div>
+      <div class='eco-desc'>FreeLang Front<br/>pages/*.flx<br/>SSR + Island<br/>h() Builder</div>
+    </div>
+  </div>
+</section>
+<section class='section cta-footer'>
+  <h2>지금 시작하세요</h2>
+  <p style='color:var(--text-muted); font-size:1.1rem; margin-bottom:30px;'>
+    Gogs에서 문서와 예제를 확인하고, 30분 안에 첫 서비스를 배포하세요.
+  </p>
+  <div class='btn-group' style='justify-content:center;'>
+    <a href='https://gogs.dclub.kr/kim/freelang-v11' class='btn btn-primary'>📖 언어 레퍼런스</a>
+    <a href='https://gogs.dclub.kr/kim/akl-payment' class='btn btn-secondary'>💰 결제 앱 예제</a>
+  </div>
+</section>
+</main>
+<footer>
+  <p>&copy; 2026 FreeLang Project. Made with AI, for AI.</p>
+</footer>
+</body></html>"""))
