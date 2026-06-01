@@ -1,10 +1,10 @@
 {
   "name": "freelang-front",
-  "version": "0.7.0",
-  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 + 실시간 알림 시스템",
+  "version": "0.8.0",
+  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 + 커스텀 메트릭 지원",
   "language": "FreeLang v11",
   "status": "in_progress",
-  "phase": "Phase B: 실시간 알림 & 모니터링",
+  "phase": "Phase B: 고급 분석 & 맞춤형 메트릭",
   "ports": [40850],
   "entry": "_app.fl",
   "pages_count": 32,

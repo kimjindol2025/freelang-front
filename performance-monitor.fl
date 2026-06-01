@@ -1,5 +1,5 @@
 ; performance-monitor.fl — 클라이언트 성능 모니터링
-; v0.7.0 실시간 알림 시스템 추가
+; v0.8.0 커스텀 메트릭 지원
 
 (load "freelang-stdlib-extensions.fl")
 
@@ -18,6 +18,11 @@
   "long-task" 500
 })
 (def alert-watchers (atom []))
+
+; ── 커스텀 메트릭 저장소 (v0.8.0) ──
+(def custom-metrics (atom {}))
+(def custom-metric-data (atom []))
+(def MAX-CUSTOM-RECORDS 300)
 
 ; ── EventSource 등록 함수 ──
 (defn register-watcher [$callback]
@@ -300,4 +305,70 @@
     {
       "total" (length $all)
       "alerts" (take $limit $sorted)
+    }))
+
+; ── 커스텀 메트릭 관리 함수 (v0.8.0) ──
+(defn create-custom-metric [$name $description $unit $threshold]
+  (let [$id (str (random))
+        $metric {
+          "id" $id
+          "name" $name
+          "description" $description
+          "unit" $unit
+          "threshold" $threshold
+          "created-at" (str (date-now))
+          "records" 0
+        }]
+    (swap! custom-metrics assoc $id $metric)
+    $metric))
+
+(defn record-custom-metric [$metric-id $value]
+  (let [$metrics (deref custom-metrics)
+        $metric (get $metrics $metric-id)]
+    (if $metric
+      (let [$record {
+        "id" $metric-id
+        "value" $value
+        "timestamp" (str (date-now))
+      }]
+        (swap! custom-metric-data
+          (fn [$data]
+            (let [$new-data (conj $data $record)]
+              (if (>= (length $new-data) MAX-CUSTOM-RECORDS)
+                (rest $new-data)
+                $new-data))))
+
+        ; 임계값 체크
+        (if (and (get $metric "threshold") (> $value (get $metric "threshold")))
+          (let [$alert {
+            "id" (str (random))
+            "type" "custom"
+            "metric" (get $metric "name")
+            "value" $value
+            "threshold" (get $metric "threshold")
+            "severity" (if (> $value (* (get $metric "threshold") 1.5)) "high" "warning")
+            "message" (str (get $metric "name") " 초과: " $value (get $metric "unit"))
+            "timestamp" (str (date-now))
+          }]
+            (swap! alert-log
+              (fn [$alerts]
+                (let [$new-alerts (conj $alerts $alert)]
+                  (if (>= (length $new-alerts) MAX-ALERTS)
+                    (rest $new-alerts)
+                    $new-alerts))))))
+
+        $record)
+      nil)))
+
+(defn get-custom-metrics []
+  (deref custom-metrics))
+
+(defn get-custom-metric-data [$metric-id $limit]
+  (let [$all (deref custom-metric-data)
+        $filtered (filter (fn [$r] (= (get $r "id") $metric-id)) $all)
+        $sorted (reverse $filtered)]
+    {
+      "metric-id" $metric-id
+      "count" (length $filtered)
+      "data" (take $limit $sorted)
     }))
