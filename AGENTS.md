@@ -141,6 +141,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/api-custom-metrics` | pages/api-custom-metrics.flx |
 | `/api-errors` | pages/api-errors.flx |
 | `/api-metrics` | pages/api-metrics.flx |
+| `/api-sla` | pages/api-sla.flx |
 | `/contact/thanks` | pages/contact/thanks.flx |
 | `/contact` | pages/contact.flx |
 | `/counter` | pages/counter.flx |
@@ -148,6 +149,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/dashboard/charts` | pages/dashboard/charts.flx |
 | `/dashboard/custom-metrics` | pages/dashboard/custom-metrics.flx |
 | `/dashboard` | pages/dashboard/index.flx |
+| `/dashboard/sla` | pages/dashboard/sla.flx |
 | `/demo` | pages/demo.flx |
 | `/errors-stats` | pages/errors-stats.flx |
 | `/fetch-demo` | pages/fetch-demo.flx |

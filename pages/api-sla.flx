@@ -1,0 +1,35 @@
+; pages/api-sla.flx — SLO/SLA API (v0.9.0)
+
+(load "../performance-monitor.fl")
+
+(defn render [$req]
+  (let [$path (get $req "path")]
+    (cond
+      (str-includes? $path "/api/sla/status")
+      (handle-get-sla-status $req)
+
+      (str-includes? $path "/api/sla/report")
+      (handle-get-sla-report $req)
+
+      true
+      (server-json {"error" "Not Found"} 404))))
+
+; ── GET /api/sla/status (SLA 상태) ──
+(defn handle-get-sla-status [$req]
+  (try
+    (let [$status (get-sla-status)]
+      (server-json $status 200))
+
+    (catch $e
+      (log-error (str "Error getting SLA status: " $e))
+      (server-json {"error" "Failed to get SLA status"} 500))))
+
+; ── GET /api/sla/report (SLA 상세 보고서) ──
+(defn handle-get-sla-report [$req]
+  (try
+    (let [$report (get-sla-report)]
+      (server-json $report 200))
+
+    (catch $e
+      (log-error (str "Error getting SLA report: " $e))
+      (server-json {"error" "Failed to get SLA report"} 500))))

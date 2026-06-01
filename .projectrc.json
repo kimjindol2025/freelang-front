@@ -1,10 +1,10 @@
 {
   "name": "freelang-front",
-  "version": "0.8.0",
-  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 + 커스텀 메트릭 지원",
+  "version": "0.9.0",
+  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 + SLO/SLA 운영 검증",
   "language": "FreeLang v11",
   "status": "in_progress",
-  "phase": "Phase B: 고급 분석 & 맞춤형 메트릭",
+  "phase": "Phase C: 운영 검증 & v1.0.0 준비",
   "ports": [40850],
   "entry": "_app.fl",
   "pages_count": 32,
