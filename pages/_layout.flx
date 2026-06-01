@@ -95,15 +95,23 @@ if(btn){btn.addEventListener('click',function(){
 (define HMR-SCRIPT
   "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>")
 
-; 브라우저 에러 → dev-server로 전송 (AI가 curl로 조회 가능)
+; 브라우저 에러 수집 (개발: 40851/~errors, 프로덕션: /api/errors)
+; v0.2.1: 프로덕션 에러 리포팅 추가
 (define ERROR-COLLECTOR
   "<script>(function(){
-var EV='http://'+location.hostname+':40851/~errors';
-function send(type,msg,src,line,col,stack){
-  fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({type:type,message:String(msg),source:src,line:line,col:col,stack:String(stack||''),url:location.href})
-  }).catch(function(){});
+var isDev=location.hostname==='localhost' || location.hostname==='127.0.0.1';
+var EVs=[
+  isDev ? 'http://'+location.hostname+':40851/~errors' : null,
+  '/api/errors'
+].filter(function(u){return u;});
+
+function send(type,msg,src,line,stack){
+  var payload={type:type,message:String(msg),source:src,line:line,stack:String(stack||''),url:location.href};
+  EVs.forEach(function(url){
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(function(){});
+  });
 }
+
 window.onerror=function(m,s,l,c,e){send('error',m,s,l,c,e&&e.stack);return false;};
 window.addEventListener('unhandledrejection',function(e){send('promise',e.reason&&e.reason.message||String(e.reason),'',0,0,e.reason&&e.reason.stack);});
 var _ce=console.error.bind(console);

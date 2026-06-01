@@ -1,0 +1,136 @@
+; error-api.fl — 클라이언트 에러 수집 및 저장
+; v0.2.1 에러 리포팅 시스템
+
+(load "freelang-stdlib-extensions.fl")
+
+; ── 에러 저장소 (atom-based, 최근 100개) ──
+(def error-log (atom []))
+(def MAX-ERRORS 100)
+
+; ── 에러 추가 함수 ──
+(defn add-error [$entry]
+  (let [error-with-time {
+    "type" (get $entry "type")
+    "message" (get $entry "message")
+    "source" (get $entry "source")
+    "line" (get $entry "line")
+    "stack" (get $entry "stack")
+    "user-agent" (get $entry "user-agent")
+    "timestamp" (str (date-now))
+  }]
+
+    ; atom에 저장 (최근 100개만 유지)
+    (swap! error-log
+      (fn [$errors]
+        (let [$new-errors (conj $errors error-with-time)]
+          (if (>= (length $new-errors) MAX-ERRORS)
+            (rest $new-errors)
+            $new-errors))))
+
+    ; 로깅
+    (log-error (str "[CLIENT] " (get error-with-time "message")
+                    " (" (get error-with-time "type") ")"))))
+
+; ── 에러 조회 함수 ──
+(defn get-errors [$limit]
+  (let [$errors (deref error-log)
+        $count (length $errors)]
+    {
+      "total" $count
+      "limit" $limit
+      "returned" (min $count $limit)
+      "errors" (take $limit (reverse $errors))
+    }))
+
+; ── 에러 초기화 함수 ──
+(defn clear-errors []
+  (reset! error-log [])
+  {"ok" true})
+
+; ── 에러 필터링 함수 ──
+(defn filter-errors [$type]
+  (let [$all-errors (deref error-log)
+        $filtered (filter
+          (fn [$e] (= (get $e "type") $type))
+          $all-errors)]
+    {
+      "type" $type
+      "count" (length $filtered)
+      "errors" (take 20 (reverse $filtered))
+    }))
+
+; ── API: POST /api/errors (에러 저장) ──
+(defn handle-post-errors [$req]
+  (try
+    (let [$body (get $req "body")
+          $message (when-nil (get $body "message") "Unknown error")
+          $type (when-nil (get $body "type") "error")
+          $source (get $body "source")
+          $line (get $body "line")
+          $stack (get $body "stack")
+          $user-agent (get (get $req "headers") "user-agent")]
+
+      ; 검증
+      (validate-length $message 5 1000 "message")
+
+      ; 에러 추가
+      (add-error {
+        "type" $type
+        "message" $message
+        "source" $source
+        "line" $line
+        "stack" $stack
+        "user-agent" $user-agent
+      })
+
+      (server-json {"ok" true "received" true} 200))
+
+    (catch $e
+      (log-error (str "Error handling POST /api/errors: " $e))
+      (server-json {
+        "error" "Failed to log error"
+        "details" (str $e)
+      } 500))))
+
+; ── API: GET /api/errors (에러 목록) ──
+(defn handle-get-errors [$req]
+  (try
+    (let [$limit (or (req-query-default $req "limit" "20") "20")
+          $limit-num (str-to-num $limit)
+          $type (req-query-default $req "type" nil)
+          $result (if $type
+            (filter-errors $type)
+            (get-errors $limit-num))]
+
+      (server-json $result 200))
+
+    (catch $e
+      (log-error (str "Error handling GET /api/errors: " $e))
+      (server-json {"error" "Failed to retrieve errors"} 500))))
+
+; ── API: DELETE /api/errors (에러 초기화) ──
+(defn handle-delete-errors [$req]
+  (try
+    (let [$result (clear-errors)]
+      (log-info "Error log cleared")
+      (server-json $result 200))
+
+    (catch $e
+      (log-error (str "Error handling DELETE /api/errors: " $e))
+      (server-json {"error" "Failed to clear errors"} 500))))
+
+; ── 통계 함수 ──
+(defn get-error-stats []
+  (let [$all (deref error-log)
+        $errors (filter (fn [$e] (= (get $e "type") "error")) $all)
+        $warns (filter (fn [$e] (= (get $e "type") "warn")) $all)
+        $islands (filter (fn [$e] (= (get $e "type") "island")) $all)]
+    {
+      "total" (length $all)
+      "by-type" {
+        "error" (length $errors)
+        "warn" (length $warns)
+        "island" (length $islands)
+      }
+      "recent" (take 5 (reverse $all))
+    }))

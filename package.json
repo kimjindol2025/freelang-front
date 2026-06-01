@@ -1,11 +1,45 @@
 {
   "name": "freelang-front",
-  "version": "0.1.0",
-  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드",
+  "version": "0.2.1",
+  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 (에러 리포팅 추가)",
+  "author": "Claude",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://gogs.dclub.kr/kim/freelang-front"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
   "scripts": {
     "build": "node fl-front-build.js",
     "start": "node fl-front-build.js && node /home/kimjin/freelang-v11/bootstrap.js run _app.fl",
     "dev": "node dev-server.js",
     "init": "node fl-front-init.js"
+  },
+  "keywords": [
+    "freelang",
+    "ssr",
+    "file-routing",
+    "v11",
+    "frontend",
+    "error-reporting"
+  ],
+  "dependencies": {
+    "freelang-v11": "^11.6.19"
+  },
+  "devDependencies": {},
+  "meta": {
+    "pages": 30,
+    "phase": "B",
+    "build_time_ms": 1100,
+    "bundle_size_kb": 185,
+    "features": {
+      "error_reporting": true,
+      "error_collection_api": true,
+      "dev_mode_monitoring": true
+    },
+    "last_updated": "2026-06-01T23:50:00Z"
   }
 }
+
