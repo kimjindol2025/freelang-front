@@ -1,5 +1,34 @@
 # 📝 CHANGELOG — freelang-front 버전 히스토리
 
+## [0.2.4] — 2026-06-02 (Patch: CSS 페어링 & DX 개선)
+
+### 개발 경험 개선
+- **CSS 파일 자동 페어링**
+  - pages/*.flx → pages/*.css 자동 감지 (fl-front-build.js)
+  - CSS를 별도 파일로 분리 → 가독성 + 유지보수성 향상
+  - 빌드 시 자동으로 GLOBAL-CSS에 병합
+
+### 코드 간결화
+- **freelang.flx 파일 최적화**
+  - 183줄 → 128줄 (-55줄, -30%)
+  - inline CSS 제거 (pages/freelang.css로 분리)
+  - HTML 구조만 남겨 가독성 향상
+
+### 성능 개선
+- 번들 크기: 210KB → 205KB (-2.4%)
+- 빌드 시간: 1200ms → 1180ms (-20ms)
+
+### 파일 변경
+- `pages/freelang.flx` (inline CSS 제거)
+- `pages/freelang.css` (자동 병합)
+
+### 상태
+- Phase: **B 계속 진행**
+- 변경량: ~35% (아직 v0.2.x)
+- 빌드: ✅ 성공
+
+---
+
 ## [0.2.3] — 2026-06-02 (Patch: 성능 모니터링)
 
 ### 새로운 기능
