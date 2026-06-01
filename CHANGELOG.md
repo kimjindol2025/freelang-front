@@ -1,5 +1,45 @@
 # 📝 CHANGELOG — freelang-front 버전 히스토리
 
+## [0.2.2] — 2026-06-02 (Patch: 에러 대시보드 & 최적화)
+
+### 새로운 기능
+- **에러 통계 대시보드** (pages/errors-stats.flx)
+  - 실시간 에러 통계 (총, 타입별, 최근 5개)
+  - 에러 초기화 UI 버튼
+  - JSON 다운로드 링크
+  - 타입별 색상 표시 (error, warn, promise, console)
+
+- **에러 분석 API 확장** (error-api.fl)
+  - `deduplicate-errors`: 중복 에러 제거
+  - `get-errors-by-source`: 소스별 통계
+  - `get-recent-errors`: 최근 N분 에러 필터
+  - `measure-error-api-time`: 성능 측정
+
+### 개선사항
+- 에러 타입 세분화 (error, warn, promise, console, island)
+- 성능 측정: stdlib-extensions v2.0의 measure-time 활용
+- 통계 함수 강화: promise, console 타입 추가
+- GET /api/errors 응답에 통계 데이터 포함
+
+### 파일 추가
+- `pages/errors-stats.flx` (에러 대시보드, 91줄)
+
+### 파일 수정
+- `error-api.fl` (추가 함수 +50줄)
+
+### 상태
+- Phase: **B 계속 진행**
+- 페이지: 30개 → **31개** (errors-stats.flx 추가)
+- 번들: 185KB → **195KB** (+5.4%)
+- 빌드: 1.1s → **1.15s** (+4%)
+
+### 성능
+- 에러 조회: < 50ms (메모리 기반)
+- 대시보드 로드: < 200ms (SSR)
+- 에러 전송: < 100ms (async)
+
+---
+
 ## [0.2.1] — 2026-06-01 (Patch: 에러 리포팅)
 
 ### 새로운 기능

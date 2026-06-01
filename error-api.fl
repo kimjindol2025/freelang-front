@@ -124,13 +124,70 @@
   (let [$all (deref error-log)
         $errors (filter (fn [$e] (= (get $e "type") "error")) $all)
         $warns (filter (fn [$e] (= (get $e "type") "warn")) $all)
-        $islands (filter (fn [$e] (= (get $e "type") "island")) $all)]
+        $promise (filter (fn [$e] (= (get $e "type") "promise")) $all)
+        $console (filter (fn [$e] (= (get $e "type") "console")) $all)]
     {
       "total" (length $all)
       "by-type" {
         "error" (length $errors)
         "warn" (length $warns)
-        "island" (length $islands)
+        "promise" (length $promise)
+        "console" (length $console)
       }
       "recent" (take 5 (reverse $all))
     }))
+
+; ── 에러 중복 제거 함수 ──
+(defn deduplicate-errors []
+  (let [$all (deref error-log)
+        $seen (atom {})
+        $unique (filter
+          (fn [$e]
+            (let [$key (str (get $e "type") ":" (get $e "message"))
+                  $seen-map (deref $seen)
+                  $is-new (nil? (get $seen-map $key))]
+              (if $is-new
+                (swap! $seen (fn [m] (assoc m $key true))))
+              $is-new))
+          $all)]
+    {
+      "total" (length $all)
+      "unique" (length $unique)
+      "duplicates" (- (length $all) (length $unique))
+    }))
+
+; ── 에러 성능 측정 ──
+(defn measure-error-api-time [$fn]
+  (measure-time $fn "error-api-call"))
+
+; ── 에러 범위 필터 (최근 N분) ──
+(defn get-recent-errors [$minutes]
+  (let [$all (deref error-log)
+        $cutoff-ms (* $minutes 60 1000)
+        $now (date-now)
+        $filtered (filter
+          (fn [$e]
+            (let [$age (- $now (str-to-num (get $e "timestamp")))]
+              (< $age $cutoff-ms)))
+          $all)]
+    {
+      "minutes" $minutes
+      "count" (length $filtered)
+      "errors" (take 20 (reverse $filtered))
+    }))
+
+; ── 에러 소스별 통계 ──
+(defn get-errors-by-source []
+  (let [$all (deref error-log)
+        $sources (atom {})]
+    (map (fn [$e]
+      (let [$source (get $e "source")
+            $count (or (get (deref $sources) $source) 0)]
+        (swap! $sources (fn [s] (assoc s $source (+ $count 1))))))
+    $all)
+    (let [$source-map (deref $sources)
+          $sorted (sort-by (fn [$pair] (- (get $pair 1))) (into [] $source-map))]
+      {
+        "by-source" $sorted
+        "top-5" (take 5 $sorted)
+      })))

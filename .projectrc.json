@@ -1,13 +1,13 @@
 {
   "name": "freelang-front",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드",
   "language": "FreeLang v11",
   "status": "in_progress",
-  "phase": "Phase B: 기능 확장 (에러 리포팅)",
+  "phase": "Phase B: 기능 확장 (에러 대시보드)",
   "ports": [40850],
   "entry": "_app.fl",
-  "pages_count": 30,
+  "pages_count": 31,
   "components": "pages/*.flx",
   "build_system": "fl-front-build.js",
   "commands": {
@@ -25,8 +25,11 @@
     "css_pairing": true,
     "client_side_routing": true,
     "error_reporting": true,
-    "error_collection_api": true
+    "error_collection_api": true,
+    "error_dashboard": true,
+    "error_deduplication": true,
+    "error_statistics": true
   },
   "maintainer": "Claude",
-  "last_updated": "2026-06-01T23:50:00Z"
+  "last_updated": "2026-06-02T00:05:00Z"
 }
