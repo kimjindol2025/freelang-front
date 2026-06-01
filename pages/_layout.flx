@@ -118,20 +118,21 @@ var _ce=console.error.bind(console);
 console.error=function(){_ce.apply(console,arguments);send('console',Array.from(arguments).join(' '),'',0,0,'');};
 })()</script>")
 
-; 성능 모니터링 스크립트 — 페이지 로드, API 호출, 렌더링 시간 추적
-; v0.2.3: 성능 메트릭 자동 수집
+; 성능 모니터링 스크립트 — 5가지 지표 자동 추적
+; v0.2.3: 페이지 로드, API 응답, 라우트 전환, Long Task, 메모리
 (define PERFORMANCE-MONITOR
   "<script>(function(){
 var perfStart=performance.now();
 var apiCallStart={};
+var routeTransitionStart=null;
 
-// 페이지 로드 시간
+// 1️⃣  페이지 로드 시간
 window.addEventListener('load',function(){
   var loadTime=performance.now()-perfStart;
   fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'page-load',value:Math.round(loadTime),unit:'ms'})}).catch(function(){});
 });
 
-// API 호출 시간 추적
+// 2️⃣  API 응답 시간 추적
 var origFetch=window.fetch;
 window.fetch=function(){
   var callId=Math.random().toString(36);
@@ -150,7 +151,38 @@ window.fetch=function(){
   });
 };
 
-// 메모리 모니터링 (5초마다)
+// 3️⃣  라우트 전환 시간 (SPA 네비게이션)
+var origPushState=history.pushState;
+history.pushState=function(){
+  if(routeTransitionStart!==null){
+    var elapsed=Math.round(performance.now()-routeTransitionStart);
+    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'route-transition',value:elapsed,unit:'ms',href:location.pathname})}).catch(function(){});
+    routeTransitionStart=null;
+  }
+  return origPushState.apply(this,arguments);
+};
+
+// SPA 라우트 시작 감지
+document.addEventListener('click',function(e){
+  var a=e.target.closest('[data-spa]');
+  if(a){routeTransitionStart=performance.now();}
+});
+
+// 4️⃣  Long Task 감지 (Performance Observer)
+if(window.PerformanceObserver){
+  try{
+    var longTaskObs=new PerformanceObserver(function(list){
+      list.getEntries().forEach(function(entry){
+        if(entry.duration>50){
+          fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'long-task',value:Math.round(entry.duration),unit:'ms'})}).catch(function(){});
+        }
+      });
+    });
+    longTaskObs.observe({entryTypes:['longtask']});
+  }catch(e){}
+}
+
+// 5️⃣  메모리 모니터링 (5초마다)
 if(performance.memory){
   setInterval(function(){
     var used=Math.round(performance.memory.usedJSHeapSize/1048576);

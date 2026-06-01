@@ -30,12 +30,14 @@
                    ": " (get perf-record "value")
                    (get perf-record "unit")))))
 
-; ── 성능 통계 함수 ──
+; ── 성능 통계 함수 (5가지 메트릭) ──
 (defn get-performance-stats []
   (let [$all (deref performance-log)
         $page-loads (filter (fn [$p] (= (get $p "metric") "page-load")) $all)
         $api-calls (filter (fn [$p] (= (get $p "metric") "api-call")) $all)
-        $renders (filter (fn [$p] (= (get $p "metric") "render")) $all)]
+        $route-transitions (filter (fn [$p] (= (get $p "metric") "route-transition")) $all)
+        $long-tasks (filter (fn [$p] (= (get $p "metric") "long-task")) $all)
+        $memory (filter (fn [$p] (= (get $p "metric") "memory")) $all)]
     {
       "total-records" (length $all)
       "page-loads" {
@@ -52,11 +54,28 @@
              (length $api-calls))
           0)
       }
-      "renders" {
-        "count" (length $renders)
-        "average" (if (> (length $renders) 0)
-          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $renders))
-             (length $renders))
+      "route-transitions" {
+        "count" (length $route-transitions)
+        "average" (if (> (length $route-transitions) 0)
+          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $route-transitions))
+             (length $route-transitions))
+          0)
+      }
+      "long-tasks" {
+        "count" (length $long-tasks)
+        "average" (if (> (length $long-tasks) 0)
+          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $long-tasks))
+             (length $long-tasks))
+          0)
+      }
+      "memory" {
+        "count" (length $memory)
+        "current" (if (> (length $memory) 0)
+          (get (last $memory) "value")
+          0)
+        "average" (if (> (length $memory) 0)
+          (/ (reduce + 0 (map (fn [$p] (get $p "value")) $memory))
+             (length $memory))
           0)
       }
       "recent" (take 10 (reverse $all))
