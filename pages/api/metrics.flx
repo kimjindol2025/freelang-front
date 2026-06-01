@@ -82,3 +82,7 @@
     "hint" "Use GET /api/metrics with polling instead"
     "poll_interval_ms" 5000
   } 501))
+
+; POST/DELETE 라우트 — fl-front-build가 render_post를 인식해서 server-post 등록
+(defn render_post [req]
+  (handle-post-metrics req))

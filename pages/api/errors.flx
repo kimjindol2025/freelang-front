@@ -20,3 +20,6 @@
       ; 다른 메서드는 405
       true
         (server-json {"error" "Method not allowed"} 405))))
+
+(defn render_post [req]
+  (handle-post-errors req))
