@@ -1,10 +1,10 @@
 {
   "name": "freelang-front",
-  "version": "0.3.0",
-  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 + 성능 모니터링",
+  "version": "0.4.0",
+  "description": "FreeLang v11 기반 파일 라우팅 SSR 프론트엔드 + 성능 대시보드",
   "language": "FreeLang v11",
   "status": "in_progress",
-  "phase": "Phase B: 성능 대시보드 + 실시간 스트림",
+  "phase": "Phase B: 대시보드 UI 및 클라이언트 개선",
   "ports": [40850],
   "entry": "_app.fl",
   "pages_count": 32,
