@@ -1,11 +1,24 @@
 ; performance-monitor.fl — 클라이언트 성능 모니터링
-; v0.2.3 성능 추적 시스템
+; v0.3.0 성능 대시보드 + 실시간 스트림
 
 (load "freelang-stdlib-extensions.fl")
 
 ; ── 성능 데이터 저장소 (atom-based) ──
 (def performance-log (atom []))
 (def MAX-PERF-RECORDS 500)
+(def performance-watchers (atom []))
+
+; ── EventSource 등록 함수 ──
+(defn register-watcher [$callback]
+  (swap! performance-watchers conj $callback))
+
+(defn notify-watchers [$record]
+  (let [$watchers (deref performance-watchers)]
+    (doseq [$callback $watchers]
+      (try
+        ($callback $record)
+        (catch $e
+          (log-warn (str "Watcher error: " $e)))))))
 
 ; ── 성능 기록 함수 ──
 (defn record-performance [$metric]
@@ -28,7 +41,10 @@
     ; 로깅
     (log-info (str "[PERF] " (get perf-record "metric")
                    ": " (get perf-record "value")
-                   (get perf-record "unit")))))
+                   (get perf-record "unit")))
+
+    ; EventSource 워처 알림
+    (notify-watchers perf-record)))
 
 ; ── 성능 통계 함수 (5가지 메트릭) ──
 (defn get-performance-stats []
@@ -113,6 +129,62 @@
           (get $sorted $idx))
         0)
     }))
+
+; ── 시간 범위 필터링 함수 (v0.3.0) ──
+(defn filter-by-time-range [$records $hours]
+  (let [$now (time-now)
+        $threshold (* $hours 3600000)]
+    (filter (fn [$r]
+      (let [$ts (parse-date (get $r "timestamp"))
+            $diff (- $now $ts)]
+        (< $diff $threshold)))
+      $records)))
+
+; ── 페이지별 필터링 함수 (v0.3.0) ──
+(defn filter-by-page [$records $page]
+  (if (empty? $page)
+    $records
+    (filter (fn [$r]
+      (= (get $r "page") $page))
+      $records)))
+
+; ── 메트릭 유형별 필터링 (v0.3.0) ──
+(defn filter-by-metric [$records $metric-type]
+  (if (nil? $metric-type)
+    $records
+    (filter (fn [$r]
+      (= (get $r "metric") $metric-type))
+      $records)))
+
+; ── 고급 필터 조합 (v0.3.0) ──
+(defn apply-filters [$metric $page $hours]
+  (let [$all (deref performance-log)
+        $by-metric (filter-by-metric $all $metric)
+        $by-page (filter-by-page $by-metric $page)
+        $by-time (filter-by-time-range $by-page $hours)]
+    $by-time))
+
+; ── CSV 내보내기 (v0.3.0) ──
+(defn export-to-csv []
+  (let [$records (deref performance-log)
+        $header "metric,value,unit,page,timestamp\n"
+        $rows (map (fn [$r]
+          (str (get $r "metric") ","
+               (get $r "value") ","
+               (get $r "unit") ","
+               (get $r "page") ","
+               (get $r "timestamp")))
+          $records)]
+    (str $header (str-join "\n" $rows))))
+
+; ── JSON 내보내기 (v0.3.0) ──
+(defn export-to-json []
+  (let [$records (deref performance-log)]
+    (json-stringify {
+      "count" (length $records)
+      "data" $records
+      "exported-at" (str (date-now))
+    })))
 
 ; ── API: POST /api/metrics (성능 데이터 저장) ──
 (defn handle-post-metrics [$req]

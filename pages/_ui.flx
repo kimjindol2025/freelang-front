@@ -1,0 +1,231 @@
+; FL-UI — FreeLang Front UI 컴포넌트 라이브러리
+; AI-Native 생태계 표준 컴포넌트 모음
+; 사용법: (load "./pages/_ui.flx") 또는 자동 포함됨 (_app.fl에)
+
+; ========== 1. 기본 요소 (Atoms) ==========
+
+(style ui-btn :display "inline-flex" :items "center" :justify "center" :gap "8px" :px "16px" :py "10px" :radius "8px" :weight "600" :font-size "14px" :border "none" :cursor "pointer" :transition "all 0.2s" :text-decoration "none")
+
+(style ui-btn-primary :bg "var(--c-primary)" :color "white" :hover-bg "var(--c-primary-d)" :hover-scale "1.02")
+
+(style ui-btn-secondary :bg "#f3f4f6" :color "#374151" :border "1px solid #d1d5db" :hover-bg "#e5e7eb")
+
+(style ui-btn-danger :bg "var(--c-danger)" :color "white" :hover-bg "#b91c1c")
+
+(style ui-btn-ghost :bg "transparent" :color "var(--c-primary)" :hover-bg "var(--c-primary-l)")
+
+(defn ui-btn [type label]
+  (let [class-name (cond
+    (= type "secondary") (str ui-btn " " ui-btn-secondary)
+    (= type "danger") (str ui-btn " " ui-btn-danger)
+    (= type "ghost") (str ui-btn " " ui-btn-ghost)
+    :else (str ui-btn " " ui-btn-primary))]
+    (h "button" {:class class-name :type "button"} label)))
+
+; ===== Badge =====
+(style ui-badge :display "inline-block" :px "9px" :py "3px" :radius "99px" :font-size "12px" :weight "600" :white-space "nowrap")
+
+(style ui-badge-green :bg "#dcfce7" :color "var(--c-success)")
+(style ui-badge-red :bg "#fee2e2" :color "var(--c-danger)")
+(style ui-badge-yellow :bg "#fef3c7" :color "var(--c-warning)")
+(style ui-badge-blue :bg "var(--c-primary-l)" :color "var(--c-primary-d)")
+(style ui-badge-gray :bg "#f3f4f6" :color "#6b7280")
+
+(defn ui-badge [text color]
+  (let [class-name (cond
+    (= color "red") (str ui-badge " " ui-badge-red)
+    (= color "yellow") (str ui-badge " " ui-badge-yellow)
+    (= color "blue") (str ui-badge " " ui-badge-blue)
+    (= color "gray") (str ui-badge " " ui-badge-gray)
+    :else (str ui-badge " " ui-badge-green))]
+    (h "span" {:class class-name} text)))
+
+; ===== Avatar =====
+(style ui-avatar :display "inline-flex" :items "center" :justify "center" :radius "50%" :weight "600" :bg "var(--c-primary-l)" :color "var(--c-primary-d)" :font-size "14px")
+
+(defn ui-avatar [name size]
+  (let [initials (str (str-slice name 0 1) (if (> (length name) 1) (str-slice name 1 2) ""))
+        sty (cond
+          (= size "lg") :width "48px" :height "48px"
+          (= size "sm") :width "28px" :height "28px"
+          :else :width "36px" :height "36px")]
+    (h "div" {:class ui-avatar :style (str "width:" (cond (= size "lg") "48px" (= size "sm") "28px" :else "36px") ";height:" (cond (= size "lg") "48px" (= size "sm") "28px" :else "36px") ";")} initials)))
+
+; ===== Divider =====
+(style ui-divider :my "20px" :border "none" :height "1px" :bg "var(--c-border)")
+
+(defn ui-divider []
+  (h "hr" {:class ui-divider}))
+
+; ===== Spinner =====
+(style ui-spinner :display "inline-block" :width "20px" :height "20px" :border "2px solid #f3f4f6" :border-top "2px solid var(--c-primary)" :radius "50%" :animation "spin 0.6s linear infinite")
+
+(defn ui-spinner []
+  (str
+    "<style>@keyframes spin{to{transform:rotate(360deg);}}</style>"
+    (h "div" {:class ui-spinner})))
+
+; ========== 2. 폼 요소 ==========
+
+(style ui-input-wrap :display "flex" :flex-dir "column" :gap "6px" :mb "16px")
+(style ui-input-label :font-size "14px" :weight "600" :color "var(--c-text)")
+(style ui-input-field :padding "9px 12px" :border "1px solid #d1d5db" :radius "8px" :font-size "14px" :font-family "inherit" :bg "var(--c-surface)" :color "var(--c-text)" :transition "all 0.2s")
+
+(defn ui-input [name label type placeholder]
+  (str
+    (h "div" {:class ui-input-wrap}
+      (str
+        (h "label" {:class ui-input-label :for name} label)
+        (h "input" {:class ui-input-field :type (or type "text") :name name :placeholder placeholder :required "true"})))))
+
+; ===== Textarea =====
+(style ui-textarea-field :padding "9px 12px" :border "1px solid #d1d5db" :radius "8px" :font-size "14px" :font-family "inherit" :bg "var(--c-surface)" :color "var(--c-text)" :min-h "90px" :resize "vertical")
+
+(defn ui-textarea [name label rows]
+  (str
+    (h "div" {:class ui-input-wrap}
+      (str
+        (h "label" {:class ui-input-label :for name} label)
+        (h "textarea" {:class ui-textarea-field :name name :rows (or rows 4)})))))
+
+; ===== Select =====
+(defn ui-select [name label options]
+  (let [opt-html (arr-join
+    (map (fn [opt] (h "option" {:value (get opt "value")} (get opt "label")))
+      options) "")]
+    (str
+      (h "div" {:class ui-input-wrap}
+        (str
+          (h "label" {:class ui-input-label :for name} label)
+          (h "select" {:class ui-input-field :name name} opt-html))))))
+
+; ===== Checkbox =====
+(style ui-checkbox-wrap :display "flex" :items "center" :gap "8px" :mb "12px")
+(style ui-checkbox-input :width "18px" :height "18px" :cursor "pointer" :accent-color "var(--c-primary)")
+
+(defn ui-checkbox [name label checked]
+  (h "div" {:class ui-checkbox-wrap}
+    (str
+      (h "input" {:class ui-checkbox-input :type "checkbox" :name name :id name :checked (if checked "checked" nil)})
+      (h "label" {:for name :style "cursor:pointer;font-weight:500;"} label))))
+
+; ===== Form Group =====
+(style ui-form-group :display "grid" :gap "16px")
+
+(defn ui-form-group [& fields]
+  (h "div" {:class ui-form-group} (arr-join fields "")))
+
+; ========== 3. 레이아웃 ==========
+
+(style ui-card :bg "var(--c-surface)" :border "1px solid var(--c-border)" :radius "12px" :p "20px" :shadow "var(--shadow-sm)" :transition "all 0.3s")
+
+(defn ui-card [title content]
+  (h "div" {:class ui-card}
+    (str
+      (h "h3" {:style "margin:0 0 16px;color:var(--c-text);font-size:16px;"} title)
+      content)))
+
+; ===== Grid =====
+(defn ui-grid [cols content]
+  (let [grid-cols (str "repeat(" cols ", 1fr)")
+        grid-style (str "display:grid;grid-template-columns:" grid-cols ";gap:16px;")]
+    (h "div" {:style grid-style} content)))
+
+; ===== Stack =====
+(defn ui-stack [content]
+  (h "div" {:style "display:flex;flex-direction:column;gap:16px;"} content))
+
+; ===== Row =====
+(defn ui-row [content]
+  (h "div" {:style "display:flex;gap:16px;align-items:center;"} content))
+
+; ========== 4. 피드백 ==========
+
+(style ui-alert :padding "16px" :radius "8px" :font-size "14px" :mb "16px" :border-left "4px solid")
+
+(style ui-alert-success :bg "#dcfce7" :border-left-color "var(--c-success)" :color "var(--c-success)")
+(style ui-alert-error :bg "#fee2e2" :border-left-color "var(--c-danger)" :color "var(--c-danger)")
+(style ui-alert-warning :bg "#fef3c7" :border-left-color "var(--c-warning)" :color "var(--c-warning)")
+(style ui-alert-info :bg "#dbeafe" :border-left-color "#3b82f6" :color "#1e40af")
+
+(defn ui-alert [type message]
+  (let [class-name (cond
+    (= type "error") (str ui-alert " " ui-alert-error)
+    (= type "warning") (str ui-alert " " ui-alert-warning)
+    (= type "info") (str ui-alert " " ui-alert-info)
+    :else (str ui-alert " " ui-alert-success))]
+    (h "div" {:class class-name} message)))
+
+; ===== Empty State =====
+(style ui-empty :text-align "center" :py "48px" :color "var(--c-muted)")
+
+(defn ui-empty [icon message]
+  (h "div" {:class ui-empty}
+    (str
+      (h "div" {:style "font-size:48px;margin-bottom:16px;"} icon)
+      (h "p" {:style "font-size:16px;margin:0;"} message))))
+
+; ===== Progress =====
+(style ui-progress-wrap :width "100%" :height "8px" :bg "#e5e7eb" :radius "4px" :overflow "hidden")
+(style ui-progress-bar :height "100%" :bg "var(--c-primary)" :transition "width 0.3s")
+
+(defn ui-progress [value max]
+  (let [pct (str (* (/ value max) 100) "%")]
+    (h "div" {:class ui-progress-wrap}
+      (h "div" {:class ui-progress-bar :style (str "width:" pct ";")}))))
+
+; ========== 5. 데이터 ==========
+
+; ===== Table =====
+(style ui-table-wrap :bg "var(--c-surface)" :border "1px solid var(--c-border)" :radius "12px" :overflow "hidden" :box-shadow "var(--shadow-sm)" :mb "16px")
+
+(defn ui-table [headers rows]
+  (let [header-html (h "thead" {}
+    (h "tr" {} (arr-join (map (fn [h] (h "th" {:style "padding:10px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:1px solid var(--c-border);text-align:left;"} h)) headers) "")))
+    row-html (arr-join
+      (map (fn [row]
+        (h "tr" {:style "border-bottom:1px solid #f1f3f6;"}
+          (arr-join
+            (map (fn [cell] (h "td" {:style "padding:11px 14px;font-size:14px;"} (str cell)))
+              (if (= (type row) "map")
+                (map (fn [k] (get row k)) headers)
+                row))
+            "")))
+        rows) "")]
+    (h "div" {:class ui-table-wrap}
+      (h "table" {:style "width:100%;border-collapse:collapse;"} (str header-html row-html)))))
+
+; ===== Stat Card =====
+(style ui-stat-card :bg "var(--c-surface)" :border "1px solid var(--c-border)" :radius "12px" :p "20px" :shadow "var(--shadow-sm)" :transition "all 0.3s" :hover-shadow "var(--shadow-md)" :hover-transform "translateY(-2px)")
+
+(defn ui-stat [label value diff]
+  (let [diff-color (if (string? diff)
+    (if (str-starts diff "-") "#dc2626" "#16a34a")
+    (if (< diff 0) "#dc2626" "#16a34a"))]
+    (h "div" {:class ui-stat-card}
+      (str
+        (h "div" {:style "font-size:12px;color:var(--c-muted);margin-bottom:8px;"} label)
+        (h "div" {:style "font-size:28px;font-weight:800;color:var(--c-primary);line-height:1;margin-bottom:8px;"} value)
+        (if diff
+          (h "div" {:style (str "font-size:12px;color:" diff-color ";")} diff)
+          (h "div" {}))))))
+
+; ===== Tag List =====
+(style ui-tag :display "inline-block" :px "12px" :py "6px" :radius "20px" :bg "#f3f4f6" :color "#374151" :font-size "13px" :mr "8px" :mb "8px")
+
+(defn ui-tags [& tags]
+  (h "div" {}
+    (arr-join
+      (map (fn [tag] (h "span" {:class ui-tag} tag)) tags)
+      "")))
+
+; ========== 추가 헬퍼 ==========
+
+(define str-starts
+  (fn [$s $prefix]
+    (= (str-slice $s 0 (length $prefix)) $prefix)))
+
+(defn if* [$cond $true $false]
+  (if $cond $true $false))
+
+; end of _ui.flx

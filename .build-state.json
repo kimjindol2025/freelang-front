@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "time": "2026-06-01T11:16:41.180Z",
+  "time": "2026-06-01T13:11:47.266Z",
   "routes": [
     {
       "route": "/about",
@@ -11,6 +11,16 @@
       "route": "/api/hello",
       "file": "pages/api/hello.flx",
       "fn": "page_api_hello"
+    },
+    {
+      "route": "/api-errors",
+      "file": "pages/api-errors.flx",
+      "fn": "page_api_errors"
+    },
+    {
+      "route": "/api-metrics",
+      "file": "pages/api-metrics.flx",
+      "fn": "page_api_metrics"
     },
     {
       "route": "/contact/thanks",
@@ -28,14 +38,14 @@
       "fn": "page_counter"
     },
     {
-      "route": "/dashboard",
-      "file": "pages/dashboard.flx",
-      "fn": "page_dashboard"
-    },
-    {
       "route": "/demo",
       "file": "pages/demo.flx",
       "fn": "page_demo"
+    },
+    {
+      "route": "/errors-stats",
+      "file": "pages/errors-stats.flx",
+      "fn": "page_errors_stats"
     },
     {
       "route": "/fetch-demo",
@@ -46,6 +56,11 @@
       "route": "/freelang",
       "file": "pages/freelang.flx",
       "fn": "page_freelang"
+    },
+    {
+      "route": "/",
+      "file": "pages/index.flx",
+      "fn": "page_index"
     },
     {
       "route": "/intro",
@@ -71,6 +86,11 @@
       "route": "/styled",
       "file": "pages/styled.flx",
       "fn": "page_styled"
+    },
+    {
+      "route": "/tasks",
+      "file": "pages/tasks.flx",
+      "fn": "page_tasks"
     },
     {
       "route": "/test-helpers",
@@ -102,27 +122,33 @@
     "_email.flx",
     "_oauth.flx",
     "_payment.flx",
-    "_storage.flx"
+    "_storage.flx",
+    "_styles.flx",
+    "_ui.flx"
   ],
   "sourceMap": {
-    "1354-1388": "pages/about.flx",
-    "1391-1395": "pages/api/hello.flx",
-    "1398-1431": "pages/contact/thanks.flx",
-    "1434-1503": "pages/contact.flx",
-    "1506-1535": "pages/counter.flx",
-    "1538-1591": "pages/dashboard.flx",
-    "1594-1791": "pages/demo.flx",
-    "1794-1808": "pages/fetch-demo.flx",
-    "1811-1994": "pages/freelang.flx",
-    "1997-2481": "pages/intro.flx",
-    "2484-2530": "pages/login.flx",
-    "2533-2538": "pages/logout.flx",
-    "2541-2727": "pages/notes.flx",
-    "2730-2777": "pages/styled.flx",
-    "2780-2889": "pages/test-helpers.flx",
-    "2892-2900": "pages/todo.flx",
-    "2903-2959": "pages/upload.flx",
-    "2962-3004": "pages/users/[id].flx"
+    "1939-1973": "pages/about.flx",
+    "1976-1980": "pages/api/hello.flx",
+    "1983-2007": "pages/api-errors.flx",
+    "2010-2099": "pages/api-metrics.flx",
+    "2102-2135": "pages/contact/thanks.flx",
+    "2138-2207": "pages/contact.flx",
+    "2210-2239": "pages/counter.flx",
+    "2242-2439": "pages/demo.flx",
+    "2442-2508": "pages/errors-stats.flx",
+    "2511-2525": "pages/fetch-demo.flx",
+    "2528-2659": "pages/freelang.flx",
+    "2662-2672": "pages/index.flx",
+    "2675-3159": "pages/intro.flx",
+    "3162-3208": "pages/login.flx",
+    "3211-3216": "pages/logout.flx",
+    "3219-3405": "pages/notes.flx",
+    "3408-3455": "pages/styled.flx",
+    "3458-3479": "pages/tasks.flx",
+    "3482-3591": "pages/test-helpers.flx",
+    "3594-3602": "pages/todo.flx",
+    "3605-3661": "pages/upload.flx",
+    "3664-3711": "pages/users/[id].flx"
   },
   "warnings": []
 }

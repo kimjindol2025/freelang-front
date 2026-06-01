@@ -100,52 +100,104 @@
   ],
   "auto_errors": [
     {
-      "time": "2026-06-01T10:59:28.372Z",
-      "message": "'format-date' 정의 없음",
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'server-event-stream' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T10:59:28.372Z",
-      "message": "'http_ok?' 정의 없음",
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'register-watcher' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T10:59:28.372Z",
-      "message": "'fl-env-get' 정의 없음",
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'server-event-write' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T10:01:33.462Z",
-      "message": "✖ Unexpected character '�' at line 2044, col 26 (U+D83D — FL 문자열 밖에서 유니코드 사용 불가. 문자열 안에서는 HTML 엔티티 사용: &amp;middot; &amp;rarr; &amp;check;)",
-      "status": "resolved",
-      "resolved_at": "2026-06-01T10:02:17.305Z"
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'export-to-json' 정의 없음",
+      "status": "open"
     },
     {
-      "time": "2026-06-01T10:01:08.728Z",
-      "message": "✖ Unexpected character '이' at line 2005, col 75 (U+C774 — FL 문자열 밖에서 유니코드 사용 불가. 문자열 안에서는 HTML 엔티티 사용: &amp;middot; &amp;rarr; &amp;check;)",
-      "status": "resolved",
-      "resolved_at": "2026-06-01T10:01:33.363Z"
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'server-response' 정의 없음",
+      "status": "open"
     },
     {
-      "time": "2026-06-01T09:50:11.362Z",
-      "message": "Unexpected character '✓' — pages/index.flx:221",
-      "status": "resolved",
-      "resolved_at": "2026-06-01T09:50:24.234Z"
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'export-to-csv' 정의 없음",
+      "status": "open"
     },
     {
-      "message": "'fl-env-get' 정의 없음 (_email/_oauth/_storage 헬퍼)",
-      "status": "open",
-      "note": "실제 운영 기능 미구현. 현재 사용 안 하므로 무시 가능."
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'reverse' 정의 없음",
+      "status": "open"
     },
     {
-      "message": "'http_ok?' 정의 없음 (_email/_oauth/_payment 헬퍼)",
-      "status": "open",
-      "note": "동일. 무시 가능."
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'take' 정의 없음",
+      "status": "open"
     },
     {
-      "message": "'format-date' 정의 없음 (_storage 헬퍼)",
-      "status": "open",
-      "note": "동일. 무시 가능."
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'apply-filters' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'str-to-num' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'req-query-default' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T13:06:05.744Z",
+      "message": "'str-includes?' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:46:25.406Z",
+      "message": "'handle-delete-metrics' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:46:25.406Z",
+      "message": "'handle-get-metrics' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:46:25.406Z",
+      "message": "'handle-post-metrics' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:42:14.541Z",
+      "message": "'get-error-stats' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:40:11.785Z",
+      "message": "'handle-delete-errors' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:40:11.785Z",
+      "message": "'handle-get-errors' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:40:11.785Z",
+      "message": "'handle-post-errors' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T12:40:11.785Z",
+      "message": "'load' 정의 없음",
+      "status": "open"
     }
   ]
 }

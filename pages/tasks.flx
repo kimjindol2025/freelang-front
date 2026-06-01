@@ -1,0 +1,16 @@
+;;; Task Manager (FreeLang Front)
+;;; pages/tasks.flx
+
+(defn render [req]
+  (layout-html "Task Manager"
+    (h "div" {:class "container"}
+      (h "h1" {} "🎯 Task Manager")
+      (h "p" {} "포트 40102 API 연동 예정")
+      (h "div" {:class "card"}
+        (h "h2" {} "Task Card Example")
+        (h "p" {} "우선순위: HIGH")
+        (h "p" {} "상태: pending")))
+    req))
+
+(defn render_post [req]
+  (server-redirect "/tasks"))

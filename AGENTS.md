@@ -137,18 +137,22 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 |------|------|
 | `/about` | pages/about.flx |
 | `/api/hello` | pages/api/hello.flx |
+| `/api-errors` | pages/api-errors.flx |
+| `/api-metrics` | pages/api-metrics.flx |
 | `/contact/thanks` | pages/contact/thanks.flx |
 | `/contact` | pages/contact.flx |
 | `/counter` | pages/counter.flx |
-| `/dashboard` | pages/dashboard.flx |
 | `/demo` | pages/demo.flx |
+| `/errors-stats` | pages/errors-stats.flx |
 | `/fetch-demo` | pages/fetch-demo.flx |
 | `/freelang` | pages/freelang.flx |
+| `/` | pages/index.flx |
 | `/intro` | pages/intro.flx |
 | `/login` | pages/login.flx |
 | `/logout` | pages/logout.flx |
 | `/notes` | pages/notes.flx |
 | `/styled` | pages/styled.flx |
+| `/tasks` | pages/tasks.flx |
 | `/test-helpers` | pages/test-helpers.flx |
 | `/todo` | pages/todo.flx |
 | `/upload` | pages/upload.flx |

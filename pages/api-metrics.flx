@@ -1,13 +1,27 @@
-; pages/api-metrics.flx — 성능 메트릭 API 라우트
+; pages/api-metrics.flx — 성능 메트릭 API 라우트 (v0.3.0)
 ; GET /api/metrics — 성능 통계 조회
 ; POST /api/metrics — 성능 데이터 저장
 ; DELETE /api/metrics — 성능 로그 초기화
+; GET /api/metrics/filter — 고급 필터링 (v0.3.0)
+; GET /api/metrics/export — CSV/JSON 내보내기 (v0.3.0)
+; GET /api/metrics/stream — EventSource 실시간 스트림 (v0.3.0)
 
 (load "../performance-monitor.fl")
 
 (defn render [$req]
-  (let [$method (get $req "method")]
+  (let [$method (get $req "method")
+        $path (get $req "path")]
     (cond
+      ; 경로 기반 라우팅 (v0.3.0)
+      (and (= $method "GET") (str-includes? $path "/filter"))
+        (handle-filter-metrics $req)
+
+      (and (= $method "GET") (str-includes? $path "/export"))
+        (handle-export-metrics $req)
+
+      (and (= $method "GET") (str-includes? $path "/stream"))
+        (handle-stream-metrics $req)
+
       (= $method "POST")
         (handle-post-metrics $req)
 
@@ -20,3 +34,54 @@
       ; 다른 메서드는 405
       true
         (server-json {"error" "Method not allowed"} 405))))
+
+; ── 고급 필터링 엔드포인트 (v0.3.0) ──
+(defn handle-filter-metrics [$req]
+  (try
+    (let [$metric (req-query-default $req "metric" nil)
+          $page (req-query-default $req "page" "")
+          $hours (or (req-query-default $req "hours" "24") "24")
+          $hours-num (str-to-num $hours)
+          $filtered (apply-filters $metric $page $hours-num)
+          $stats {
+            "count" (length $filtered)
+            "metric" $metric
+            "page" $page
+            "hours" $hours-num
+            "data" (take 100 (reverse $filtered))
+          }]
+      (server-json $stats 200))
+    (catch $e
+      (log-error (str "Error filtering metrics: " $e))
+      (server-json {"error" "Filter failed"} 500))))
+
+; ── 내보내기 엔드포인트 (v0.3.0) ──
+(defn handle-export-metrics [$req]
+  (try
+    (let [$format (req-query-default $req "format" "json")]
+      (cond
+        (= $format "csv")
+          (let [$csv (export-to-csv)]
+            (server-response 200 {"Content-Type" "text/csv"
+                                  "Content-Disposition" "attachment; filename=metrics.csv"} $csv))
+
+        (= $format "json")
+          (let [$json (export-to-json)]
+            (server-json (json-parse $json) 200))
+
+        true
+          (server-json {"error" "Invalid format (csv|json)"} 400)))
+    (catch $e
+      (log-error (str "Error exporting metrics: " $e))
+      (server-json {"error" "Export failed"} 500))))
+
+; ── 실시간 스트림 엔드포인트 (v0.3.0 EventSource) ──
+(defn handle-stream-metrics [$req]
+  (try
+    (let [$callback (fn [$record]
+      (server-event-write (json-stringify $record) "metric"))]
+      (register-watcher $callback)
+      (server-event-stream 200 "metrics"))
+    (catch $e
+      (log-error (str "Error streaming metrics: " $e))
+      (server-json {"error" "Stream failed"} 500))))
