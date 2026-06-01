@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "time": "2026-06-01T13:45:00.982Z",
+  "time": "2026-06-01T13:50:39.404Z",
   "routes": [
     {
       "route": "/about",
@@ -71,6 +71,11 @@
       "route": "/dashboard",
       "file": "pages/dashboard/index.flx",
       "fn": "page_dashboard_index"
+    },
+    {
+      "route": "/dashboard/operations",
+      "file": "pages/dashboard/operations.flx",
+      "fn": "page_dashboard_operations"
     },
     {
       "route": "/dashboard/sla",
@@ -181,22 +186,23 @@
     "2432-2439": "pages/dashboard/charts.flx",
     "2442-2449": "pages/dashboard/custom-metrics.flx",
     "2452-2459": "pages/dashboard/index.flx",
-    "2462-2469": "pages/dashboard/sla.flx",
-    "2472-2669": "pages/demo.flx",
-    "2672-2738": "pages/errors-stats.flx",
-    "2741-2755": "pages/fetch-demo.flx",
-    "2758-2889": "pages/freelang.flx",
-    "2892-2902": "pages/index.flx",
-    "2905-3389": "pages/intro.flx",
-    "3392-3438": "pages/login.flx",
-    "3441-3446": "pages/logout.flx",
-    "3449-3635": "pages/notes.flx",
-    "3638-3685": "pages/styled.flx",
-    "3688-3709": "pages/tasks.flx",
-    "3712-3821": "pages/test-helpers.flx",
-    "3824-3832": "pages/todo.flx",
-    "3835-3891": "pages/upload.flx",
-    "3894-3949": "pages/users/[id].flx"
+    "2462-2469": "pages/dashboard/operations.flx",
+    "2472-2479": "pages/dashboard/sla.flx",
+    "2482-2679": "pages/demo.flx",
+    "2682-2748": "pages/errors-stats.flx",
+    "2751-2765": "pages/fetch-demo.flx",
+    "2768-2899": "pages/freelang.flx",
+    "2902-2912": "pages/index.flx",
+    "2915-3399": "pages/intro.flx",
+    "3402-3448": "pages/login.flx",
+    "3451-3456": "pages/logout.flx",
+    "3459-3645": "pages/notes.flx",
+    "3648-3695": "pages/styled.flx",
+    "3698-3719": "pages/tasks.flx",
+    "3722-3831": "pages/test-helpers.flx",
+    "3834-3842": "pages/todo.flx",
+    "3845-3901": "pages/upload.flx",
+    "3904-3960": "pages/users/[id].flx"
   },
   "warnings": []
 }

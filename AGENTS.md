@@ -149,6 +149,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/dashboard/charts` | pages/dashboard/charts.flx |
 | `/dashboard/custom-metrics` | pages/dashboard/custom-metrics.flx |
 | `/dashboard` | pages/dashboard/index.flx |
+| `/dashboard/operations` | pages/dashboard/operations.flx |
 | `/dashboard/sla` | pages/dashboard/sla.flx |
 | `/demo` | pages/demo.flx |
 | `/errors-stats` | pages/errors-stats.flx |
