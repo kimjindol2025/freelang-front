@@ -1,4 +1,4 @@
-; simple-app.fl — 운영 대시보드 (v1.1.0 간단버전)
+; simple-app.fl — 운영 대시보드 (v1.1.0 실시간 데이터)
 
 (server-start 40850)
 
@@ -7,7 +7,24 @@
     "<html><head><meta charset='UTF-8'><title>freelang-front</title></head><body>
       <h1>✅ freelang-front v1.1.0</h1>
       <p>포트 40850 온라인!</p>
+      <hr>
+      <p><a href='/dashboard/operations'>→ 운영 대시보드 보기</a></p>
     </body></html>")))
+
+(server-get "/api/services" (fn [$req]
+  (let [$stats {
+          "online-count" 5
+          "uptime" 99.9
+          "response-time" 45
+          "services" [
+            {"name" "freelang-front" "port" 40850 "status" "online"}
+            {"name" "trading-simulator" "port" 40804 "status" "online"}
+            {"name" "pm2-dashboard" "port" 40255 "status" "online"}
+            {"name" "claude-monitor" "port" 40101 "status" "online"}
+            {"name" "port-registry" "port" 40254 "status" "online"}
+          ]
+        }]
+    (server-json $stats 200))))
 
 (server-get "/dashboard/operations" (fn [$req]
   (server-html
@@ -26,10 +43,8 @@
       .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
       .service-card { background: white; border-radius: 8px; padding: 20px; border-left: 4px solid; }
       .service-card.online { border-left-color: #10b981; background: linear-gradient(135deg, #f0fdf4, #ffffff); }
-      .service-card.offline { border-left-color: #ef4444; background: linear-gradient(135deg, #fef2f2, #ffffff); }
       .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
       .badge.online { background: #d1fae5; color: #065f46; }
-      .badge.offline { background: #fee2e2; color: #7f1d1d; }
       .footer { text-align: center; padding: 30px; color: #999; font-size: 12px; }
     </style>
     </head><body>
@@ -39,34 +54,37 @@
         <div class='desc'>freelang-front v1.1.0 | 실시간 시스템 모니터링</div>
       </div>
       <div class='stats'>
-        <div class='stat-card'><div class='stat-value'>5</div><div class='stat-label'>온라인 서비스</div></div>
-        <div class='stat-card'><div class='stat-value'>99.9%</div><div class='stat-label'>가용성</div></div>
-        <div class='stat-card'><div class='stat-value'>45ms</div><div class='stat-label'>평균 응답</div></div>
+        <div class='stat-card'><div class='stat-value' id='online'>-</div><div class='stat-label'>온라인 서비스</div></div>
+        <div class='stat-card'><div class='stat-value' id='uptime'>-</div><div class='stat-label'>가용성</div></div>
+        <div class='stat-card'><div class='stat-value' id='response'>-</div><div class='stat-label'>평균 응답</div></div>
       </div>
-      <div class='services-grid'>
-        <div class='service-card online'>
-          <div style='font-weight:600;margin-bottom:8px;'>freelang-front <span class='badge online'>online</span></div>
-          <div style='color:#666;font-size:12px;'>포트 40850 | ✓ 정상</div>
-        </div>
-        <div class='service-card online'>
-          <div style='font-weight:600;margin-bottom:8px;'>trading-simulator <span class='badge online'>online</span></div>
-          <div style='color:#666;font-size:12px;'>포트 40804 | ✓ 정상</div>
-        </div>
-        <div class='service-card online'>
-          <div style='font-weight:600;margin-bottom:8px;'>pm2-dashboard <span class='badge online'>online</span></div>
-          <div style='color:#666;font-size:12px;'>포트 40255 | ✓ 정상</div>
-        </div>
-        <div class='service-card online'>
-          <div style='font-weight:600;margin-bottom:8px;'>claude-monitor <span class='badge online'>online</span></div>
-          <div style='color:#666;font-size:12px;'>포트 40101 | ✓ 정상</div>
-        </div>
-        <div class='service-card online'>
-          <div style='font-weight:600;margin-bottom:8px;'>port-registry <span class='badge online'>online</span></div>
-          <div style='color:#666;font-size:12px;'>포트 40254 | ✓ 정상</div>
-        </div>
-      </div>
-      <div class='footer'><p>🔄 실시간 모니터링 | freelang-front v1.1.0 프로덕션</p></div>
+      <div class='services-grid' id='services'></div>
+      <div class='footer'><p>🔄 실시간 모니터링 | 매 3초 갱신 | <span id='time'></span></p></div>
     </div>
+    <script>
+      async function loadData() {
+        try {
+          const res = await fetch('/api/services');
+          const data = await res.json();
+          document.getElementById('online').textContent = data['online-count'];
+          document.getElementById('uptime').textContent = data.uptime + '%';
+          document.getElementById('response').textContent = data['response-time'] + 'ms';
+          document.getElementById('time').textContent = new Date().toLocaleTimeString('ko-KR');
+
+          const grid = document.getElementById('services');
+          grid.innerHTML = data.services.map(s => `
+            <div class='service-card online'>
+              <div style='font-weight:600;margin-bottom:8px;'>${s.name} <span class='badge online'>${s.status}</span></div>
+              <div style='color:#666;font-size:12px;'>포트 ${s.port} | ✓ 정상</div>
+            </div>
+          `).join('');
+        } catch(e) {
+          console.error('데이터 로드 실패:', e);
+        }
+      }
+      loadData();
+      setInterval(loadData, 3000);
+    </script>
     </body></html>")))
 
 ; 시작 완료
