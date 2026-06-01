@@ -1,167 +1,243 @@
-; CSS 스타일 정의
-(style hero_wrap  :bg "#6366f1" :color "white" :radius "16px" :p "64px"
-                  :sm-p "32px")
-(style feat_grid  :display "grid" :cols 3 :gap "20px"
-                  :md-cols 2 :sm-cols 1)
-(style feat_card  :bg "white" :radius "12px" :shadow "sm" :p "28px"
-                  :sm-p "20px")
-(style code_block :bg "#1e1e2e" :radius "12px" :p "24px")
-(style stat_row   :display "grid" :cols 4 :gap "16px"
-                  :md-cols 2 :sm-cols 2)
-(style stat_item  :bg "white" :radius "12px" :shadow "sm" :p "24px")
+; ── index.flx — FreeLang Front 홈 ──────────────────────────────
+; 이번 세션 학습 적용:
+;   - 특수문자 전부 HTML 엔티티 (유니코드 파서 에러 방지)
+;   - 더블쿼트 FL 문자열만 사용 (싱글쿼트 FL 문자열 금지)
+;   - 다크 테마 + 애니메이션 (intro.flx 방식)
+;   - /intro 링크 추가
+
+(style page_wrap :max-w "960px" :mx "auto" :p "32px 20px")
 
 (defn render [req]
   (layout-html "FreeLang Front" (str
 
-      ; ── Hero ─────────────────────────────────────────────────
-      "<div class='" hero_wrap "'>"
-      "<div style='font-size:.85rem;font-weight:600;opacity:.7;letter-spacing:.08em;margin-bottom:16px'>"
-      "FREELANG FRONT v0.1"
-      "</div>"
-      "<h1 style='font-size:2.8rem;font-weight:800;margin:0 0 16px;line-height:1.2'>"
-      "npm install 없이<br>풀스택 프론트엔드"
-      "</h1>"
-      "<p style='font-size:1.15rem;opacity:.85;margin:0 0 36px;max-width:520px;line-height:1.6'>"
-      "FreeLang v11 fx 기반. React · Next.js · Tailwind · Zustand 조합 없이 "
-      "SSR · CSS DSL · Island 아키텍처를 단일 언어로."
-      "</p>"
-      "<div style='display:flex;gap:12px;flex-wrap:wrap'>"
-      "<a href='/dashboard' style='background:white;color:#6366f1;border-radius:8px;"
-      "padding:12px 28px;font-weight:700;text-decoration:none;font-size:1rem'>"
-      "데모 보기 →"
-      "</a>"
-      "<a href='/styled' style='background:rgba(255,255,255,.15);color:white;border-radius:8px;"
-      "padding:12px 28px;font-weight:600;text-decoration:none;font-size:1rem;border:1px solid rgba(255,255,255,.3)'>"
-      "CSS DSL"
-      "</a>"
-      "<a href='/todo' style='background:rgba(255,255,255,.15);color:white;border-radius:8px;"
-      "padding:12px 28px;font-weight:600;text-decoration:none;font-size:1rem;border:1px solid rgba(255,255,255,.3)'>"
-      "Island"
-      "</a>"
-      "</div>"
-      "</div>"
+    "<style>
+:root{
+  --p:#7c3aed;--p2:#6366f1;--cyan:#06b6d4;
+  --dark:#0a0a0f;--dark2:#12121a;--dark3:#1a1a28;
+  --border:rgba(124,58,237,.2);--text:#e2e8f0;--muted:#94a3b8;
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+@keyframes glow{0%,100%{opacity:.25}50%{opacity:.55}}
+@keyframes slide-up{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+@keyframes grad{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 
-      ; ── 수치 ─────────────────────────────────────────────────
-      "<div class='" stat_row "' style='margin:32px 0'>"
-      "<div class='" stat_item "'>"
-      "<div style='font-size:2rem;font-weight:800;color:#6366f1'>0</div>"
-      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>npm 의존성</div>"
-      "</div>"
-      "<div class='" stat_item "'>"
-      "<div style='font-size:2rem;font-weight:800;color:#6366f1'>&lt;1KB</div>"
-      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>Island 런타임</div>"
-      "</div>"
-      "<div class='" stat_item "'>"
-      "<div style='font-size:2rem;font-weight:800;color:#6366f1'>SSR</div>"
-      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>서버 렌더링</div>"
-      "</div>"
-      "<div class='" stat_item "'>"
-      "<div style='font-size:2rem;font-weight:800;color:#6366f1'>100%</div>"
-      "<div style='font-size:.85rem;color:#6b7280;margin-top:4px'>FreeLang</div>"
-      "</div>"
-      "</div>"
+/* 오브 배경 */
+.orb{position:absolute;border-radius:50%;filter:blur(80px);pointer-events:none;animation:glow 5s ease-in-out infinite}
+.o1{width:500px;height:500px;background:rgba(124,58,237,.12);top:-180px;right:-100px}
+.o2{width:380px;height:380px;background:rgba(6,182,212,.08);bottom:-80px;left:-80px;animation-delay:2.5s}
 
-      ; ── 기능 카드 ──────────────────────────────────────────
-      "<h2 style='font-size:1.5rem;font-weight:700;margin:8px 0 20px;color:#111'>핵심 기능</h2>"
-      "<div class='" feat_grid "'>"
+/* 히어로 */
+.hero-wrap{
+  background:var(--dark);border:1px solid var(--border);
+  border-radius:20px;padding:72px 48px 64px;margin-bottom:32px;
+  position:relative;overflow:hidden;
+  box-shadow:0 32px 80px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05)}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.3);
+  border-radius:99px;padding:5px 14px;font-size:.75rem;font-weight:700;
+  color:#c4b5fd;letter-spacing:.06em;text-transform:uppercase;
+  margin-bottom:28px;animation:slide-up .5s ease both}
+.pulse-dot{width:6px;height:6px;background:#a78bfa;border-radius:50%;
+  animation:glow 2s ease infinite}
+.hero-h1{
+  font-size:clamp(2.2rem,5vw,4rem);font-weight:900;line-height:1.1;
+  letter-spacing:-.03em;margin:0 0 20px;
+  background:linear-gradient(135deg,#fff 10%,#c4b5fd 50%,#67e8f9 90%);
+  background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:slide-up .6s .05s ease both,grad 6s ease infinite}
+.hero-sub{
+  font-size:1.05rem;color:var(--muted);line-height:1.75;
+  max-width:520px;margin:0 0 36px;animation:slide-up .6s .1s ease both}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;animation:slide-up .6s .15s ease both}
+.btn-primary{
+  background:linear-gradient(135deg,#7c3aed,#6366f1);color:white;
+  border-radius:10px;padding:12px 28px;font-weight:700;text-decoration:none;
+  font-size:.95rem;box-shadow:0 4px 20px rgba(124,58,237,.35);
+  transition:transform .25s,box-shadow .25s;display:inline-block}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(124,58,237,.5);color:white;text-decoration:none}
+.btn-ghost{
+  background:rgba(255,255,255,.06);color:var(--muted);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  padding:12px 22px;font-weight:600;text-decoration:none;font-size:.95rem;
+  transition:all .2s;display:inline-block}
+.btn-ghost:hover{background:rgba(255,255,255,.1);color:white;text-decoration:none}
 
-      "<div class='" feat_card "'>"
-      "<div style='font-size:2rem;margin-bottom:12px'>🗂️</div>"
-      "<div style='font-weight:700;font-size:1rem;margin-bottom:8px'>파일 기반 라우팅</div>"
-      "<div style='font-size:.875rem;color:#6b7280;line-height:1.6'>"
-      "pages/ 디렉토리 스캔 → 자동 라우트 생성.<br>"
-      "<code style='background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:.8rem'>"
-      "pages/users/[id].flx → /users/:id</code>"
-      "</div>"
-      "</div>"
+/* 통계 */
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:32px}
+.stat-card{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:14px;padding:22px 16px;text-align:center;
+  transition:border-color .25s,transform .25s}
+.stat-card:hover{border-color:rgba(124,58,237,.45);transform:translateY(-2px)}
+.stat-num{
+  font-size:2rem;font-weight:900;
+  background:linear-gradient(135deg,#a78bfa,#67e8f9);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.stat-lbl{font-size:.78rem;color:var(--muted);margin-top:5px}
 
-      "<div class='" feat_card "'>"
-      "<div style='font-size:2rem;margin-bottom:12px'>🎨</div>"
-      "<div style='font-weight:700;font-size:1rem;margin-bottom:8px'>CSS DSL</div>"
-      "<div style='font-size:.875rem;color:#6b7280;line-height:1.6'>"
-      "S식으로 스타일 선언 → scoped 해시 클래스 자동 생성.<br>"
-      "반응형 breakpoint: <code style='background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:.8rem'>"
-      ":sm-p :md-cols</code>"
-      "</div>"
-      "</div>"
+/* 피처 카드 */
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:32px}
+.feat-card{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:14px;padding:24px;
+  transition:border-color .25s,transform .25s;position:relative;overflow:hidden}
+.feat-card::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--p),var(--cyan));opacity:0;transition:opacity .25s}
+.feat-card:hover{border-color:rgba(124,58,237,.4);transform:translateY(-2px)}
+.feat-card:hover::after{opacity:1}
+.feat-icon{font-size:1.6rem;margin-bottom:12px;display:block;animation:float 5s ease-in-out infinite}
+.feat-title{font-size:.95rem;font-weight:700;color:white;margin-bottom:8px}
+.feat-desc{font-size:.82rem;color:var(--muted);line-height:1.65}
+.feat-code{
+  display:inline-block;font-family:monospace;font-size:.75rem;
+  background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.2);
+  color:#c4b5fd;padding:2px 7px;border-radius:4px;margin-top:8px}
 
-      "<div class='" feat_card "'>"
-      "<div style='font-size:2rem;margin-bottom:12px'>🏝️</div>"
-      "<div style='font-weight:700;font-size:1rem;margin-bottom:8px'>Island 아키텍처</div>"
-      "<div style='font-size:.875rem;color:#6b7280;line-height:1.6'>"
-      "필요한 부분만 JS. <code style='background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:.8rem'>"
-      "(island Name [] body)</code> → vanilla JS emit. "
-      "atom 상태 · 배열 CRUD."
-      "</div>"
-      "</div>"
+/* 코드 윈도우 */
+.code-win{
+  background:var(--dark2);border:1px solid var(--border);
+  border-radius:14px;overflow:hidden;margin-bottom:32px;
+  animation:float 7s ease-in-out infinite;
+  box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.code-bar{
+  background:var(--dark3);padding:12px 18px;
+  display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border)}
+.dot{width:10px;height:10px;border-radius:50%}
+.dr{background:#ff5f57}.dy{background:#febc2e}.dg{background:#28c840}
+.code-label{margin-left:8px;font-size:.75rem;color:var(--muted);font-family:monospace}
+.code-body{padding:24px 28px;font-family:monospace;font-size:.85rem;line-height:1.9;overflow-x:auto}
+.kw{color:#c084fc}.fn{color:#86efac}.str{color:#fca5a5}
+.cm{color:#475569;font-style:italic}.sym{color:#93c5fd}.op{color:#67e8f9}
 
-      "<div class='" feat_card "'>"
-      "<div style='font-size:2rem;margin-bottom:12px'>📬</div>"
-      "<div style='font-weight:700;font-size:1rem;margin-bottom:8px'>서버 폼 처리</div>"
-      "<div style='font-size:.875rem;color:#6b7280;line-height:1.6'>"
-      "POST body 자동 파싱 · 검증 · redirect.<br>"
-      "JS 없는 전통적 폼 흐름 — 서버가 모두 처리."
-      "</div>"
-      "</div>"
+/* AI-Native 배너 */
+.ai-banner{
+  background:linear-gradient(135deg,rgba(124,58,237,.1),rgba(6,182,212,.06));
+  border:1px solid rgba(124,58,237,.25);border-radius:14px;
+  padding:28px 32px;margin-bottom:32px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.ai-banner-text h3{font-size:1.1rem;font-weight:800;color:white;margin-bottom:6px}
+.ai-banner-text p{font-size:.875rem;color:var(--muted);line-height:1.6;max-width:480px}
 
-      "<div class='" feat_card "'>"
-      "<div style='font-size:2rem;margin-bottom:12px'>📊</div>"
-      "<div style='font-weight:700;font-size:1rem;margin-bottom:8px'>SVG 차트 DSL</div>"
-      "<div style='font-size:.875rem;color:#6b7280;line-height:1.6'>"
-      "막대·선 차트 SSR 생성. Chart.js 불필요.<br>"
-      "<code style='background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:.8rem'>"
-      "(chart-bar data w h) → &lt;svg&gt;</code>"
-      "</div>"
-      "</div>"
+/* 반응형 */
+@media(max-width:768px){
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+  .feat-grid{grid-template-columns:1fr}
+  .hero-wrap{padding:40px 24px}
+  .ai-banner{flex-direction:column}
+}
+@media(max-width:480px){
+  .stat-grid{grid-template-columns:repeat(2,1fr)}
+}
+    </style>"
 
-      "<div class='" feat_card "'>"
-      "<div style='font-size:2rem;margin-bottom:12px'>⚡</div>"
-      "<div style='font-weight:700;font-size:1rem;margin-bottom:8px'>Critical CSS 인라인</div>"
-      "<div style='font-size:.875rem;color:#6b7280;line-height:1.6'>"
-      "페이지별 사용 CSS만 &lt;head&gt;에 인라인.<br>"
-      "불필요한 CSS 로드 없음 · 외부 stylesheet 제로."
-      "</div>"
-      "</div>"
+    "<div class='" page_wrap "'>"
 
-      "</div>"
+    "<!-- 히어로 -->"
+    "<div class='hero-wrap'>"
+    "  <div class='orb o1'></div>"
+    "  <div class='orb o2'></div>"
+    "  <div class='hero-badge'><span class='pulse-dot'></span>AI-Native &middot; Zero Dependencies</div>"
+    "  <h1 class='hero-h1'>npm install 없이<br>풀스택 프론트엔드</h1>"
+    "  <p class='hero-sub'>"
+    "    FreeLang v11.9 기반. React &middot; Next.js &middot; Tailwind 없이<br>"
+    "    SSR &middot; CSS DSL &middot; Island 아키텍처를 단일 .fl 파일로."
+    "  </p>"
+    "  <div class='hero-btns'>"
+    "    <a href='/intro' class='btn-primary'>AI-Native 소개 &rarr;</a>"
+    "    <a href='/dashboard' class='btn-ghost'>데모 보기</a>"
+    "    <a href='/todo' class='btn-ghost'>Island 예제</a>"
+    "  </div>"
+    "</div>"
 
-      ; ── 코드 예시 ──────────────────────────────────────────
-      "<h2 style='font-size:1.5rem;font-weight:700;margin:40px 0 20px;color:#111'>이렇게 씁니다</h2>"
-      "<div class='" code_block "'>"
-      "<pre style='margin:0;color:#cdd6f4;font-family:monospace;font-size:.875rem;line-height:1.7;overflow-x:auto'>"
-      "<span style='color:#cba6f7'>(style</span> <span style='color:#a6e3a1'>hero</span>"
-      "  <span style='color:#89b4fa'>:bg</span> <span style='color:#f38ba8'>\"#6366f1\"</span>"
-      "  <span style='color:#89b4fa'>:p</span> <span style='color:#f38ba8'>\"48px\"</span>"
-      "  <span style='color:#89b4fa'>:sm-p</span> <span style='color:#f38ba8'>\"24px\"</span>"
-      "  <span style='color:#89b4fa'>:radius</span> <span style='color:#f38ba8'>\"12px\"</span><span style='color:#cba6f7'>)</span>\n"
-      "\n"
-      "<span style='color:#cba6f7'>(island</span> <span style='color:#a6e3a1'>Counter</span> <span style='color:#cdd6f4'>[]</span>\n"
-      "  <span style='color:#cba6f7'>(let</span> <span style='color:#cdd6f4'>[n (atom 0)]</span>\n"
-      "    <span style='color:#cba6f7'>(h</span> <span style='color:#f38ba8'>\"button\"</span>\n"
-      "      <span style='color:#cdd6f4'>{</span><span style='color:#f38ba8'>\"on-click\"</span> <span style='color:#cba6f7'>(fn</span> <span style='color:#cdd6f4'>[]</span> <span style='color:#cba6f7'>(swap!</span> n inc<span style='color:#cba6f7'>))</span><span style='color:#cdd6f4'>}</span>\n"
-      "      <span style='color:#cba6f7'>(str</span> <span style='color:#cdd6f4'>@n</span><span style='color:#cba6f7'>))))</span>\n"
-      "\n"
-      "<span style='color:#cba6f7'>(defn</span> <span style='color:#a6e3a1'>render</span> <span style='color:#cdd6f4'>[req]</span>\n"
-      "  <span style='color:#cba6f7'>(server-html</span>\n"
-      "    <span style='color:#cba6f7'>(layout</span> <span style='color:#f38ba8'>\"홈\"</span> content req<span style='color:#cba6f7'>)))</span>"
-      "</pre>"
-      "</div>"
+    "<!-- 통계 -->"
+    "<div class='stat-grid'>"
+    "  <div class='stat-card'><div class='stat-num'>0</div><div class='stat-lbl'>npm 의존성</div></div>"
+    "  <div class='stat-card'><div class='stat-num'>&lt;1KB</div><div class='stat-lbl'>Island 런타임</div></div>"
+    "  <div class='stat-card'><div class='stat-num'>150ms</div><div class='stat-lbl'>빌드 속도</div></div>"
+    "  <div class='stat-card'><div class='stat-num'>100%</div><div class='stat-lbl'>FreeLang</div></div>"
+    "</div>"
 
-      ; ── CTA ──────────────────────────────────────────────
-      "<div style='text-align:center;margin:48px 0 16px'>"
-      "<p style='color:#6b7280;margin:0 0 20px'>지금 바로 실행해보세요</p>"
-      "<div style='display:flex;gap:12px;justify-content:center;flex-wrap:wrap'>"
-      "<a href='/dashboard' style='background:#6366f1;color:white;border-radius:8px;"
-      "padding:14px 32px;font-weight:700;text-decoration:none;font-size:1rem'>"
-      "📊 Dashboard →"
-      "</a>"
-      "<a href='/todo' style='background:#f3f4f6;color:#374151;border-radius:8px;"
-      "padding:14px 32px;font-weight:600;text-decoration:none;font-size:1rem'>"
-      "✅ To-do Island"
-      "</a>"
-      "<a href='/contact' style='background:#f3f4f6;color:#374151;border-radius:8px;"
-      "padding:14px 32px;font-weight:600;text-decoration:none;font-size:1rem'>"
-      "📬 Contact 폼"
-      "</a>"
-      "</div>"
-      "</div>") req))
+    "<!-- 피처 카드 -->"
+    "<div class='feat-grid'>"
+
+    "  <div class='feat-card'>"
+    "    <span class='feat-icon'>&#128194;</span>"
+    "    <div class='feat-title'>파일 기반 라우팅</div>"
+    "    <div class='feat-desc'>pages/ 스캔 &rarr; 라우트 자동 생성. 설정 없음.</div>"
+    "    <span class='feat-code'>pages/users/[id].flx &rarr; /users/:id</span>"
+    "  </div>"
+
+    "  <div class='feat-card'>"
+    "    <span class='feat-icon'>&#127912;</span>"
+    "    <div class='feat-title'>CSS DSL</div>"
+    "    <div class='feat-desc'>S식으로 스타일 선언 &rarr; scoped 해시 클래스 자동 생성. 반응형 breakpoint 내장.</div>"
+    "    <span class='feat-code'>(style hero :bg &quot;#6366f1&quot; :sm-p &quot;24px&quot;)</span>"
+    "  </div>"
+
+    "  <div class='feat-card'>"
+    "    <span class='feat-icon'>&#127965;&#65039;</span>"
+    "    <div class='feat-title'>Island 아키텍처</div>"
+    "    <div class='feat-desc'>필요한 부분만 JS. SSR + 최소 클라이언트 JS.</div>"
+    "    <span class='feat-code'>(island Counter [] body)</span>"
+    "  </div>"
+
+    "  <div class='feat-card'>"
+    "    <span class='feat-icon'>&#128236;</span>"
+    "    <div class='feat-title'>서버 폼 처리</div>"
+    "    <div class='feat-desc'>POST body 자동 파싱 &middot; 검증 &middot; redirect. JS 없는 폼 흐름.</div>"
+    "    <span class='feat-code'>(form-field body &quot;email&quot;)</span>"
+    "  </div>"
+
+    "  <div class='feat-card'>"
+    "    <span class='feat-icon'>&#128202;</span>"
+    "    <div class='feat-title'>SVG 차트 DSL</div>"
+    "    <div class='feat-desc'>막대 &middot; 선 차트 SSR 생성. Chart.js 불필요.</div>"
+    "    <span class='feat-code'>(chart-bar data w h) &rarr; &lt;svg&gt;</span>"
+    "  </div>"
+
+    "  <div class='feat-card'>"
+    "    <span class='feat-icon'>&#9889;</span>"
+    "    <div class='feat-title'>Critical CSS 인라인</div>"
+    "    <div class='feat-desc'>페이지별 사용 CSS만 &lt;head&gt;에 인라인. 외부 stylesheet 제로.</div>"
+    "    <span class='feat-code'>자동 추출 &middot; 자동 주입</span>"
+    "  </div>"
+
+    "</div>"
+
+    "<!-- 코드 예시 -->"
+    "<div class='code-win'>"
+    "  <div class='code-bar'>"
+    "    <div class='dot dr'></div><div class='dot dy'></div><div class='dot dg'></div>"
+    "    <span class='code-label'>pages/counter.flx</span>"
+    "  </div>"
+    "  <div class='code-body'><pre>"
+    "<span class='cm'>; CSS DSL &mdash; scoped 해시 클래스 자동 생성</span>\n"
+    "<span class='kw'>(style</span> <span class='fn'>box</span> <span class='sym'>:bg</span> <span class='str'>&quot;#6366f1&quot;</span> <span class='sym'>:p</span> <span class='str'>&quot;32px&quot;</span> <span class='sym'>:radius</span> <span class='str'>&quot;12px&quot;</span><span class='kw'>)</span>\n"
+    "\n"
+    "<span class='cm'>; Island &mdash; 필요한 부분만 JS</span>\n"
+    "<span class='kw'>(island</span> <span class='fn'>Counter</span> <span class='sym'>[]</span>\n"
+    "  <span class='kw'>(let</span> <span class='sym'>[n (atom 0)]</span>\n"
+    "    <span class='kw'>(h</span> <span class='str'>&quot;button&quot;</span> <span class='sym'>{&quot;on-click&quot; (fn [] (swap! n inc))}</span>\n"
+    "      <span class='kw'>(str</span> <span class='sym'>&quot;&#128293; &quot; @n</span><span class='kw'>))))</span>\n"
+    "\n"
+    "<span class='cm'>; 라우트 핸들러 &mdash; SSR 완전 내장</span>\n"
+    "<span class='kw'>(defn</span> <span class='fn'>render</span> <span class='sym'>[req]</span>\n"
+    "  <span class='kw'>(layout-html</span> <span class='str'>&quot;카운터&quot;</span>\n"
+    "    <span class='kw'>(str</span> <span class='sym'>&quot;&lt;div class='&quot; box &quot;'&gt;&quot;</span> <span class='fn'>Counter</span> <span class='sym'>&quot;&lt;/div&gt;&quot;</span><span class='kw'>)</span>\n"
+    "    <span class='sym'>req</span><span class='kw'>))</span>"
+    "  </pre></div>"
+    "</div>"
+
+    "<!-- AI-Native 배너 -->"
+    "<div class='ai-banner'>"
+    "  <div class='ai-banner-text'>"
+    "    <h3>AI-Native 언어란 무엇인가?</h3>"
+    "    <p>S식이 차별점이 아닙니다. AIRC &middot; /~ai &middot; 자동 에러 수집이 진짜 차별점입니다.</p>"
+    "  </div>"
+    "  <a href='/intro' class='btn-primary'>선언문 읽기 &rarr;</a>"
+    "</div>"
+
+    "</div>") req))
+
