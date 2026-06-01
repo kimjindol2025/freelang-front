@@ -100,6 +100,21 @@
   ],
   "auto_errors": [
     {
+      "time": "2026-06-01T10:59:28.372Z",
+      "message": "'format-date' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T10:59:28.372Z",
+      "message": "'http_ok?' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T10:59:28.372Z",
+      "message": "'fl-env-get' 정의 없음",
+      "status": "open"
+    },
+    {
       "time": "2026-06-01T10:01:33.462Z",
       "message": "✖ Unexpected character '�' at line 2044, col 26 (U+D83D — FL 문자열 밖에서 유니코드 사용 불가. 문자열 안에서는 HTML 엔티티 사용: &amp;middot; &amp;rarr; &amp;check;)",
       "status": "resolved",

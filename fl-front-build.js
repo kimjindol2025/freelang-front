@@ -1005,9 +1005,18 @@ if (bindings.length > 0) {
 
 // app.css 내용 읽기 (layout에 인라인 주입용)
 const cssFile = path.join(PUBLIC_DIR, 'app.css');
-const appCssContent = fs.existsSync(cssFile)
+let appCssContent = fs.existsSync(cssFile)
   ? fs.readFileSync(cssFile, 'utf8').replace(/\n/g, ' ').trim()
   : '';
+
+// CSS 페어링: pages/*.flx → pages/*.css 자동 감지 (2026-06-01 Phase A)
+for (const route of routes) {
+  const pageCssFile = route.file.replace(/\.flx$/, '.css');
+  if (fs.existsSync(pageCssFile)) {
+    const pageCss = fs.readFileSync(pageCssFile, 'utf8').replace(/\n/g, ' ').trim();
+    if (pageCss) appCssContent += ' ' + pageCss;
+  }
+}
 
 // Fix 4: (catch $e []) 패턴 감지
 function detectDangerousPatterns(routes, helpers) {
