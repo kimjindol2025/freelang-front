@@ -1,0 +1,84 @@
+; pages/api-custom-metrics.flx — 커스텀 메트릭 API (v0.8.0)
+
+(load "performance-monitor.fl")
+
+(defn render [$req]
+  (let [$path (get $req "path")
+        $method (get $req "method")]
+    (cond
+      (and (= $method "POST") (str-includes $path "/api/custom-metrics"))
+      (handle-create-custom-metric $req)
+
+      (and (= $method "GET") (str-includes $path "/api/custom-metrics"))
+      (handle-list-custom-metrics $req)
+
+      (and (= $method "POST") (str-includes $path "/api/custom-metrics/record"))
+      (handle-record-custom-metric $req)
+
+      (and (= $method "GET") (str-includes $path "/api/custom-metrics/data"))
+      (handle-get-custom-metric-data $req)
+
+      true
+      (server-json {"error" "Not Found"} 404))))
+
+; ── POST /api/custom-metrics (커스텀 메트릭 생성) ──
+(defn handle-create-custom-metric [$req]
+  (try
+    (let [$body (get $req "body")]
+      (let [$name (get $body "name")
+            $description (get $body "description")
+            $unit (get $body "unit")
+            $threshold (get $body "threshold")]
+        (if (and $name $unit)
+          (let [$metric (create-custom-metric $name $description $unit $threshold)]
+            (server-json $metric 201))
+          (server-json {"error" "Missing required fields (name, unit)"} 400))))
+
+    (catch $e
+      (log-error (str "Error creating custom metric: " $e))
+      (server-json {"error" "Failed to create metric"} 500))))
+
+; ── GET /api/custom-metrics (메트릭 목록) ──
+(defn handle-list-custom-metrics [$req]
+  (try
+    (let [$metrics (get-custom-metrics)]
+      (server-json {
+        "total" (length $metrics)
+        "metrics" (obj-values $metrics)
+      } 200))
+
+    (catch $e
+      (log-error (str "Error listing custom metrics: " $e))
+      (server-json {"error" "Failed to list metrics"} 500))))
+
+; ── POST /api/custom-metrics/record (데이터 기록) ──
+(defn handle-record-custom-metric [$req]
+  (try
+    (let [$body (get $req "body")
+          $metric-id (get $body "metric-id")
+          $value (get $body "value")]
+      (if (and $metric-id $value)
+        (let [$record (record-custom-metric $metric-id (str-to-num $value))]
+          (if $record
+            (server-json $record 200)
+            (server-json {"error" "Metric not found"} 404)))
+        (server-json {"error" "Missing required fields (metric-id, value)"} 400)))
+
+    (catch $e
+      (log-error (str "Error recording custom metric: " $e))
+      (server-json {"error" "Failed to record metric"} 500))))
+
+; ── GET /api/custom-metrics/data (메트릭 데이터 조회) ──
+(defn handle-get-custom-metric-data [$req]
+  (try
+    (let [$query (get $req "query")
+          $metric-id (get $query "metric-id")
+          $limit (str-to-num (or (get $query "limit") "50"))]
+      (if $metric-id
+        (let [$data (get-custom-metric-data $metric-id $limit)]
+          (server-json $data 200))
+        (server-json {"error" "Missing metric-id parameter"} 400)))
+
+    (catch $e
+      (log-error (str "Error getting custom metric data: " $e))
+      (server-json {"error" "Failed to retrieve metric data"} 500))))

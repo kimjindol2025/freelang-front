@@ -1,0 +1,2 @@
+(defn render [$req]
+  (server-json {"error" "SSE not supported" "hint" "Use GET /api/alerts with polling" "poll_interval_ms" 3000} 501))

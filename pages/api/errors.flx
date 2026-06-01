@@ -1,0 +1,22 @@
+; pages/api-errors.flx — 에러 수집 API 라우트
+; GET /api/errors — 에러 목록 조회
+; POST /api/errors — 에러 저장
+; DELETE /api/errors — 에러 초기화
+
+(load "error-api.fl")
+
+(defn render [$req]
+  (let [$method (get $req "method")]
+    (cond
+      (= $method "POST")
+        (handle-post-errors $req)
+
+      (= $method "GET")
+        (handle-get-errors $req)
+
+      (= $method "DELETE")
+        (handle-delete-errors $req)
+
+      ; 다른 메서드는 405
+      true
+        (server-json {"error" "Method not allowed"} 405))))

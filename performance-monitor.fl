@@ -225,9 +225,9 @@
 (defn handle-post-metrics [$req]
   (try
     (let [$body (get $req "body")
-          $metric (when-nil (get $body "metric") "unknown")
-          $value (when-nil (get $body "value") 0)
-          $unit (when-nil (get $body "unit") "ms")
+          $metric (or (get $body "metric") "unknown")
+          $value (or (get $body "value") 0)
+          $unit (or (get $body "unit") "ms")
           $page (req-query-default $req "page" "")]
 
       ; 검증

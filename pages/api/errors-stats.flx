@@ -1,0 +1,76 @@
+; pages/errors-stats.flx — 에러 통계 대시보드 (간단한 버전)
+; GET /errors-stats — 에러 현황 시각화
+
+(load "error-api.fl")
+
+(style stats-container :p "24px" :max-w "1200px" :mx "auto")
+(style stats-grid :display "grid" :grid-cols "repeat(auto-fit, minmax(200px, 1fr))" :gap "16px" :mb "24px")
+(style stat-card :bg "white" :border "1px solid #e5e7eb" :rounded "md" :p "16px" :shadow-sm "true")
+(style stat-value :text-3xl :font-bold :color "#6366f1" :line-height "1")
+(style stat-label :text-sm :color "#9ca3af" :mt "4px")
+(style error-list :bg "white" :border "1px solid #e5e7eb" :rounded "md" :overflow "hidden")
+(style error-item :p "12px 16px" :border-b "1px solid #f3f4f6" :text-sm "true")
+(style error-type-error :bg "#fee2e2" :color "#dc2626")
+(style error-type-warn :bg "#fef3c7" :color "#d97706")
+(style error-type-promise :bg "#dbeafe" :color "#0284c7")
+(style error-type-console :bg "#f3e8ff" :color "#7e22ce")
+
+(defn render [$req]
+  (let [$stats (get-error-stats)
+        $errors (get $stats "recent")
+        $total (get $stats "total")
+        $by-type (get $stats "by-type")]
+
+    (layout-html "에러 통계"
+      (h "div" {:class stats-container}
+        (h "h1" {:style "mb:24px;font-size:2rem;font-weight:bold"} "에러 통계 대시보드")
+
+        ; 통계 카드
+        (h "div" {:class stats-grid}
+          (h "div" {:class stat-card}
+            (h "div" {:class stat-value} $total)
+            (h "div" {:class stat-label} "총 에러 개수"))
+
+          (h "div" {:class stat-card}
+            (h "div" {:class stat-value} (or (get $by-type "error") 0))
+            (h "div" {:class stat-label} "에러"))
+
+          (h "div" {:class stat-card}
+            (h "div" {:class stat-value} (or (get $by-type "warn") 0))
+            (h "div" {:class stat-label} "경고"))
+
+          (h "div" {:class stat-card}
+            (h "div" {:class stat-value} (or (get $by-type "promise") 0))
+            (h "div" {:class stat-label} "Promise 거부")))
+
+        ; 최근 에러 목록
+        (h "h2" {:style "mt:32px;mb:16px;font-size:1.25rem;font-weight:bold"} "최근 5개 에러")
+
+        (h "div" {:class error-list}
+          (if (> $total 0)
+            (map (fn [$error]
+              (let [$type (get $error "type")
+                    $color (cond
+                      (= $type "error") error-type-error
+                      (= $type "warn") error-type-warn
+                      (= $type "promise") error-type-promise
+                      true error-type-console)]
+                (h "div" {:class error-item}
+                  (h "div" {:style "display:flex;gap:8px;align-items:start"}
+                    (h "span" {:style (str "display:inline-block;padding:2px 8px;border-radius:4px;" $color)} $type)
+                    (h "div" {:style "flex:1"}
+                      (h "p" {:style "margin:0;font-weight:600"} (get $error "message"))
+                      (h "p" {:style "margin:4px 0 0;color:#9ca3af;font-size:.8rem"} (get $error "source"))
+                      (h "p" {:style "margin:2px 0 0;color:#d1d5db;font-size:.75rem"} (get $error "timestamp")))))))
+            $errors)
+
+            (h "div" {:class error-item :style "color:#9ca3af"} "에러 없음")))
+
+        ; 하단 작업
+        (h "div" {:style "mt:24px;display:flex;gap:8px"}
+          (h "a" {:href "/api/errors?limit=50" :class "btn" :style "display:inline-block;padding:10px 16px;background:#6366f1;color:white;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer"}
+            "📥 JSON 다운로드")
+          (h "button" {:onclick "fetch('/api/errors',{method:'DELETE'}).then(()=>location.reload())" :style "padding:10px 16px;background:#ef4444;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer"}
+            "🗑️ 에러 초기화")))
+
+      $req)))

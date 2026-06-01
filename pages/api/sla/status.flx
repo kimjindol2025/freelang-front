@@ -1,0 +1,5 @@
+(load "performance-monitor.fl")
+(defn render [$req]
+  (try
+    (server-json (get-sla-status) 200)
+    (catch $e (server-json {"error" "SLA status failed"} 500))))

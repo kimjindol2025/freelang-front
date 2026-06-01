@@ -63,8 +63,8 @@
 (defn handle-post-errors [$req]
   (try
     (let [$body (get $req "body")
-          $message (when-nil (get $body "message") "Unknown error")
-          $type (when-nil (get $body "type") "error")
+          $message (or (get $body "message") "Unknown error")
+          $type (or (get $body "type") "error")
           $source (get $body "source")
           $line (get $body "line")
           $stack (get $body "stack")

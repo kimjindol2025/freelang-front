@@ -1,0 +1,11 @@
+(load "performance-monitor.fl")
+(defn render [$req]
+  (try
+    (let [$query  (get $req "query")
+          $format (or (get $query "format") "json")
+          $data   (get-performance-stats)]
+      (if (= $format "csv")
+        (server-html (export-to-csv $data) 200)
+        (server-json $data 200)))
+    (catch $e
+      (server-json {"error" "Export failed"} 500))))

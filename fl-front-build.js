@@ -927,12 +927,12 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
     lines.push(`; ── ${r.file} ──`);
     const smStart = lines.length + 1; // 소스맵 시작 라인
     let renamed = src.replace(
-      /\(defn render \[req\]/,
+      /\(defn render \[\$?req\]/,
       `(defn ${r.fnName}__inner [req]`
     );
     // render_post 함수도 있으면 fnName_post 로 rename
     renamed = renamed.replace(
-      /\(defn render_post \[req\]/,
+      /\(defn render_post \[\$?req\]/,
       `(defn ${r.fnName}_post__inner [req]`
     );
     lines.push(renamed);
