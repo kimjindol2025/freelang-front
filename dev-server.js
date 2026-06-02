@@ -212,7 +212,10 @@ function recordToAIRC(errors, resolved) {
     if (!handoff.auto_errors) handoff.auto_errors = [];
     const now = new Date().toISOString();
     for (const msg of errors) {
-      handoff.auto_errors.unshift({ time: now, message: msg, status: 'open' });
+      const alreadyOpen = handoff.auto_errors.some(e => e.message === msg && e.status === 'open');
+      if (!alreadyOpen) {
+        handoff.auto_errors.unshift({ time: now, message: msg, status: 'open' });
+      }
     }
     for (const msg of resolved) {
       handoff.auto_errors = handoff.auto_errors.map(e =>
