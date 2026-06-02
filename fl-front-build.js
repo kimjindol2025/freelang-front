@@ -565,9 +565,9 @@ const INJECTED_HELPERS = `
       (+ (- n frac) 1)
       (- n frac))))
 
-; str-slice — 부분 문자열 추출 (regex_split "" 으로 char 분리)
+; str-slice — 부분 문자열 추출
 (defn str-slice [s start end]
-  (let [chars (regex_split (str s) "")
+  (let [chars (str-split (str s) "")
         idx   (atom 0)]
     (arr-join
       (filter
@@ -668,8 +668,8 @@ const INJECTED_HELPERS = `
     (fn [acc x] (if (= acc "") (str x) (str acc sep x)))
     "" arr))
 
-; 큰따옴표 문자 — json_str("x") = "\"x\"", split by "x" → ['"', '"']
-(define DQUOTE (first (regex_split (json_str "x") "x")))
+; 큰따옴표 문자
+(define DQUOTE (first (str-split (json-str "x") "x")))
 
 (defn h-attrs [attrs]
   (if (= attrs nil) ""
