@@ -960,14 +960,22 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       const { scripts: compiledScripts } = islandCompiler.compileFileIslands(
         islands.map(i => i.block).join('\n')
       );
-      const divPlaceholder = islands.map((item, idx) => {
+      const scriptBlock = islandCompiler.FL_ISLAND_RT +
+        `<script>\n${compiledScripts.join('\n')}\n</script>`;
+      // 번호별 플레이스홀더 개별 교체 ("ISLAND_PLACEHOLDER_0", "_1" ...)
+      islands.forEach((item, idx) => {
+        const nameMatch = item.block.match(/\(island\s+([\w-]+)/);
+        const name = nameMatch ? nameMatch[1].toLowerCase() : `island${idx}`;
+        const div = `<div id='island-${name}-${idx}'></div>`;
+        src = src.replace(new RegExp(`"ISLAND_PLACEHOLDER_${idx}"`, 'g'), JSON.stringify(div));
+      });
+      // 번호 없는 단일 플레이스홀더도 호환 지원
+      const allDivs = islands.map((item, idx) => {
         const nameMatch = item.block.match(/\(island\s+([\w-]+)/);
         const name = nameMatch ? nameMatch[1].toLowerCase() : `island${idx}`;
         return `<div id='island-${name}-${idx}'></div>`;
       }).join('');
-      const scriptBlock = islandCompiler.FL_ISLAND_RT +
-        `<script>\n${compiledScripts.join('\n')}\n</script>`;
-      src = src.replace(/"ISLAND_PLACEHOLDER"/g, JSON.stringify(divPlaceholder));
+      src = src.replace(/"ISLAND_PLACEHOLDER"/g, JSON.stringify(allDivs));
       src = src.replace(/"ISLAND_SCRIPTS"/g, JSON.stringify(scriptBlock));
     }
     lines.push(`; ── ${r.file} ──`);
