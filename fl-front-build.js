@@ -960,8 +960,13 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       const { scripts: compiledScripts } = islandCompiler.compileFileIslands(
         islands.map(i => i.block).join('\n')
       );
+      // CSS 바인딩 변수를 Island 스크립트 스코프에 주입 (snake_case만 — 하이픈은 JS 변수명 불가)
+      const cssVarsJs = (bindings || []).map(({name, cls}) => {
+        const snake = name.replace(/-/g, '_');
+        return `var ${snake}="${cls}";`;
+      }).join('\n');
       const scriptBlock = islandCompiler.FL_ISLAND_RT +
-        `<script>\n${compiledScripts.join('\n')}\n</script>`;
+        `<script>\n${cssVarsJs}\n${compiledScripts.join('\n')}\n</script>`;
       // 번호별 플레이스홀더 개별 교체 ("ISLAND_PLACEHOLDER_0", "_1" ...)
       islands.forEach((item, idx) => {
         const nameMatch = item.block.match(/\(island\s+([\w-]+)/);

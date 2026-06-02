@@ -160,6 +160,33 @@ function emitGetIn(args, ctx) {
 function emitIsland(args, ctx) {
   // (island Name [] body)
   const body = args.slice(2);
+
+  // 최상위 let 바인딩에서 atom 선언을 외부 클로저로 끌어올림
+  // → update() 호출 시 atom이 재초기화되지 않고 상태 유지
+  if (body.length === 1 && Array.isArray(body[0]) && body[0][0]?.sym === 'let') {
+    const bindings = body[0][1]; // [name, expr, name2, expr2, ...]
+    const letBody  = body[0].slice(2);
+
+    const stateDecls  = []; // atom → 외부 클로저 (1회 생성)
+    const renderDecls = []; // 그 외 → 렌더 함수 내부 (매 렌더마다)
+    for (let i = 0; i < bindings.length; i += 2) {
+      const name    = emitSym(bindings[i]?.sym ?? String(bindings[i]));
+      const valNode = bindings[i + 1];
+      const val     = emit(valNode, ctx);
+      const isAtom  = Array.isArray(valNode) && valNode[0]?.sym === 'atom';
+      if (isAtom) stateDecls.push(`const ${name} = ${val}`);
+      else        renderDecls.push(`const ${name} = ${val}`);
+    }
+
+    if (stateDecls.length > 0) {
+      const bodyJs = letBody.map(n => emit(n, ctx)).join(';\n      ');
+      const inner  = renderDecls.length > 0
+        ? `${renderDecls.join('; ')}; return ${bodyJs};`
+        : `return ${bodyJs};`;
+      return `(() => { ${stateDecls.join('; ')};\n  return (update) => { ${inner} };\n})()`;
+    }
+  }
+
   const bodyJs = body.map(n => emit(n, ctx)).join(';\n    ');
   return `(update) => {\n    return ${bodyJs};\n  }`;
 }
