@@ -47,7 +47,8 @@
     {
       "id": "P2",
       "title": "삼중따옴표 안 유니코드 직접 허용 확인",
-      "what": "bootstrap.js 경로로 실행 시 ✓ · → 이모지가 삼중따옴표 안에서 동작 확인됨. interpreter.js 경로(fl-node)는 미확인.",
+      "what": "✅ 검증 완료 (2026-06-02). bootstrap.js·interpreter.js 양쪽 경로 동일 출력 확인. 렉서가 삼중따옴표를 raw 문자열로 읽으므로 유니코드 제한 없음.",
+      "status": "verified",
       "files": [
         "freelang-v11/self/runtime/interpreter.js"
       ],
@@ -100,103 +101,106 @@
   ],
   "auto_errors": [
     {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'server-event-stream' 정의 없음",
+      "time": "2026-06-01T22:38:58.097Z",
+      "message": "'get-performance-stats' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'register-watcher' 정의 없음",
+      "time": "2026-06-01T22:33:10.202Z",
+      "message": "'obj-values' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'server-event-write' 정의 없음",
+      "time": "2026-06-01T22:33:10.202Z",
+      "message": "'str-includes' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'export-to-json' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'server-response' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'export-to-csv' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'reverse' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'take' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'apply-filters' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'str-to-num' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'req-query-default' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'str-includes?' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:46:25.406Z",
-      "message": "'handle-delete-metrics' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:46:25.406Z",
-      "message": "'handle-get-metrics' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:46:25.406Z",
-      "message": "'handle-post-metrics' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:42:14.541Z",
+      "time": "2026-06-01T22:30:34.154Z",
       "message": "'get-error-stats' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
-      "message": "'handle-delete-errors' 정의 없음",
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'get-sla-report' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
-      "message": "'handle-get-errors' 정의 없음",
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'get-sla-status' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
-      "message": "'handle-post-errors' 정의 없음",
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'server-event-stream' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-06-01T22:33:35.093Z"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'register-watcher' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-06-01T22:33:35.093Z"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'server-event-write' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-06-01T22:33:35.093Z"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'export-to-json' 정의 없음",
       "status": "open"
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
-      "message": "'load' 정의 없음",
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'server-response' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'export-to-csv' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'reverse' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'take' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'apply-filters' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'str-to-num' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'req-query-default' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'handle-delete-metrics' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'handle-get-metrics' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-06-01T22:30:34.154Z",
+      "message": "'handle-post-metrics' 정의 없음",
       "status": "open"
     }
   ]
