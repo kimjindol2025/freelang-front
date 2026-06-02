@@ -14105,6 +14105,10 @@ function flExecOpNative(op, vals) {
       return fenv;
     }
     case "fl-env-get":
+      if (typeof v0 === "string") {
+        const envVal = process.env[v0];
+        return envVal !== void 0 ? envVal : (v1 !== null && v1 !== void 0 ? v1 : null);
+      }
       return flEnvGet(v0, String(v1 ?? ""));
     case "fl-exec-op":
       return flExecOpNative(String(v0 ?? ""), Array.isArray(v1) ? v1 : []);
@@ -17031,6 +17035,10 @@ sock.setTimeout(r.timeout,()=>{if(!done){sock.destroy();if(resp)process.stdout.w
       if (Array.isArray(args3[0])) return args3[0];
       return [];
     case "fl-env-get": {
+      if (typeof args3[0] === "string") {
+        const envVal = process.env[args3[0]];
+        return envVal !== void 0 ? envVal : (args3[1] !== null && args3[1] !== void 0 ? args3[1] : null);
+      }
       let flenv = args3[0];
       const fname = String(args3[1]);
       while (flenv !== null && flenv !== void 0) {
