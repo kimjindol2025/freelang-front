@@ -166,6 +166,9 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/login` | pages/login.flx |
 | `/logout` | pages/logout.flx |
 | `/notes` | pages/notes.flx |
+| `/shop/cart` | pages/shop/cart.flx |
+| `/shop` | pages/shop/index.flx |
+| `/shop/orders` | pages/shop/orders.flx |
 | `/styled` | pages/styled.flx |
 | `/tasks` | pages/tasks.flx |
 | `/test-helpers` | pages/test-helpers.flx |

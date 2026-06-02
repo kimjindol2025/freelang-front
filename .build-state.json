@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "time": "2026-06-02T10:23:56.242Z",
+  "time": "2026-06-02T16:57:51.499Z",
   "routes": [
     {
       "route": "/about",
@@ -158,6 +158,21 @@
       "fn": "page_notes"
     },
     {
+      "route": "/shop/cart",
+      "file": "pages/shop/cart.flx",
+      "fn": "page_shop_cart"
+    },
+    {
+      "route": "/shop",
+      "file": "pages/shop/index.flx",
+      "fn": "page_shop_index"
+    },
+    {
+      "route": "/shop/orders",
+      "file": "pages/shop/orders.flx",
+      "fn": "page_shop_orders"
+    },
+    {
       "route": "/styled",
       "file": "pages/styled.flx",
       "fn": "page_styled"
@@ -233,12 +248,15 @@
     "4658-4704": "pages/login.flx",
     "4707-4712": "pages/logout.flx",
     "4715-4901": "pages/notes.flx",
-    "4904-4951": "pages/styled.flx",
-    "4954-4975": "pages/tasks.flx",
-    "4978-5087": "pages/test-helpers.flx",
-    "5090-5098": "pages/todo.flx",
-    "5101-5157": "pages/upload.flx",
-    "5160-5224": "pages/users/[id].flx"
+    "4904-4934": "pages/shop/cart.flx",
+    "4937-5050": "pages/shop/index.flx",
+    "5053-5092": "pages/shop/orders.flx",
+    "5095-5142": "pages/styled.flx",
+    "5145-5166": "pages/tasks.flx",
+    "5169-5278": "pages/test-helpers.flx",
+    "5281-5289": "pages/todo.flx",
+    "5292-5348": "pages/upload.flx",
+    "5351-5418": "pages/users/[id].flx"
   },
   "warnings": []
 }
