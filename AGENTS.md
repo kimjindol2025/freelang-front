@@ -136,12 +136,19 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | 경로 | 파일 |
 |------|------|
 | `/about` | pages/about.flx |
+| `/api/alerts/stream` | pages/api/alerts/stream.flx |
+| `/api/alerts` | pages/api/alerts.flx |
+| `/api/custom-metrics` | pages/api/custom-metrics.flx |
+| `/api/errors-stats` | pages/api/errors-stats.flx |
+| `/api/errors` | pages/api/errors.flx |
 | `/api/hello` | pages/api/hello.flx |
-| `/api-alerts` | pages/api-alerts.flx |
-| `/api-custom-metrics` | pages/api-custom-metrics.flx |
-| `/api-errors` | pages/api-errors.flx |
-| `/api-metrics` | pages/api-metrics.flx |
-| `/api-sla` | pages/api-sla.flx |
+| `/api/metrics/export` | pages/api/metrics/export.flx |
+| `/api/metrics/filter` | pages/api/metrics/filter.flx |
+| `/api/metrics/stream` | pages/api/metrics/stream.flx |
+| `/api/metrics` | pages/api/metrics.flx |
+| `/api/sla/report` | pages/api/sla/report.flx |
+| `/api/sla/status` | pages/api/sla/status.flx |
+| `/api/sla` | pages/api/sla.flx |
 | `/contact/thanks` | pages/contact/thanks.flx |
 | `/contact` | pages/contact.flx |
 | `/counter` | pages/counter.flx |
@@ -152,7 +159,6 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/dashboard/operations` | pages/dashboard/operations.flx |
 | `/dashboard/sla` | pages/dashboard/sla.flx |
 | `/demo` | pages/demo.flx |
-| `/errors-stats` | pages/errors-stats.flx |
 | `/fetch-demo` | pages/fetch-demo.flx |
 | `/freelang` | pages/freelang.flx |
 | `/` | pages/index.flx |

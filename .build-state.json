@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "time": "2026-06-01T13:50:39.404Z",
+  "time": "2026-06-02T10:23:56.242Z",
   "routes": [
     {
       "route": "/about",
@@ -8,33 +8,68 @@
       "fn": "page_about"
     },
     {
+      "route": "/api/alerts/stream",
+      "file": "pages/api/alerts/stream.flx",
+      "fn": "page_api_alerts_stream"
+    },
+    {
+      "route": "/api/alerts",
+      "file": "pages/api/alerts.flx",
+      "fn": "page_api_alerts"
+    },
+    {
+      "route": "/api/custom-metrics",
+      "file": "pages/api/custom-metrics.flx",
+      "fn": "page_api_custom_metrics"
+    },
+    {
+      "route": "/api/errors-stats",
+      "file": "pages/api/errors-stats.flx",
+      "fn": "page_api_errors_stats"
+    },
+    {
+      "route": "/api/errors",
+      "file": "pages/api/errors.flx",
+      "fn": "page_api_errors"
+    },
+    {
       "route": "/api/hello",
       "file": "pages/api/hello.flx",
       "fn": "page_api_hello"
     },
     {
-      "route": "/api-alerts",
-      "file": "pages/api-alerts.flx",
-      "fn": "page_api_alerts"
+      "route": "/api/metrics/export",
+      "file": "pages/api/metrics/export.flx",
+      "fn": "page_api_metrics_export"
     },
     {
-      "route": "/api-custom-metrics",
-      "file": "pages/api-custom-metrics.flx",
-      "fn": "page_api_custom_metrics"
+      "route": "/api/metrics/filter",
+      "file": "pages/api/metrics/filter.flx",
+      "fn": "page_api_metrics_filter"
     },
     {
-      "route": "/api-errors",
-      "file": "pages/api-errors.flx",
-      "fn": "page_api_errors"
+      "route": "/api/metrics/stream",
+      "file": "pages/api/metrics/stream.flx",
+      "fn": "page_api_metrics_stream"
     },
     {
-      "route": "/api-metrics",
-      "file": "pages/api-metrics.flx",
+      "route": "/api/metrics",
+      "file": "pages/api/metrics.flx",
       "fn": "page_api_metrics"
     },
     {
-      "route": "/api-sla",
-      "file": "pages/api-sla.flx",
+      "route": "/api/sla/report",
+      "file": "pages/api/sla/report.flx",
+      "fn": "page_api_sla_report"
+    },
+    {
+      "route": "/api/sla/status",
+      "file": "pages/api/sla/status.flx",
+      "fn": "page_api_sla_status"
+    },
+    {
+      "route": "/api/sla",
+      "file": "pages/api/sla.flx",
       "fn": "page_api_sla"
     },
     {
@@ -86,11 +121,6 @@
       "route": "/demo",
       "file": "pages/demo.flx",
       "fn": "page_demo"
-    },
-    {
-      "route": "/errors-stats",
-      "file": "pages/errors-stats.flx",
-      "fn": "page_errors_stats"
     },
     {
       "route": "/fetch-demo",
@@ -172,37 +202,43 @@
     "_ui.flx"
   ],
   "sourceMap": {
-    "1939-1973": "pages/about.flx",
-    "1976-1980": "pages/api/hello.flx",
-    "1983-2031": "pages/api-alerts.flx",
-    "2034-2120": "pages/api-custom-metrics.flx",
-    "2123-2147": "pages/api-errors.flx",
-    "2150-2239": "pages/api-metrics.flx",
-    "2242-2279": "pages/api-sla.flx",
-    "2282-2315": "pages/contact/thanks.flx",
-    "2318-2387": "pages/contact.flx",
-    "2390-2419": "pages/counter.flx",
-    "2422-2429": "pages/dashboard/alerts.flx",
-    "2432-2439": "pages/dashboard/charts.flx",
-    "2442-2449": "pages/dashboard/custom-metrics.flx",
-    "2452-2459": "pages/dashboard/index.flx",
-    "2462-2469": "pages/dashboard/operations.flx",
-    "2472-2479": "pages/dashboard/sla.flx",
-    "2482-2679": "pages/demo.flx",
-    "2682-2748": "pages/errors-stats.flx",
-    "2751-2765": "pages/fetch-demo.flx",
-    "2768-2899": "pages/freelang.flx",
-    "2902-2912": "pages/index.flx",
-    "2915-3399": "pages/intro.flx",
-    "3402-3448": "pages/login.flx",
-    "3451-3456": "pages/logout.flx",
-    "3459-3645": "pages/notes.flx",
-    "3648-3695": "pages/styled.flx",
-    "3698-3719": "pages/tasks.flx",
-    "3722-3831": "pages/test-helpers.flx",
-    "3834-3842": "pages/todo.flx",
-    "3845-3901": "pages/upload.flx",
-    "3904-3960": "pages/users/[id].flx"
+    "2218-2252": "pages/about.flx",
+    "2255-2259": "pages/api/alerts/stream.flx",
+    "2262-2736": "pages/api/alerts.flx",
+    "2739-2825": "pages/api/custom-metrics.flx",
+    "2828-3088": "pages/api/errors-stats.flx",
+    "3091-3121": "pages/api/errors.flx",
+    "3124-3128": "pages/api/hello.flx",
+    "3131-3144": "pages/api/metrics/export.flx",
+    "3147-3159": "pages/api/metrics/filter.flx",
+    "3162-3166": "pages/api/metrics/stream.flx",
+    "3169-3262": "pages/api/metrics.flx",
+    "3265-3272": "pages/api/sla/report.flx",
+    "3275-3282": "pages/api/sla/status.flx",
+    "3285-3322": "pages/api/sla.flx",
+    "3325-3358": "pages/contact/thanks.flx",
+    "3361-3430": "pages/contact.flx",
+    "3433-3462": "pages/counter.flx",
+    "3465-3472": "pages/dashboard/alerts.flx",
+    "3475-3482": "pages/dashboard/charts.flx",
+    "3485-3492": "pages/dashboard/custom-metrics.flx",
+    "3495-3502": "pages/dashboard/index.flx",
+    "3505-3512": "pages/dashboard/operations.flx",
+    "3515-3522": "pages/dashboard/sla.flx",
+    "3525-3722": "pages/demo.flx",
+    "3725-3739": "pages/fetch-demo.flx",
+    "3742-3873": "pages/freelang.flx",
+    "3876-4168": "pages/index.flx",
+    "4171-4655": "pages/intro.flx",
+    "4658-4704": "pages/login.flx",
+    "4707-4712": "pages/logout.flx",
+    "4715-4901": "pages/notes.flx",
+    "4904-4951": "pages/styled.flx",
+    "4954-4975": "pages/tasks.flx",
+    "4978-5087": "pages/test-helpers.flx",
+    "5090-5098": "pages/todo.flx",
+    "5101-5157": "pages/upload.flx",
+    "5160-5224": "pages/users/[id].flx"
   },
   "warnings": []
 }

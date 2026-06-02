@@ -40,14 +40,6 @@
 .ui_tag__b0e1{display:inline-block;padding-left:12px;padding-right:12px;padding-top:6px;padding-bottom:6px;border-radius:20px;background:#f3f4f6;color:#374151;margin-right:8px;margin-bottom:8px;}
 .about_card__70b3{background:white;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.12);margin-bottom:16px;}
 .about_title__1247{color:#6366f1;font-size:1.1rem;font-weight:700;margin:0 0 16px;}
-.form_box__8f33{background:white;padding:32px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.15);width:100%;}
-.page_wrap__2009{background:#f9fafb;}
-.counter_page__35ea{text-align:center;padding:48px 24px;}
-.counter_box__4a74{background:white;border-radius:16px;padding:40px;box-shadow:0 4px 12px rgba(0,0,0,.15);display:inline-block;min-width:320px;}
-.counter_btn__d6e9{font-size:1.5rem;padding:12px 28px;cursor:pointer;border:2px solid #6366f1;border-radius:8px;background:white;color:#6366f1;transition:all .15s;} .counter_btn__d6e9:hover{background:#6366f1;color:white;}
-.counter_num__57f7{font-size:4rem;font-weight:800;color:#6366f1;margin:16px 0;}
-.counter_label__85f8{color:#9ca3af;font-size:.85rem;}
-.store_badge__d4b2{background:#f3f4f6;border-radius:8px;padding:12px 16px;margin-top:24px;font-size:.85rem;text-align:left;}
 .stats_container__aea6{padding:24px;max-width:1200px;margin-left:auto;margin-right:auto;}
 .stats_grid__63be{display:grid;gap:16px;margin-bottom:24px;}
 .stat_card__cae2{background:white;border:1px solid #e5e7eb;padding:16px;}
@@ -59,6 +51,15 @@
 .error_type_warn__e060{background:#fef3c7;color:#d97706;}
 .error_type_promise__8dc9{background:#dbeafe;color:#0284c7;}
 .error_type_console__ea09{background:#f3e8ff;color:#7e22ce;}
+.form_box__8f33{background:white;padding:32px;border-radius:12px;box-shadow:0 4px 12px rgba(0,0,0,.15);width:100%;}
+.page_wrap__2009{background:#f9fafb;}
+.counter_page__35ea{text-align:center;padding:48px 24px;}
+.counter_box__4a74{background:white;border-radius:16px;padding:40px;box-shadow:0 4px 12px rgba(0,0,0,.15);display:inline-block;min-width:320px;}
+.counter_btn__d6e9{font-size:1.5rem;padding:12px 28px;cursor:pointer;border:2px solid #6366f1;border-radius:8px;background:white;color:#6366f1;transition:all .15s;} .counter_btn__d6e9:hover{background:#6366f1;color:white;}
+.counter_num__57f7{font-size:4rem;font-weight:800;color:#6366f1;margin:16px 0;}
+.counter_label__85f8{color:#9ca3af;font-size:.85rem;}
+.store_badge__d4b2{background:#f3f4f6;border-radius:8px;padding:12px 16px;margin-top:24px;font-size:.85rem;text-align:left;}
+.wrap__2b79{max-width:980px;margin-left:auto;margin-right:auto;padding:40px 24px;}
 .note_card__3ba9{border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.12);display:flex;flex-direction:column;position:relative;transition:transform .15s, box-shadow .15s;} .note_card__3ba9:hover{box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-2px);}
 .note_input_box__f003{background:white;border-radius:12px;padding:20px;margin-bottom:28px;box-shadow:0 1px 3px rgba(0,0,0,.12);}
 .note_grid__2843{display:grid;grid-template-columns:repeat(auto-fill,1fr);gap:16px;}
