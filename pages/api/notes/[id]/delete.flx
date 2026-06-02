@@ -1,0 +1,6 @@
+; POST /api/notes/:id/delete
+(defn render [req]
+  (let [id (get (get req "params") "id")
+        db {:type "sqlite" :path "/tmp/fl-notes.sqlite"}]
+    (db-exec db "DELETE FROM notes WHERE id=?" [id])
+    (server-json {:ok true})))

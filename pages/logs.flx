@@ -1,0 +1,87 @@
+; pages/logs.flx — 실시간 로그 뷰어 (폴링 방식)
+; GET /logs
+
+(style log-wrap   :max-w "900px" :mx "auto" :p "32px 20px")
+(style log-title  :size "1.6rem" :weight "700" :mb "8px" :color "var(--c-primary)")
+(style log-sub    :color "var(--c-muted)" :mb "24px" :size ".9rem")
+(style log-panel  :bg "#0d1117" :radius "12px" :border "1px solid var(--c-border)" :overflow "hidden")
+(style log-head   :p "12px 16px" :bg "#161b22" :border-b "1px solid var(--c-border)" :display "flex" :justify "space-between" :items "center")
+(style log-htext  :color "#8b949e" :font-size ".82rem" :weight "600")
+(style log-body   :p "16px" :min-h "400px" :max-h "600px" :overflow-y "auto" :font-family "monospace" :font-size ".82rem" :line-height "1.7")
+(style log-line   :display "flex" :gap "12px" :p "2px 0")
+(style log-time   :color "#8b949e" :flex-shrink "0")
+(style log-info   :color "#58a6ff" :flex-shrink "0" :min-w "50px")
+(style log-warn   :color "#d29922" :flex-shrink "0" :min-w "50px")
+(style log-error  :color "#f85149" :flex-shrink "0" :min-w "50px")
+(style log-debug  :color "#8b949e" :flex-shrink "0" :min-w "50px")
+(style log-msg-i  :color "#e6edf3")
+(style log-msg-w  :color "#d29922")
+(style log-msg-e  :color "#f85149")
+(style log-msg-d  :color "#8b949e")
+(style log-toolbar :display "flex" :gap "8px" :mb "16px" :items "center")
+(style log-fbtn   :p "5px 12px" :radius "6px" :border "1px solid var(--c-border)" :bg "transparent" :color "var(--c-muted)" :cursor "pointer" :font-size ".8rem")
+(style log-fbtn-on :bg "var(--c-primary)" :color "white" :border-color "var(--c-primary)")
+(style log-count  :bg "#21262d" :color "#8b949e" :px "8px" :py "2px" :radius "6px" :font-size ".75rem")
+(style log-dot-on :display "inline-block" :w "8px" :h "8px" :radius "50%" :bg "#3fb950" :mr "6px")
+(style log-dot-off :display "inline-block" :w "8px" :h "8px" :radius "50%" :bg "#8b949e" :mr "6px")
+
+(island LogViewer [:watch "logs" "log_filter" "log_running"]
+  (let [all-logs  (or (get-store "logs") [])
+        filter    (or (get-store "log_filter") "all")
+        running   (get-store "log_running")
+        visible   (if (= filter "all") all-logs
+                    (filter (fn [l] (= (get l "level") filter)) all-logs))]
+    (h "div" {:class log-wrap}
+      (h "h1" {:class log-title} "로그 뷰어")
+      (h "p"  {:class log-sub}   "서버 로그 실시간 모니터링 (3초 폴링)")
+      (h "div" {:class log-toolbar}
+        (h "span" {}
+          (h "span" {:class (if running log-dot-on log-dot-off)})
+          (h "span" {:style "font-size:.82rem;color:var(--c-muted)"}
+            (if running "폴링 중" "정지")))
+        (h "span" {:class log-count} (str (length visible) "개"))
+        (h "div" {:style "display:flex;gap:6px;margin-left:auto"}
+          (map (fn [f]
+            (h "button" {
+              :class (if (= filter f) (str log-fbtn " " log-fbtn-on) log-fbtn)
+              :on-click (fn [] (dispatch "log_filter" f))}
+              (cond (= f "all") "전체" (= f "info") "INFO"
+                    (= f "warn") "WARN" (= f "error") "ERROR" :else "DEBUG")))
+            ["all" "info" "warn" "error" "debug"])
+          (h "button" {:class log-fbtn :on-click (fn [] (dispatch "logs" []))} "지우기")))
+      (h "div" {:class log-panel}
+        (h "div" {:class log-head}
+          (h "span" {:class log-htext} "/api/logs/recent")
+          (h "span" {:class log-count} "3s"))
+        (h "div" {:class log-body}
+          (if (= (length visible) 0)
+            (h "div" {:style "color:#8b949e;text-align:center;padding:40px 0"} "로그 없음")
+            (map (fn [log]
+              (let [lv (get log "level")
+                    bc (cond (= lv "info") log-info (= lv "warn") log-warn
+                             (= lv "error") log-error :else log-debug)
+                    mc (cond (= lv "info") log-msg-i (= lv "warn") log-msg-w
+                             (= lv "error") log-msg-e :else log-msg-d)]
+                (h "div" {:class log-line}
+                  (h "span" {:class log-time} (get log "time"))
+                  (h "span" {:class bc} (str-to-upper lv))
+                  (h "span" {:class mc} (get log "msg")))))
+              visible)))))))
+
+(island LogPoller []
+  (let [polling (atom false)]
+    (when (not @polling)
+      (reset! polling true)
+      (dispatch "log_running" true)
+      (let [tick (atom 0)]
+        (fetch! "/api/logs/recent"
+          (fn [res]
+            (dispatch "logs" (or (get res "logs") []))))))
+    (h "span" {})))
+
+(defn render [req]
+  (layout-html "로그 뷰어"
+    (str "ISLAND_PLACEHOLDER_0" "ISLAND_PLACEHOLDER_1"
+         "<script>setInterval(()=>fetch('/api/logs/recent').then(r=>r.json()).then(d=>{if(window._fl)_fl.dispatch('logs',d.logs||[]);}),3000)</script>"
+         "ISLAND_SCRIPTS")
+    req))

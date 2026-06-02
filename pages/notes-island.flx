@@ -1,0 +1,107 @@
+; pages/notes-island.flx — Island 기반 노트 앱
+; GET /notes-island
+
+(style ni-wrap  :max-w "800px" :mx "auto" :p "32px 20px")
+(style ni-title :size "1.6rem" :weight "700" :mb "4px" :color "var(--c-primary)")
+(style ni-sub   :color "var(--c-muted)" :mb "24px" :size ".9rem")
+(style ni-form  :bg "var(--c-surface)" :radius "12px" :p "20px" :mb "24px" :border "1px solid var(--c-border)")
+(style ni-input :width "100%" :border "1px solid var(--c-border)" :radius "8px" :p "12px 14px" :font-size ".95rem" :outline "none" :mb "10px" :bg "var(--c-bg)" :color "var(--c-text)" :resize "vertical")
+(style ni-row   :display "flex" :gap "8px" :items "center")
+(style ni-search :flex "1" :border "1px solid var(--c-border)" :radius "8px" :p "10px 14px" :font-size ".9rem" :outline "none" :bg "var(--c-bg)" :color "var(--c-text)")
+(style ni-btn-add  :p "10px 20px" :radius "8px" :bg "var(--c-primary)" :color "white" :border "none" :cursor "pointer" :font-size ".9rem" :weight "600")
+(style ni-btn-del  :p "4px 10px" :radius "6px" :bg "transparent" :border "1px solid var(--c-border)" :cursor "pointer" :color "var(--c-muted)" :font-size ".8rem")
+(style ni-btn-pin  :p "4px 8px" :radius "6px" :bg "transparent" :border "none" :cursor "pointer" :font-size ".9rem")
+(style ni-grid  :display "grid" :cols "auto-fill" :gap "14px")
+(style ni-card  :bg "var(--c-surface)" :radius "12px" :p "16px" :border "1px solid var(--c-border)" :shadow "sm")
+(style ni-card-pin :border-color "var(--c-primary)" :shadow "md")
+(style ni-content :font-size ".9rem" :line-height "1.6" :mb "10px" :color "var(--c-text)" :white-space "pre-wrap")
+(style ni-meta  :font-size ".75rem" :color "var(--c-muted)" :display "flex" :justify "space-between" :items "center")
+(style ni-count :bg "var(--c-primary-l)" :color "var(--c-primary-d)" :px "8px" :py "2px" :radius "6px" :font-size ".78rem" :weight "600")
+(style ni-empty :text-align "center" :py "48px" :color "var(--c-muted)" :font-size ".9rem")
+
+(island NoteApp [:watch "notes"]
+  (let [notes-raw (or (get-store "notes") [])
+        query     (atom "")
+        draft     (atom "")
+        saving    (atom false)]
+
+    (let [notes (filter (fn [n]
+                          (or (= @query "")
+                              (str-includes (str-to-lower (get n "content")) (str-to-lower @query))))
+                        notes-raw)]
+      (h "div" {:class ni-wrap}
+        (h "h1" {:class ni-title} "노트")
+        (h "p"  {:class ni-sub}   "Island 기반 실시간 CRUD")
+
+        ; 입력 폼
+        (h "div" {:class ni-form}
+          (h "textarea" {:class ni-input :rows "2"
+                         :placeholder "새 노트... (Ctrl+Enter로 저장)"
+                         :on-input (fn [e] (reset! draft (.-value (.-target e))))
+                         :on-keydown (fn [e]
+                           (when (and (.-ctrlKey e) (= (.-key e) "Enter"))
+                             (when (not (str-blank? @draft))
+                               (reset! saving true)
+                               (fetch-post! "/api/notes" {:content @draft}
+                                 (fn [res]
+                                   (reset! saving false)
+                                   (reset! draft "")
+                                   (dispatch "notes" (push (get-store "notes") (get res "note"))))))))})
+          (h "div" {:class ni-row}
+            (h "input" {:class ni-search :type "text"
+                        :placeholder "🔍 검색..."
+                        :on-input (fn [e] (reset! query (.-value (.-target e))))})
+            (h "span" {:class ni-count} (str (length notes) " / " (length notes-raw)))
+            (h "button" {:class ni-btn-add
+                         :on-click (fn []
+                           (when (not (str-blank? @draft))
+                             (reset! saving true)
+                             (fetch-post! "/api/notes" {:content @draft}
+                               (fn [res]
+                                 (reset! saving false)
+                                 (reset! draft "")
+                                 (dispatch "notes" (push (get-store "notes") (get res "note")))))))}
+              (if @saving "저장 중..." "추가"))))
+
+        ; 노트 그리드
+        (h "div" {:class ni-grid
+                  :style "grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"}
+          (if (= (length notes) 0)
+            (h "div" {:class ni-empty} (if (= @query "") "노트가 없습니다" "검색 결과 없음"))
+            (map (fn [note]
+              (h "div" {:class (if (get note "pinned") (str ni-card " " ni-card-pin) ni-card)}
+                (h "div" {:class ni-content} (get note "content"))
+                (h "div" {:class ni-meta}
+                  (h "span" {} (str-slice (or (get note "created_at") "") 0 10))
+                  (h "div" {:style "display:flex;gap:4px"}
+                    (h "button" {:class ni-btn-pin
+                                 :on-click (fn []
+                                   (fetch-post! (str "/api/notes/" (get note "id") "/pin") {}
+                                     (fn [res]
+                                       (dispatch "notes"
+                                         (map (fn [n]
+                                           (if (= (get n "id") (get note "id"))
+                                             (assoc n "pinned" (not (get note "pinned")))
+                                             n))
+                                           (get-store "notes"))))))}
+                      (if (get note "pinned") "📌" "📍"))
+                    (h "button" {:class ni-btn-del
+                                 :on-click (fn []
+                                   (fetch-post! (str "/api/notes/" (get note "id") "/delete") {}
+                                     (fn [_]
+                                       (dispatch "notes"
+                                         (filter (fn [n] (not (= (get n "id") (get note "id"))))
+                                           (get-store "notes"))))))}
+                      "삭제")))))
+              notes)))))))
+
+(island NoteLoader []
+  (let [loaded (atom false)]
+    (when (not @loaded)
+      (reset! loaded true)
+      (fetch! "/api/notes"
+        (fn [res] (dispatch "notes" (or (get res "notes") [])))))
+    (h "span" {})))
+
+(defn render [req]
+  (layout-html "노트" (str "ISLAND_PLACEHOLDER_0" "ISLAND_PLACEHOLDER_1" "ISLAND_SCRIPTS") req))

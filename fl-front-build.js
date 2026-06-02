@@ -105,7 +105,7 @@ const FL_FRONT_HELPERS = new Set([
   'uuid','uuid_short','uuid-short',
   // Island 전용 런타임 함수
   'dispatch','get-store','get_store',
-  'fetch!','fetch-post!',
+  'fetch!','fetch-post!','fetch-delete!','fetch_delete',
   // 서버 req 헬퍼
   'server-req-param','server-req-query','server-req-json',
   'server_req_param','server_req_query','server_req_json',
@@ -114,7 +114,13 @@ const FL_FRONT_HELPERS = new Set([
   'empty?','h!','h-attrs','arr-join','arr_join',
   // FL v11 stdlib — ls-fns 미등록이지만 런타임 동작
   'cond','string?','str-includes','str_includes',
-  'str-to-num','str_to_num','take','reverse',
+  'str-to-num','str_to_num','str-to-upper','str_to_upper','str-to-lower','str_to_lower',
+  'str-blank?','str_blank','nil-or-empty?','nil_or_empty',
+  'str-starts-with','str_starts_with','str-ends-with','str_ends_with',
+  'nth','mod','quot','rem','case',
+  'take','reverse','sort','sort-by','sort_by',
+  'server-event-stream','server_event_stream','set-interval','clear-interval',
+  'js-new','js-set','js-get',
   'obj-values','obj_values','vals',
   'fl-env-get','fl_env_get',
   'format-date','format_date',
@@ -1137,6 +1143,8 @@ function validateHAttributes(routes, helpers, bindings) {
     const name = path.basename(f);
     // let 바인딩 변수명 수집 — {:class var-name}에서 var-name이 변수면 건너뜀
     const letVars = new Set([...src.matchAll(/\[([a-z][a-z0-9-]*)\s+/g)].map(m => m[1]));
+    // let 바인딩 중간 변수도 수집: "name (" 패턴
+    for (const m of src.matchAll(/\b([a-z][a-z0-9-]*)\s+\(/g)) letVars.add(m[1]);
     // 함수 파라미터도 수집
     for (const m of src.matchAll(/\(defn\s+[\w-]+\s+\[([^\]]*)\]/g)) {
       for (const p of m[1].trim().split(/\s+/)) letVars.add(p.replace(/^\$/, ''));
