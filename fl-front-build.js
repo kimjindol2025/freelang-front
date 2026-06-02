@@ -77,7 +77,7 @@ function loadFreeLangStdlib() {
   try {
     const out = cp.execSync(`node ${BOOTSTRAP} ls-fns 2>/dev/null`, { timeout: 8000 }).toString();
     // 출력 패턴: "  func_name [args] → ..." (2칸 들여쓰기)
-    const names = [...out.matchAll(/^ {2}([\w-]+)[\s[→]/gm)].map(m => m[1]);
+    const names = [...out.matchAll(/^ {2}([\w?-]+)[\s[→]/gm)].map(m => m[1]);
     return new Set(names);
   } catch {
     return new Set(); // 로드 실패 시 빈 Set (모든 함수 허용)
@@ -112,6 +112,17 @@ const FL_FRONT_HELPERS = new Set([
   // INJECTED_HELPERS에서 자동 주입되는 함수들
   'round','str-slice','str_slice','map-indexed','map_indexed',
   'empty?','h!','h-attrs','arr-join','arr_join',
+  // FL v11 stdlib — ls-fns 미등록이지만 런타임 동작
+  'cond','string?','str-includes','str_includes',
+  'str-to-num','str_to_num','take','reverse',
+  'obj-values','obj_values','vals',
+  'fl-env-get','fl_env_get',
+  'format-date','format_date',
+  'load',
+  'req-query-default','req_query_default',
+  'server-response','server_response',
+  'export-to-csv','export_to_csv','export-to-json','export_to_json',
+  'type','type-of','type_of',
 ]);
 
 const KNOWN_STDLIB = loadFreeLangStdlib();
@@ -181,13 +192,28 @@ function validateFunctions(routes, helpers, bindings) {
 
   const allFiles = [...helpers, ...routes.map(r => r.file)];
 
-  // 1패스: 모든 .flx 파일에서 defn/define/server-fn 수집
+  // 1패스: 모든 .flx 파일에서 defn/define/server-fn 수집 + (load ...) 파일 추적
   const defined = new Set();
   for (const f of allFiles) {
     const src = fs.readFileSync(f, 'utf8');
     for (const m of src.matchAll(/\(defn\s+([\w-]+)/g))       defined.add(m[1]);
     for (const m of src.matchAll(/\(define\s+([\w-]+)/g))     defined.add(m[1]);
     for (const m of src.matchAll(/\(server-fn\s+([\w-]+)/g))  defined.add(m[1]);
+    // (load "file.fl") 처리 — 로드된 파일의 정의 함수도 추가
+    for (const m of src.matchAll(/\(load\s+"([^"]+)"/g)) {
+      const candidates = [
+        path.resolve(path.dirname(f), m[1]),
+        path.resolve(__dirname, m[1]),
+        path.resolve(__dirname, 'pages', m[1]),
+      ];
+      const loadPath = candidates.find(p => { try { fs.accessSync(p); return true; } catch { return false; } });
+      if (!loadPath) continue;
+      try {
+        const loadedSrc = fs.readFileSync(loadPath, 'utf8');
+        for (const lm of loadedSrc.matchAll(/\(defn\s+([\w-]+)/g))  defined.add(lm[1]);
+        for (const lm of loadedSrc.matchAll(/\(define\s+([\w-]+)/g)) defined.add(lm[1]);
+      } catch { /* 무시 */ }
+    }
   }
 
   function isKnownFn(fn) {
@@ -705,6 +731,24 @@ function generate(routes, bindings = [], helpers = [], appCss = '') {
     lines.push('');
   }
 
+  // (load "file.fl") 인라인 처리 헬퍼
+  const inlinedLoads = new Set();
+  function resolveLoad(src, baseDir) {
+    return src.replace(/\(load\s+"([^"]+)"\)/g, (_, loadFile) => {
+      const candidates = [
+        path.resolve(baseDir, loadFile),
+        path.resolve(__dirname, loadFile),
+        path.resolve(__dirname, 'pages', loadFile),
+      ];
+      const loadPath = candidates.find(p => { try { fs.accessSync(p); return true; } catch { return false; } });
+      if (!loadPath) return `; (load "${loadFile}" — 파일 없음)`;
+      if (inlinedLoads.has(loadPath)) return '; (load already inlined)';
+      inlinedLoads.add(loadPath);
+      const content = fs.readFileSync(loadPath, 'utf8').trim();
+      return `; ── inlined: ${loadFile} ──\n${content}\n; ── end: ${loadFile} ──`;
+    });
+  }
+
   // 헬퍼 파일 (_*.flx) — style 블록 제거 후 먼저 삽입
   if (helpers.length > 0) {
     lines.push('; ── 레이아웃·헬퍼 함수 ──');
@@ -861,7 +905,8 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
         );
       }
       // style 블록 제거 (헬퍼는 Critical CSS 인라인 불필요, app.css에 포함됨)
-      const src = removeStyleBlocks(raw).trim();
+      let src = removeStyleBlocks(raw).trim();
+      src = resolveLoad(src, path.dirname(helperPath));
       lines.push(`; ── ${path.basename(helperPath)} ──`);
       lines.push(src);
       lines.push('');
@@ -886,6 +931,7 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       );
     }
     src = removeStyleBlocks(src).trim();
+    src = resolveLoad(src, path.dirname(r.file));
     // layout 호출 content 앞에 Critical CSS <style> 태그 주입
     if (rawCss) {
       const styleTag = JSON.stringify(`<style>${rawCss}</style>`);
@@ -1076,9 +1122,16 @@ function validateHAttributes(routes, helpers, bindings) {
   for (const f of allFiles) {
     const src = fs.readFileSync(f, 'utf8');
     const name = path.basename(f);
+    // let 바인딩 변수명 수집 — {:class var-name}에서 var-name이 변수면 건너뜀
+    const letVars = new Set([...src.matchAll(/\[([a-z][a-z0-9-]*)\s+/g)].map(m => m[1]));
+    // 함수 파라미터도 수집
+    for (const m of src.matchAll(/\(defn\s+[\w-]+\s+\[([^\]]*)\]/g)) {
+      for (const p of m[1].trim().split(/\s+/)) letVars.add(p.replace(/^\$/, ''));
+    }
     for (const m of src.matchAll(/\{:class\s+([\w-]+)/g)) {
       const cls = m[1];
       if (cssNames.has(cls)) continue;
+      if (letVars.has(cls)) continue;
       const before = src.slice(0, m.index);
       const line   = before.split('\n').length;
       const col    = m.index - before.lastIndexOf('\n');
