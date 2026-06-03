@@ -1518,6 +1518,108 @@ const storeRegistry = validateStoreKeys(routes, helpers);
 // E. Arity 체크
 validateArity(routes, helpers);
 
+// G. Island 회귀 테스트 (async — 마지막에 실행)
+runIslandTests().catch(e => console.error('테스트 실행 오류:', e.message));
+
+// G. Island 회귀 테스트 — tests/*.test.flx 자동 실행
+async function runIslandTests() {
+  const testDir = path.join(__dirname, 'tests');
+  if (!fs.existsSync(testDir)) return;
+  const testFiles = fs.readdirSync(testDir).filter(f => f.endsWith('.test.flx'));
+  if (!testFiles.length) return;
+
+  const runner = require('./island-runner');
+  const results = [];
+
+  for (const tf of testFiles) {
+    const src = fs.readFileSync(path.join(testDir, tf), 'utf8');
+    // (deftest "name" {:file ... :island ... :click ... :store ... :expect {...}}) 파싱
+    for (const m of src.matchAll(/\(deftest\s+"([^"]+)"\s+(\{[\s\S]*?\})\s*\)/g)) {
+      const name = m[1];
+      // 간단한 키-값 추출
+      const block = m[2];
+      const get = (key) => {
+        const r = block.match(new RegExp(`:${key}\\s+"([^"]+)"`));
+        return r ? r[1] : null;
+      };
+      const parseVal = (v) => v.startsWith('"') ? v.slice(1,-1) : (v==='true'?true:v==='false'?false:Number(v));
+      const getMap = (key) => {
+        const r = block.match(new RegExp(`:${key}\\s+(\\{[^}]+\\})`));
+        if (!r) return null;
+        try {
+          const inner = r[1].slice(1,-1).trim();
+          const obj = {};
+          // :keyword-key "val"/num/bool
+          for (const kv of inner.matchAll(/:([a-z][a-z0-9-]*)\s+(-?\d+(?:\.\d+)?|"[^"]*"|true|false)/g))
+            obj[kv[1]] = parseVal(kv[2]);
+          // "string-key" "val"/num/bool
+          for (const kv of inner.matchAll(/"([^"]+)"\s+(-?\d+(?:\.\d+)?|"[^"]*"|true|false)/g))
+            obj[kv[1]] = parseVal(kv[2]);
+          return Object.keys(obj).length ? obj : null;
+        } catch { return null; }
+      };
+
+      const filePath = get('file');
+      const islandName = get('island');
+      const click = get('click');
+      const expectMap = getMap('expect');
+      const storeMap = getMap('store');
+
+      if (!filePath) { results.push({name, ok:false, reason:'file 없음'}); continue; }
+      const fullPath = path.resolve(__dirname, filePath);
+      if (!fs.existsSync(fullPath)) { results.push({name, ok:false, reason:`파일 없음: ${filePath}`}); continue; }
+
+      try {
+        const res = await runner.run(fullPath, {
+          island: islandName || undefined,
+          click: click || undefined,
+          store: storeMap || undefined,
+        });
+        const r0 = res.results?.find(r => !islandName || r.island === islandName) || res.results?.[0];
+        if (!r0) { results.push({name, ok:false, reason:'island 없음'}); continue; }
+        if (!r0.ok) { results.push({name, ok:false, reason: r0.events?.find(e=>e.type==='error')?.message || '실행 오류'}); continue; }
+
+        // expect 검증
+        const html = click ? (r0.html_after || r0.html) : r0.html;
+        let ok = true, reason = '';
+
+        if (expectMap) {
+          if (expectMap['html-contains'] && !html?.includes(expectMap['html-contains'])) {
+            ok = false; reason = `html에 "${expectMap['html-contains']}" 없음`;
+          }
+          if (expectMap['store-key'] && expectMap['store-val'] !== undefined) {
+            const actual = r0.store?.[expectMap['store-key']];
+            if (actual !== expectMap['store-val']) {
+              ok = false; reason = `store.${expectMap['store-key']} = ${actual} (기대: ${expectMap['store-val']})`;
+            }
+          }
+          if (expectMap['html-not-contains'] && html?.includes(expectMap['html-not-contains'])) {
+            ok = false; reason = `html에 "${expectMap['html-not-contains']}" 있으면 안 됨`;
+          }
+        }
+
+        results.push({name, ok, reason: ok ? '' : reason});
+        if (!ok) issue('error','island-test','',0,`[테스트 실패] ${name} — ${reason}`);
+      } catch(e) {
+        results.push({name, ok:false, reason:e.message});
+        issue('error','island-test','',0,`[테스트 오류] ${name} — ${e.message}`);
+      }
+    }
+  }
+
+  const pass = results.filter(r=>r.ok).length;
+  const fail = results.filter(r=>!r.ok).length;
+  if (fail === 0) {
+    console.log(`  \x1b[32m✅ Island 테스트 ${pass}/${results.length} PASS\x1b[0m`);
+  } else {
+    console.log(`\n\x1b[31m❌ Island 테스트 ${fail}개 실패\x1b[0m`);
+    for (const r of results.filter(r=>!r.ok))
+      console.log(`  \x1b[31m✗\x1b[0m ${r.name} — ${r.reason}`);
+    if (!JSON_MODE) process.exit(1);
+  }
+  return results;
+}
+
 // C. AGENTS.md 자동 생성
 fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes, helpers), 'utf8');
 

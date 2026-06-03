@@ -1,0 +1,69 @@
+; tests/island.test.flx — Island 회귀 테스트
+; 빌드 시 자동 실행: node fl-front-build.js → G. Island 테스트
+
+; ── 06 카운터 ──────────────────────────────────────────────
+(deftest "counter 초기 렌더 — 0 표시"
+  {:file "pages/examples/06-counter.flx"
+   :island "counter"
+   :expect {:html-contains ">0<"}})
+
+(deftest "counter + 버튼 클릭 → 1"
+  {:file "pages/examples/06-counter.flx"
+   :island "counter"
+   :click "button:last-of-type"
+   :expect {:html-contains "1"}})
+
+; ── 07 토글 ─────────────────────────────────────────────────
+(deftest "toggle 초기 — 펼치기 버튼 있음"
+  {:file "pages/examples/07-toggle.flx"
+   :island "toggle"
+   :expect {:html-contains "펼치기"}})
+
+; ── 10 To-Do ────────────────────────────────────────────────
+(deftest "todo 초기 렌더 — 항목 2개"
+  {:file "pages/examples/10-todo.flx"
+   :island "todo"
+   :expect {:html-contains "FreeLang 배우기"}})
+
+; ── 13 글자수 카운터 ─────────────────────────────────────────
+(deftest "charcount 초기 — 0 / 100 표시"
+  {:file "pages/examples/13-char-count.flx"
+   :island "charcount"
+   :expect {:html-contains "0 / 100"}})
+
+; ── 22 온도 변환기 ───────────────────────────────────────────
+(deftest "tempconvert 초기 25°C — 화씨 77"
+  {:file "pages/examples/22-temp-convert.flx"
+   :island "tempconvert"
+   :expect {:html-contains "77"}})
+
+(deftest "tempconvert 초기 25°C — 켈빈 298"
+  {:file "pages/examples/22-temp-convert.flx"
+   :island "tempconvert"
+   :expect {:html-contains "298"}})
+
+; ── 23 likes store ──────────────────────────────────────────
+(deftest "likes store — 버튼 클릭 5→6"
+  {:file "pages/examples/23-like-store.flx"
+   :island "likebutton"
+   :store {"likes" 5}
+   :click "button"
+   :expect {:store-key "likes" :store-val 6}})
+
+(deftest "likes badge — store watch 반영"
+  {:file "pages/examples/23-like-store.flx"
+   :island "likebadge"
+   :store {"likes" 7}
+   :expect {:html-contains "7"}})
+
+; ── 29 BMI ──────────────────────────────────────────────────
+(deftest "bmi 초기 170cm/65kg — 22.5"
+  {:file "pages/examples/29-bmi.flx"
+   :island "bmi"
+   :expect {:html-contains "22.5"}})
+
+; ── 27 fetch ────────────────────────────────────────────────
+(deftest "fetcher 초기 — 버튼 있음"
+  {:file "pages/examples/27-fetch.flx"
+   :island "fetcher"
+   :expect {:html-contains "불러오기"}})
