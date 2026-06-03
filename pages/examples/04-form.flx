@@ -1,0 +1,29 @@
+; pages/examples/04-form.flx
+; 예제 04 — 폼 + POST: 입력을 받아 결과 페이지 렌더
+; 배우는 것: (defn render_post [req]), form-get, 조건부 렌더
+
+(defn render [req]
+  (layout-html "04 · 폼"
+    (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+      (str
+        (h "h1" {:style "font-size:1.6rem;margin:0 0 16px"} "이름 폼")
+        (h "form" {:method "post" :action "/examples/04-form"
+                   :style "display:flex;gap:8px"}
+          (str
+            (h "input" {:name "name" :placeholder "이름을 입력하세요"
+                        :style "flex:1;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem"})
+            (h "button" {:type "submit"
+                         :style "background:#6366f1;color:white;border:none;border-radius:8px;padding:10px 20px;cursor:pointer"}
+              "인사")))))
+    req))
+
+(defn render_post [req]
+  (let [name (form-get req "name")
+        msg  (if (= name "") "이름을 입력하지 않았습니다." (str "안녕하세요, " name "님! 👋"))]
+    (layout-html "04 · 폼 결과"
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "p" {:style "font-size:1.4rem;margin:0 0 20px"} msg)
+          (h "a" {:href "/examples/04-form" :data-spa "1" :style "color:#6366f1;text-decoration:none"}
+            "← 다시 입력")))
+      req)))

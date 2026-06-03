@@ -1,0 +1,14 @@
+; pages/examples/01-hello.flx
+; 예제 01 — Hello: (defn render [req]) 하나로 그리는 가장 단순한 페이지
+; 배우는 것: h() 헬퍼, layout-html, SPA 링크
+
+(defn render [req]
+  (layout-html "01 · Hello"
+    (h "div" {:style "max-width:640px;margin:0 auto;padding:40px 24px"}
+      (str
+        (h "h1" {:style "font-size:2rem;margin:0 0 12px"} "안녕하세요, FreeLang! 👋")
+        (h "p" {:style "color:#6b7280;line-height:1.7;margin:0 0 24px"}
+          "이 페이지는 render 함수 하나로 그려졌습니다. h() 로 HTML을 만들고 layout-html 로 감싸면 끝입니다.")
+        (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"}
+          "← 예제 갤러리로")))
+    req))

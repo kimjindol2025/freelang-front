@@ -62,7 +62,7 @@
                  (reset! msg
                    (if (get res "ok")
                      (str "✅ 장바구니에 담았습니다! (" (deref qty) "개)")
-                     (str "❌ " (?? (get res "error") "오류")))))))))
+                     (str "❌ " (?? (get res "error") "오류"))))))))}
         (if (> (deref stock) 0)
           (if (deref busy) "처리 중..." "🛒 장바구니 담기")
           "품절"))

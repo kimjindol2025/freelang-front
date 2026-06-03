@@ -1,6 +1,6 @@
 {
   "ok": true,
-  "time": "2026-06-02T16:57:51.499Z",
+  "time": "2026-06-03T05:11:07.072Z",
   "routes": [
     {
       "route": "/about",
@@ -38,6 +38,11 @@
       "fn": "page_api_hello"
     },
     {
+      "route": "/api/logs/recent",
+      "file": "pages/api/logs/recent.flx",
+      "fn": "page_api_logs_recent"
+    },
+    {
       "route": "/api/metrics/export",
       "file": "pages/api/metrics/export.flx",
       "fn": "page_api_metrics_export"
@@ -56,6 +61,26 @@
       "route": "/api/metrics",
       "file": "pages/api/metrics.flx",
       "fn": "page_api_metrics"
+    },
+    {
+      "route": "/api/notes/:id/delete",
+      "file": "pages/api/notes/[id]/delete.flx",
+      "fn": "page_api_notes_id_delete"
+    },
+    {
+      "route": "/api/notes/:id/pin",
+      "file": "pages/api/notes/[id]/pin.flx",
+      "fn": "page_api_notes_id_pin"
+    },
+    {
+      "route": "/api/notes",
+      "file": "pages/api/notes.flx",
+      "fn": "page_api_notes"
+    },
+    {
+      "route": "/api/playground/eval",
+      "file": "pages/api/playground/eval.flx",
+      "fn": "page_api_playground_eval"
     },
     {
       "route": "/api/sla/report",
@@ -123,6 +148,31 @@
       "fn": "page_demo"
     },
     {
+      "route": "/examples/01-hello",
+      "file": "pages/examples/01-hello.flx",
+      "fn": "page_examples_01_hello"
+    },
+    {
+      "route": "/examples/02-card-grid",
+      "file": "pages/examples/02-card-grid.flx",
+      "fn": "page_examples_02_card_grid"
+    },
+    {
+      "route": "/examples/03-list-filter",
+      "file": "pages/examples/03-list-filter.flx",
+      "fn": "page_examples_03_list_filter"
+    },
+    {
+      "route": "/examples/04-form",
+      "file": "pages/examples/04-form.flx",
+      "fn": "page_examples_04_form"
+    },
+    {
+      "route": "/examples/05-form-validate",
+      "file": "pages/examples/05-form-validate.flx",
+      "fn": "page_examples_05_form_validate"
+    },
+    {
       "route": "/fetch-demo",
       "file": "pages/fetch-demo.flx",
       "fn": "page_fetch_demo"
@@ -153,9 +203,24 @@
       "fn": "page_logout"
     },
     {
+      "route": "/logs",
+      "file": "pages/logs.flx",
+      "fn": "page_logs"
+    },
+    {
+      "route": "/notes-island",
+      "file": "pages/notes-island.flx",
+      "fn": "page_notes_island"
+    },
+    {
       "route": "/notes",
       "file": "pages/notes.flx",
       "fn": "page_notes"
+    },
+    {
+      "route": "/playground",
+      "file": "pages/playground.flx",
+      "fn": "page_playground"
     },
     {
       "route": "/shop/cart",
@@ -168,9 +233,24 @@
       "fn": "page_shop_index"
     },
     {
+      "route": "/shop/orders/:id",
+      "file": "pages/shop/orders/[id].flx",
+      "fn": "page_shop_orders_id"
+    },
+    {
       "route": "/shop/orders",
       "file": "pages/shop/orders.flx",
       "fn": "page_shop_orders"
+    },
+    {
+      "route": "/shop/products/:id",
+      "file": "pages/shop/products/[id].flx",
+      "fn": "page_shop_products_id"
+    },
+    {
+      "route": "/shop/users/:id",
+      "file": "pages/shop/users/[id].flx",
+      "fn": "page_shop_users_id"
     },
     {
       "route": "/styled",
@@ -217,46 +297,62 @@
     "_ui.flx"
   ],
   "sourceMap": {
-    "2218-2252": "pages/about.flx",
-    "2255-2259": "pages/api/alerts/stream.flx",
-    "2262-2736": "pages/api/alerts.flx",
-    "2739-2825": "pages/api/custom-metrics.flx",
-    "2828-3088": "pages/api/errors-stats.flx",
-    "3091-3121": "pages/api/errors.flx",
-    "3124-3128": "pages/api/hello.flx",
-    "3131-3144": "pages/api/metrics/export.flx",
-    "3147-3159": "pages/api/metrics/filter.flx",
-    "3162-3166": "pages/api/metrics/stream.flx",
-    "3169-3262": "pages/api/metrics.flx",
-    "3265-3272": "pages/api/sla/report.flx",
-    "3275-3282": "pages/api/sla/status.flx",
-    "3285-3322": "pages/api/sla.flx",
-    "3325-3358": "pages/contact/thanks.flx",
-    "3361-3430": "pages/contact.flx",
-    "3433-3462": "pages/counter.flx",
-    "3465-3472": "pages/dashboard/alerts.flx",
-    "3475-3482": "pages/dashboard/charts.flx",
-    "3485-3492": "pages/dashboard/custom-metrics.flx",
-    "3495-3502": "pages/dashboard/index.flx",
-    "3505-3512": "pages/dashboard/operations.flx",
-    "3515-3522": "pages/dashboard/sla.flx",
-    "3525-3722": "pages/demo.flx",
-    "3725-3739": "pages/fetch-demo.flx",
-    "3742-3873": "pages/freelang.flx",
-    "3876-4168": "pages/index.flx",
-    "4171-4655": "pages/intro.flx",
-    "4658-4704": "pages/login.flx",
-    "4707-4712": "pages/logout.flx",
-    "4715-4901": "pages/notes.flx",
-    "4904-4934": "pages/shop/cart.flx",
-    "4937-5050": "pages/shop/index.flx",
-    "5053-5092": "pages/shop/orders.flx",
-    "5095-5142": "pages/styled.flx",
-    "5145-5166": "pages/tasks.flx",
-    "5169-5278": "pages/test-helpers.flx",
-    "5281-5289": "pages/todo.flx",
-    "5292-5348": "pages/upload.flx",
-    "5351-5418": "pages/users/[id].flx"
+    "2324-2358": "pages/about.flx",
+    "2361-2365": "pages/api/alerts/stream.flx",
+    "2368-2842": "pages/api/alerts.flx",
+    "2845-2931": "pages/api/custom-metrics.flx",
+    "2934-3194": "pages/api/errors-stats.flx",
+    "3197-3227": "pages/api/errors.flx",
+    "3230-3234": "pages/api/hello.flx",
+    "3237-3262": "pages/api/logs/recent.flx",
+    "3265-3278": "pages/api/metrics/export.flx",
+    "3281-3293": "pages/api/metrics/filter.flx",
+    "3296-3300": "pages/api/metrics/stream.flx",
+    "3303-3396": "pages/api/metrics.flx",
+    "3399-3407": "pages/api/notes/[id]/delete.flx",
+    "3410-3419": "pages/api/notes/[id]/pin.flx",
+    "3422-3458": "pages/api/notes.flx",
+    "3461-3486": "pages/api/playground/eval.flx",
+    "3489-3496": "pages/api/sla/report.flx",
+    "3499-3506": "pages/api/sla/status.flx",
+    "3509-3546": "pages/api/sla.flx",
+    "3549-3582": "pages/contact/thanks.flx",
+    "3585-3654": "pages/contact.flx",
+    "3657-3686": "pages/counter.flx",
+    "3689-3696": "pages/dashboard/alerts.flx",
+    "3699-3706": "pages/dashboard/charts.flx",
+    "3709-3716": "pages/dashboard/custom-metrics.flx",
+    "3719-3726": "pages/dashboard/index.flx",
+    "3729-3736": "pages/dashboard/operations.flx",
+    "3739-3746": "pages/dashboard/sla.flx",
+    "3749-3946": "pages/demo.flx",
+    "3949-3965": "pages/examples/01-hello.flx",
+    "3968-3998": "pages/examples/02-card-grid.flx",
+    "4001-4029": "pages/examples/03-list-filter.flx",
+    "4032-4066": "pages/examples/04-form.flx",
+    "4069-4118": "pages/examples/05-form-validate.flx",
+    "4121-4135": "pages/fetch-demo.flx",
+    "4138-4269": "pages/freelang.flx",
+    "4272-4564": "pages/index.flx",
+    "4567-5051": "pages/intro.flx",
+    "5054-5100": "pages/login.flx",
+    "5103-5108": "pages/logout.flx",
+    "5111-5126": "pages/logs.flx",
+    "5129-5140": "pages/notes-island.flx",
+    "5143-5329": "pages/notes.flx",
+    "5332-5341": "pages/playground.flx",
+    "5344-5374": "pages/shop/cart.flx",
+    "5377-5496": "pages/shop/index.flx",
+    "5499-5604": "pages/shop/orders/[id].flx",
+    "5607-5646": "pages/shop/orders.flx",
+    "5649-5740": "pages/shop/products/[id].flx",
+    "5743-5842": "pages/shop/users/[id].flx",
+    "5845-5892": "pages/styled.flx",
+    "5895-5916": "pages/tasks.flx",
+    "5919-6028": "pages/test-helpers.flx",
+    "6031-6039": "pages/todo.flx",
+    "6042-6098": "pages/upload.flx",
+    "6101-6188": "pages/users/[id].flx"
   },
   "warnings": []
 }

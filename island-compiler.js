@@ -32,8 +32,15 @@ function parse(src) {
     const items = [];
     skipWs();
     while (i < src.length && src[i] !== close) {
+      const before = i;
       items.push(read());
       skipWs();
+      // 무진행 가드: read()가 i를 전진시키지 못하면(예: 잘못 짝지어진 닫는 괄호)
+      // 무한 루프 → 배열 무한 증식 → OOM 이 되므로 명확한 에러로 중단.
+      if (i === before) {
+        const ctx = src.slice(Math.max(0, i - 40), i + 5);
+        throw new Error(`island 파싱 오류: '${close}'를 기대했으나 예상치 못한 '${src[i]}' (offset ${i}) — 괄호 짝을 확인하세요.\n  …${ctx}`);
+      }
     }
     i++; // skip close
     return items;
