@@ -9,20 +9,19 @@
 
 ; XML 태그 내용 추출 (str-split 기반)
 (defn xml-tag [xml tag]
-  (let [open  (str "<" tag ">")
-        close (str "</" tag ">")
-        parts (str-split xml open)]
+  (let [otag   (str "<" tag ">")
+        ctag   (str "</" tag ">")
+        parts  (str-split xml otag)]
     (if (< (length parts) 2)
-      ; CDATA 형태도 시도
-      (let [copen  (str "<" tag "><![CDATA[")
-            cparts (str-split xml copen)]
+      (let [cotag  (str "<" tag "><![CDATA[")
+            cparts (str-split xml cotag)]
         (if (< (length cparts) 2)
           ""
-          (let [after (first (rest cparts))
+          (let [after  (first (rest cparts))
                 eparts (str-split after "]]>")]
             (str-trim (first eparts)))))
       (let [after  (first (rest parts))
-            eparts (str-split after close)]
+            eparts (str-split after ctag)]
         (str-trim (first eparts))))))
 
 ; RSS <item> 블록들 파싱
