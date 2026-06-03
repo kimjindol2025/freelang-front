@@ -6,12 +6,13 @@
 (defn fetch-products [category kw]
   (let [base (str (SHOP_API) "/api/products?size=30")
         url  (cond
-               (not (or (nil? kw) (= kw "")))       (str base "&q=" kw)
+               (not (or (nil? kw) (= kw "")))            (str base "&q=" kw)
                (not (or (nil? category) (= category ""))) (str base "&category=" category)
-               true                        base)
-        res  (http-get url)]
-    (if (get res "ok")
-      (?? (get (get res "data") "data") [])
+               true                                       base)
+        res    (http-get url)
+        parsed (json_parse (get res "body"))]
+    (if (get parsed "ok")
+      (?? (get (get parsed "data") "data") (get parsed "data"))
       [])))
 
 (defn category-badge [cat active]
