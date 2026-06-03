@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "project": "freelang-front",
   "for": "다른 Claude — 헬퍼 파일 API + 현재 앱 상태 한눈에 파악",
-  "date": "2026-06-03",
+  "date": "2026-06-04",
   "read_order": "HANDOFF.airc → SYNTAX.airc → HELPERS.airc (이 파일)",
+  "v11_handoff": "freelang-v11/HANDOFF.airc  ← 언어 엔진 변경 내역 (오늘 에러/nil/매크로 개선)",
 
   "current_state": {
     "routes_total": 82,
@@ -244,6 +245,33 @@
       "->>": "(->> x f1 f2 f3)  ; 스레딩 (끝에 삽입) — 내장"
     },
     "example": "; pages/my-page.flx\n(load \"stdlib/macros.fl\")\n\n(defn render [req]\n  (let [items (db-query DB \"SELECT * FROM t\" [])\n        result (-> items (filter (fn [x] (get x \"active\"))) length)]\n    (layout-html \"페이지\"\n      (unless (= result 0)\n        (h \"p\" {} (str \"활성: \" result)))\n      req)))"
+  },
+
+  "v11_new_functions_2026_06_04": {
+    "note": "오늘 freelang-v11에 추가됨 — 심링크로 freelang-front에서 바로 사용 가능",
+    "nil_safe": {
+      "first!":         "(first! arr)           — 빈 배열/nil 에러 (first의 strict 버전)",
+      "last!":          "(last! arr)            — 빈 배열/nil 에러",
+      "or!":            "(or! a b c)            — 모두 nil/false면 에러",
+      "assert-not-nil": "(assert-not-nil v msg) — nil이면 msg로 에러",
+      "get!":           "(get! m \"key\")          — 키 없으면 실제 키 목록 출력 후 에러",
+      "get-in!":        "(get-in! m [k1 k2])    — 중첩 경로 nil 시 어느 단계인지 표시",
+      "db-one":         "(db-one DB sql params) — 첫 행 반환 nil (first(db-query) 대체)"
+    },
+    "str_behavior_change": "(str \"안녕 \" nil) → \"안녕 \" (이전: \"안녕 null\") — 하위 호환 주의",
+    "macros": {
+      "load": "(load \"stdlib/macros.fl\")",
+      "unless":   "(unless false body)",
+      "when+":    "(when+ true s1 s2 ...)",
+      "assert!":  "(assert! expr \"msg\")",
+      "spy":      "(spy \"label\" expr)  — 값 출력 후 그대로 반환",
+      "time!":    "(time! \"label\" s1 s2 ...)",
+      "with-log": "(with-log \"label\" s1 s2 ...)",
+      "default":  "(default nil \"기본\")",
+      "when-val": "(when-val x (println it))"
+    },
+    "db_pattern_before": "(let [rows (db-query DB sql [])]\n  (first rows))",
+    "db_pattern_after":  "(db-one DB sql [])   ; nil 반환 시 명확"
   },
 
   "known_gotchas": [
