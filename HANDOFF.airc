@@ -131,9 +131,10 @@
   "next": [
     {
       "id": "P0",
-      "title": "삼중따옴표 안 ${변수} 보간",
-      "what": "이전 세션부터 미완. interpreter.js 구현 필요.",
-      "files": ["freelang-v11/self/runtime/interpreter.js"]
+      "title": "삼중따옴표 ${} 보간 — 이미 구현됨",
+      "what": "확인 결과 bootstrap.js·fl-front runtime 양쪽 완전 동작. 단순변수·표현식·함수 호출 모두 정상. HANDOFF 노트가 stale했음.",
+      "status": "resolved",
+      "verified": "단순 ${name}, 표현식 ${(+ count 10)}, 중첩 ${joined} 전수 통과"
     }
   ],
 
