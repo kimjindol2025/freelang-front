@@ -131,6 +131,7 @@ function emitList(node, ctx) {
   if (head?.sym === '>=')     return `(${emit(args[0],ctx)} >= ${emit(args[1],ctx)})`;
   if (head?.sym === '<=')     return `(${emit(args[0],ctx)} <= ${emit(args[1],ctx)})`;
   if (head?.sym === 'mod')    return `(${emit(args[0],ctx)} % ${emit(args[1],ctx)})`;
+  if (head?.sym === '??')     return `(${emit(args[0],ctx)} ?? ${emit(args[1],ctx)})`;  // nil-coalescing
   if (head?.sym === 'not')    return `!(${emit(args[0],ctx)})`;
   if (head?.sym === 'when')   return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : null`;
   if (head?.sym === 'or')     return `(${args.map(a=>`(${emit(a,ctx)})`).join(' || ')})`;

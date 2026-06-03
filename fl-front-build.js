@@ -1111,40 +1111,48 @@ function detectDangerousPatterns(routes, helpers) {
   }
 }
 
-// Fix 5: check-parens.py 자동 실행 (파싱 오류 시 file:line:col 표시)
+// Fix 5: 내장 괄호 검사 (파싱 오류 시 file:line 표시)
+// 외부 check-parens.py 대신 내장 — 그 검사기는 삼중따옴표("""...""")를 모르고
+// CSS 함수(oklch(...) 등)의 괄호를 코드로 오해해 오탐한다. 여기선 삼중따옴표·
+// 문자열·주석을 모두 건너뛰어 fl-front .flx 문법을 정확히 검사한다.
 function checkAllParens(routes, helpers) {
-  // 환경 이전(/root/kim → /root)으로 경로가 바뀔 수 있어 후보를 순서대로 탐색.
-  const CHECKER = [
-    '/root/kim/freelang-v11/scripts/check-parens.py',
-    '/root/freelang-v11/scripts/check-parens.py',
-    '/home/kimjin/freelang-v11/scripts/check-parens.py',
-  ].find(p => fs.existsSync(p));
-  if (!CHECKER) {
-    console.log('  \x1b[33m⚠ check-parens.py 미발견 — 괄호 검사 스킵\x1b[0m');
-    return;
-  }
   const allFiles = [...routes.map(r => r.file), ...helpers];
+  const open  = { '(': ')', '[': ']', '{': '}' };
+  const close = { ')': '(', ']': '[', '}': '{' };
   const errors = [];
   for (const f of allFiles) {
-    const fileName = path.basename(f);
-    try {
-      // 경로 따옴표 필수 — pages/shop/products/[id].flx 의 [id] 가 셸 glob 으로 해석되는 것 방지
-      cp.execSync(`python3 "${CHECKER}" "${f}"`, { stdio: 'pipe' });
-    } catch (e) {
-      // check-parens.py 실제 출력: "❌ /path/file.flx:line:col — message"
-      // 전체 경로 → 파일명만으로 교체
-      const out = (e.stdout || Buffer.alloc(0)).toString().trim();
-      const cleaned = out
-        .replace(new RegExp(f.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), fileName)
-        .replace(/^❌ /gm, '');
-      errors.push(`  \x1b[31m❌\x1b[0m ${cleaned}`);
+    const src = fs.readFileSync(f, 'utf8');
+    const lineOf = idx => src.slice(0, idx).split('\n').length;
+    const st = [];
+    let err = null;
+    for (let i = 0; i < src.length && !err; i++) {
+      const c = src[i];
+      if (src.startsWith('"""', i)) {            // 삼중따옴표 — 닫는 """ 까지 스킵
+        i += 3; while (i + 2 < src.length && !src.startsWith('"""', i)) i++; i += 2; continue;
+      }
+      if (c === '"') {                            // 일반 문자열 (이스케이프 처리)
+        i++; while (i < src.length && src[i] !== '"') { if (src[i] === '\\') i++; i++; } continue;
+      }
+      if (c === ';') { while (i < src.length && src[i] !== '\n') i++; continue; }  // 줄 주석
+      if (open[c]) st.push({ c, i });
+      else if (close[c]) {
+        const t = st.pop();
+        if (!t) err = `여는 짝 없는 '${c}' (line ${lineOf(i)})`;
+        else if (t.c !== close[c]) err = `짝 불일치 '${c}' (line ${lineOf(i)}, 여는 '${t.c}' line ${lineOf(t.i)})`;
+      }
     }
+    if (!err && st.length) {
+      const t = st[st.length - 1];
+      err = `미닫힘 '${t.c}' (line ${lineOf(t.i)}, 총 ${st.length}개)`;
+    }
+    if (err) errors.push(`  \x1b[31m✗\x1b[0m ${path.basename(f)} — ${err}`);
   }
   if (errors.length) {
-    console.log('\x1b[31m❌ 파싱 오류 — 빌드 중단\x1b[0m');
+    console.log('\x1b[31m❌ 괄호 오류 — 빌드 중단\x1b[0m');
     errors.forEach(e => console.log(e));
     process.exit(1);
   }
+  console.log('  \x1b[32m✅ 괄호 균형 정상\x1b[0m');
 }
 
 // h() {:class} — 정의된 CSS 바인딩에 없는 클래스명 경고
