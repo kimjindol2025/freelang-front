@@ -1,0 +1,203 @@
+; pages/subs/index.flx — 구독 관리 메인
+
+(load "pages/subs/_db.flx")
+(subs-init)
+
+(island SubsApp []
+  (let [data    (atom nil)
+        form    (atom false)
+        iname   (atom "")
+        amount  (atom "0")
+        cycle   (atom "monthly")
+        cat     (atom "기타")
+        color   (atom "#6366f1")
+        billing (atom "")
+        err     (atom "")
+
+        reload (fn [res]
+                 (reset! data res)
+                 (reset! form false)
+                 (reset! iname "") (reset! amount "0") (reset! err ""))
+
+        add (fn []
+              (if (= (str-trim @iname) "")
+                (reset! err "서비스명을 입력하세요")
+                (fetch-post! "/subs/api"
+                  {"action" "add" "name" @iname "amount" @amount
+                   "cycle" @cycle "category" @cat "color" @color
+                   "next_billing" @billing}
+                  reload)))
+
+        del (fn [id]
+              (fetch-post! "/subs/api" {"action" "delete" "id" id} reload))
+
+        tog (fn [id]
+              (fetch-post! "/subs/api" {"action" "toggle" "id" id} reload))]
+
+    (fetch! "/subs/api" (fn [res] (reset! data res)))
+
+    (if (= @data nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:680px;margin:0 auto;padding:24px"}
+
+        ; 요약 헤더
+        (h "div" {:style "background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border-radius:16px;padding:24px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px"}
+          (str
+            (h "div" {}
+              (str
+                (h "div" {:style "font-size:.8rem;opacity:.8;margin-bottom:4px"} "월 지출 합계")
+                (h "div" {:style "font-size:2rem;font-weight:900"}
+                  (str "₩" (get @data "monthly_total")))
+                (h "div" {:style "font-size:.75rem;opacity:.7;margin-top:4px"}
+                  (str (length (get @data "subs")) "개 구독"))))
+            (h "button"
+              {:style "background:rgba(255,255,255,.2);color:white;border:none;border-radius:10px;padding:10px 20px;cursor:pointer;font-weight:700"
+               :on-click (fn [] (reset! form true))}
+              "+ 추가")))
+
+        ; 추가 폼
+        (if @form
+          (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-size:1rem;font-weight:700"} "새 구독 추가")
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "서비스명 *")
+                      (h! "input" {:type "text" :value @iname :placeholder "Netflix"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! iname (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "금액(원)")
+                      (h! "input" {:type "number" :value @amount :placeholder "17000"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! amount (.-value (.-target e))))})))))
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "결제 주기")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e] (reset! cycle (.-value (.-target e))))}
+                        (str
+                          (h "option" {:value "monthly"} "월별")
+                          (h "option" {:value "yearly"} "연별")
+                          (h "option" {:value "weekly"} "주별")))))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "카테고리")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e] (reset! cat (.-value (.-target e))))}
+                        (str
+                          (h "option" {:value "기타"} "기타")
+                          (h "option" {:value "스트리밍"} "스트리밍")
+                          (h "option" {:value "업무"} "업무")
+                          (h "option" {:value "음악"} "음악")
+                          (h "option" {:value "뉴스"} "뉴스")
+                          (h "option" {:value "게임"} "게임")))))))
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "다음 결제일")
+                      (h! "input" {:type "date" :value @billing
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! billing (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "색상")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e] (reset! color (.-value (.-target e))))}
+                        (str
+                          (h "option" {:value "#6366f1"} "인디고")
+                          (h "option" {:value "#e11d48"} "레드")
+                          (h "option" {:value "#0891b2"} "시안")
+                          (h "option" {:value "#7c3aed"} "퍼플")
+                          (h "option" {:value "#0d9488"} "틸")
+                          (h "option" {:value "#d97706"} "앰버")))))))
+              (when (not (= @err ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:#6366f1;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                     :on-click (fn [] (add))}
+                    "저장")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! form false))}
+                    "취소")))))
+          "")
+
+        ; 목록
+        (if (= (length (get @data "subs")) 0)
+          (h "div" {:style "text-align:center;padding:60px;color:#9ca3af;background:white;border-radius:16px"}
+            (str
+              (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "💳")
+              (h "p" {:style "margin:0"} "등록된 구독이 없습니다")))
+          (h "div" {:style "display:flex;flex-direction:column;gap:10px"}
+            (map
+              (fn [s]
+                (h "div"
+                  {:style (str "background:white;border-radius:12px;padding:16px 20px;"
+                               "box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;"
+                               "align-items:center;gap:14px;"
+                               "opacity:" (if (= (get s "active") 1) "1" ".55"))}
+                  (str
+                    (h "div"
+                      {:style (str "width:42px;height:42px;border-radius:10px;background:"
+                                   (get s "color") ";display:flex;align-items:center;"
+                                   "justify-content:center;color:white;font-weight:800;"
+                                   "font-size:.85rem;flex-shrink:0")}
+                      (str-slice (get s "name") 0 2))
+                    (h "div" {:style "flex:1;min-width:0"}
+                      (str
+                        (h "div" {:style "font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}
+                          (get s "name"))
+                        (h "div" {:style "font-size:.78rem;color:#9ca3af;margin-top:2px"}
+                          (str (get s "category") " · "
+                               (cond
+                                 (= (get s "cycle") "yearly") "연간"
+                                 (= (get s "cycle") "weekly") "주간"
+                                 true "월간")
+                               (if (not (= (get s "next_billing") ""))
+                                 (str " · " (get s "next_billing"))
+                                 "")))))
+                    (h "div" {:style "text-align:right;flex-shrink:0"}
+                      (str
+                        (h "div" {:style "font-weight:700;font-size:1rem"}
+                          (str "₩" (get s "amount")))
+                        (if (= (get s "cycle") "yearly")
+                          (h "div" {:style "font-size:.72rem;color:#9ca3af"}
+                            (str "월 ₩" (floor (/ (get s "amount") 12))))
+                          "")))
+                    (h "div" {:style "display:flex;gap:4px;flex-shrink:0"}
+                      (str
+                        (h "button"
+                          {:title "활성/비활성"
+                           :style "background:none;border:none;cursor:pointer;font-size:1.1rem;padding:4px;line-height:1"
+                           :on-click (fn [] (tog (str (get s "id"))))}
+                          (if (= (get s "active") 1) "✅" "⭕"))
+                        (h "button"
+                          {:title "삭제"
+                           :style "background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1rem;padding:4px;line-height:1"
+                           :on-click (fn [] (del (str (get s "id"))))}
+                          "×"))))))
+              (get @data "subs"))))))))
+
+(defn render [req]
+  (layout-html "💳 구독 관리"
+    (str
+      (h "div" {:style "background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;padding:28px 24px;text-align:center"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "💳 구독 관리")
+          (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"} "정기결제 한눈에 관리")))
+      "ISLAND_PLACEHOLDER"
+      "ISLAND_SCRIPTS")
+    req))

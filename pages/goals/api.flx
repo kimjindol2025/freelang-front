@@ -1,0 +1,70 @@
+; pages/goals/api.flx — 목표/OKR JSON API
+; GET  /goals/api → {goals with progress}
+; POST /goals/api → action: add-goal|delete-goal|add-kr|update-kr|delete-kr
+
+(load "pages/goals/_db.flx")
+(goals-init)
+
+(defn goals-with-krs []
+  (let [gs (goals-all)]
+    (map
+      (fn [g]
+        (let [krs  (goals-krs-by-goal (str (get g "id")))
+              prog (goals-goal-progress (str (get g "id")))]
+          (obj-merge g {"krs" krs "progress" prog})))
+      gs)))
+
+(defn render [req]
+  (server-json {"goals" (goals-with-krs)}))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add-goal")
+        (let [title  (or (get body "title") "")
+              period (or (get body "period") "2026-Q2")]
+          (if (= (str-trim title) "")
+            (server-json {"ok" false "error" "제목 필요"} 400)
+            (do
+              (goals-add-goal title period)
+              (server-json {"ok" true "goals" (goals-with-krs)}))))
+
+      (= action "delete-goal")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (goals-delete-goal id)
+              (server-json {"ok" true "goals" (goals-with-krs)}))))
+
+      (= action "add-kr")
+        (let [goal-id (get body "goal_id")
+              title   (or (get body "title") "")
+              target  (or (get body "target") "100")
+              unit    (or (get body "unit") "%")]
+          (if (= (str-trim title) "")
+            (server-json {"ok" false "error" "KR 제목 필요"} 400)
+            (do
+              (goals-add-kr goal-id title target unit)
+              (server-json {"ok" true "goals" (goals-with-krs)}))))
+
+      (= action "update-kr")
+        (let [id      (get body "id")
+              current (or (get body "current") "0")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (goals-update-kr id current)
+              (server-json {"ok" true "goals" (goals-with-krs)}))))
+
+      (= action "delete-kr")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (goals-delete-kr id)
+              (server-json {"ok" true "goals" (goals-with-krs)}))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))

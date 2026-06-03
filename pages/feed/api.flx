@@ -1,0 +1,137 @@
+; pages/feed/api.flx — RSS 피드 API
+; GET  /feed/api → {feeds, recent}
+; POST /feed/api → action: add|delete|refresh|mark-read|mark-all-read
+;
+; RSS 파싱: http_get(url) → XML → str-split("<item>") → 필드 추출
+
+(load "pages/feed/_db.flx")
+(feed-init)
+
+; XML 태그 내용 추출 (str-split 기반)
+(defn xml-tag [xml tag]
+  (let [open  (str "<" tag ">")
+        close (str "</" tag ">")
+        parts (str-split xml open)]
+    (if (< (length parts) 2)
+      ; CDATA 형태도 시도
+      (let [copen  (str "<" tag "><![CDATA[")
+            cparts (str-split xml copen)]
+        (if (< (length cparts) 2)
+          ""
+          (let [after (first (rest cparts))
+                eparts (str-split after "]]>")]
+            (str-trim (first eparts)))))
+      (let [after  (first (rest parts))
+            eparts (str-split after close)]
+        (str-trim (first eparts))))))
+
+; RSS <item> 블록들 파싱
+(defn parse-rss-items [body]
+  (let [chunks (str-split body "<item>")]
+    (if (< (length chunks) 2)
+      []
+      (filter
+        (fn [item] (not (= (get item "title") "")))
+        (map
+          (fn [chunk]
+            ; </item> 앞까지만 사용
+            (let [end-parts (str-split chunk "</item>")
+                  item-xml  (first end-parts)]
+              {"title"  (str-slice (xml-tag item-xml "title") 0 150)
+               "link"   (xml-tag item-xml "link")
+               "desc"   (str-slice (xml-tag item-xml "description") 0 200)
+               "pub"    (str-slice (xml-tag item-xml "pubDate") 0 30)}))
+          (rest chunks))))))
+
+; 피드 새로고침: http_get → XML 파싱 → DB 저장
+(defn do-refresh [feed-id url]
+  (let [resp (http_get url)]
+    (if (= (get resp "status") 200)
+      (let [body  (get resp "body")
+            title (xml-tag body "title")
+            desc  (xml-tag body "description")
+            items (parse-rss-items body)]
+        (feed-update-feed-meta feed-id
+          (if (= title "") url title)
+          (str-slice desc 0 200))
+        (map
+          (fn [item]
+            (feed-insert-item feed-id
+              (get item "title")
+              (get item "link")
+              (get item "desc")
+              (get item "pub")))
+          items)
+        (length items))
+      0)))
+
+(defn render [req]
+  (server-json {
+    "feeds"  (feed-all-feeds)
+    "recent" (feed-recent-items "30")
+  }))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [url (str-trim (or (get body "url") ""))]
+          (if (= url "")
+            (server-json {"ok" false "error" "URL 필요"} 400)
+            (do
+              (feed-add-feed url)
+              ; 추가 후 즉시 새로고침 시도
+              (let [feeds    (feed-all-feeds)
+                    new-feed (first (filter (fn [f] (= (get f "url") url)) feeds))]
+                (when new-feed
+                  (do-refresh (str (get new-feed "id")) url))
+                (server-json {
+                  "ok"     true
+                  "feeds"  (feed-all-feeds)
+                  "recent" (feed-recent-items "30")
+                })))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (feed-delete-feed id)
+              (server-json {
+                "ok"     true
+                "feeds"  (feed-all-feeds)
+                "recent" (feed-recent-items "30")
+              }))))
+
+      (= action "refresh")
+        (let [id (get body "id")
+              f  (feed-feed-by-id id)]
+          (if (= f nil)
+            (server-json {"ok" false "error" "피드 없음"} 400)
+            (let [n (do-refresh id (get f "url"))]
+              (server-json {
+                "ok"     true
+                "count"  n
+                "feeds"  (feed-all-feeds)
+                "recent" (feed-recent-items "30")
+              }))))
+
+      (= action "mark-read")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (feed-mark-read id)
+              (server-json {"ok" true}))))
+
+      (= action "mark-all-read")
+        (let [feed-id (get body "feed_id")]
+          (if (= feed-id nil)
+            (server-json {"ok" false "error" "feed_id 필요"} 400)
+            (do
+              (feed-mark-all-read feed-id)
+              (server-json {"ok" true "feeds" (feed-all-feeds)}))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))

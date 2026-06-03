@@ -1,0 +1,167 @@
+; pages/feed/index.flx — RSS 피드 리더
+
+(load "pages/feed/_db.flx")
+(feed-init)
+
+(island FeedApp []
+  (let [data     (atom nil)
+        tab      (atom "all")
+        url-input (atom "")
+        err      (atom "")
+        loading  (atom false)
+
+        reload (fn [res]
+                 (reset! data res)
+                 (reset! url-input "")
+                 (reset! err "")
+                 (reset! loading false))
+
+        add-feed (fn []
+                   (if (= (str-trim @url-input) "")
+                     (reset! err "URL을 입력하세요")
+                     (do
+                       (reset! loading true)
+                       (fetch-post! "/feed/api"
+                         {"action" "add" "url" @url-input}
+                         reload))))
+
+        del-feed (fn [id title]
+                   (when (js-confirm (str "'" title "' 피드를 삭제할까요?"))
+                     (fetch-post! "/feed/api" {"action" "delete" "id" id} reload)))
+
+        refresh-feed (fn [id]
+                       (reset! loading true)
+                       (fetch-post! "/feed/api" {"action" "refresh" "id" id} reload))
+
+        mark-read (fn [id]
+                    (fetch-post! "/feed/api" {"action" "mark-read" "id" id}
+                      (fn [res]
+                        (reset! data (obj-merge @data {
+                          "recent" (map
+                            (fn [item]
+                              (if (= (str (get item "id")) (str id))
+                                (obj-merge item {"is_read" 1})
+                                item))
+                            (get @data "recent"))})))))
+
+        filtered-items (fn []
+                         (let [items (get @data "recent")]
+                           (if (= @tab "unread")
+                             (filter (fn [i] (= (get i "is_read") 0)) items)
+                             items)))]
+
+    (fetch! "/feed/api" (fn [res] (reset! data res)))
+
+    (if (= @data nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:800px;margin:0 auto;padding:24px;display:grid;grid-template-columns:240px 1fr;gap:20px;align-items:start"}
+
+        ; 사이드바: 피드 목록
+        (h "div" {}
+          (str
+            ; URL 추가
+            (h "div" {:style "background:white;border-radius:14px;padding:16px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+              (str
+                (h "h3" {:style "font-size:.85rem;font-weight:700;margin:0 0 10px;color:#6b7280"} "피드 추가")
+                (h! "input" {:type "url" :value @url-input :placeholder "https://...feed.xml"
+                             :style "width:100%;padding:8px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:.8rem;box-sizing:border-box;margin-bottom:6px"
+                             :on-input (fn [e] (reset! url-input (.-value (.-target e))))
+                             :on-keydown (fn [e] (when (= (.-key e) "Enter") (add-feed)))})
+                (when (not (= @err ""))
+                  (h "p" {:style "color:#ef4444;font-size:.75rem;margin:0 0 6px"} @err))
+                (h "button"
+                  {:style (str "width:100%;padding:7px;background:#0d9488;color:white;border:none;border-radius:7px;cursor:pointer;font-weight:600;font-size:.8rem;"
+                               (if @loading "opacity:.6" ""))
+                   :on-click (fn [] (add-feed))}
+                  (if @loading "추가 중…" "+ 추가"))))
+
+            ; 피드 목록
+            (h "div" {:style "background:white;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+              (str
+                (h "div" {:style "padding:12px 14px;border-bottom:1px solid #f3f4f6;font-size:.78rem;font-weight:700;color:#9ca3af"} "구독 중")
+                (if (= (length (get @data "feeds")) 0)
+                  (h "div" {:style "padding:20px;text-align:center;color:#9ca3af;font-size:.8rem"} "피드 없음")
+                  (map
+                    (fn [f]
+                      (h "div" {:style "padding:10px 14px;border-bottom:1px solid #fafafa;display:flex;align-items:center;gap:8px"}
+                        (str
+                          (h "div" {:style "flex:1;min-width:0"}
+                            (str
+                              (h "div" {:style "font-size:.82rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}
+                                (if (= (get f "title") "") (get f "url") (get f "title")))
+                              (when (> (get f "unread_count") 0)
+                                (h "span" {:style "font-size:.7rem;background:#0d9488;color:white;padding:1px 6px;border-radius:4px;margin-left:4px"}
+                                  (str (get f "unread_count"))))))
+                          (h "button"
+                            {:title "새로고침"
+                             :style "background:none;border:none;cursor:pointer;color:#9ca3af;font-size:.9rem;padding:2px"
+                             :on-click (fn [] (refresh-feed (str (get f "id"))))}
+                            "🔄")
+                          (h "button"
+                            {:title "삭제"
+                             :style "background:none;border:none;cursor:pointer;color:#ef4444;font-size:.9rem;padding:2px"
+                             :on-click (fn [] (del-feed (str (get f "id")) (get f "title")))}
+                            "×"))))
+                    (get @data "feeds")))))))
+
+        ; 메인: 아이템 목록
+        (h "div" {}
+          (str
+            (h "div" {:style "display:flex;gap:8px;margin-bottom:14px"}
+              (str
+                (map
+                  (fn [t]
+                    (let [active (= (get t "key") @tab)]
+                      (h "button"
+                        {:style (str "padding:6px 14px;border-radius:7px;border:none;cursor:pointer;font-size:.82rem;font-weight:600;"
+                                     (if active "background:#0d9488;color:white" "background:white;color:#6b7280"))
+                         :on-click (fn [] (reset! tab (get t "key")))}
+                        (get t "label"))))
+                  [{"key" "all" "label" "전체"}
+                   {"key" "unread" "label" (str "읽지 않음 ("
+                                                (length (filter (fn [i] (= (get i "is_read") 0)) (get @data "recent")))
+                                                ")")}])))
+
+            (if (= (length (filtered-items)) 0)
+              (h "div" {:style "background:white;border-radius:14px;padding:40px;text-align:center;color:#9ca3af"}
+                (if (= (length (get @data "feeds")) 0)
+                  "피드를 추가해서 뉴스를 구독하세요"
+                  "읽지 않은 아이템이 없습니다"))
+              (h "div" {:style "display:flex;flex-direction:column;gap:8px"}
+                (map
+                  (fn [item]
+                    (h "div"
+                      {:style (str "background:white;border-radius:12px;padding:14px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06);"
+                                   (if (= (get item "is_read") 0)
+                                     "border-left:3px solid #0d9488"
+                                     "border-left:3px solid transparent;opacity:.7"))}
+                      (str
+                        (h "div" {:style "font-size:.72rem;color:#0d9488;font-weight:700;margin-bottom:4px"}
+                          (get item "feed_title"))
+                        (h "a"
+                          {:href (get item "url") :target "_blank"
+                           :style "font-weight:600;font-size:.9rem;color:#111827;text-decoration:none;display:block;margin-bottom:4px;line-height:1.4"
+                           :on-click (fn [] (mark-read (str (get item "id"))))}
+                          (get item "title"))
+                        (when (not (= (get item "summary") ""))
+                          (h "p" {:style "font-size:.8rem;color:#6b7280;margin:0 0 6px;line-height:1.5"}
+                            (str (str-slice (get item "summary") 0 120) "…")))
+                        (h "span" {:style "font-size:.72rem;color:#9ca3af"}
+                          (str-slice (get item "published_at") 0 16)))))
+                  (filtered-items))))))))))
+
+(defn render [req]
+  (let [feeds  (feed-all-feeds)
+        recent (feed-recent-items "20")
+        unread (length (filter (fn [i] (= (get i "is_read") 0)) recent))]
+    (layout-html "📡 Feed"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#0d9488,#0891b2);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "📡 RSS 피드")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str (length feeds) " 피드 · 읽지 않음 " unread " 개"))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

@@ -1,0 +1,232 @@
+/* skl-utils.css — FreeLang Front 유틸리티 CSS
+ * 자동 주입: fl-front-build.js → <style> 태그 뒤에 삽입
+ * 사용: class="u-flex u-gap-3 u-p-4" (Island에서도 class 속성으로 사용 가능)
+ * 동적 값(색상 등)은 여전히 {:style ...} 혼용
+ */
+
+/* ─── 레이아웃 ─────────────────────────────── */
+.u-flex       { display: flex }
+.u-flex-col   { display: flex; flex-direction: column }
+.u-flex-row   { display: flex; flex-direction: row }
+.u-flex-wrap  { flex-wrap: wrap }
+.u-items-start  { align-items: flex-start }
+.u-items-center { align-items: center }
+.u-items-end    { align-items: flex-end }
+.u-justify-start  { justify-content: flex-start }
+.u-justify-center { justify-content: center }
+.u-justify-end    { justify-content: flex-end }
+.u-justify-between{ justify-content: space-between }
+.u-justify-around { justify-content: space-around }
+.u-flex-1     { flex: 1 }
+.u-flex-shrink-0 { flex-shrink: 0 }
+.u-grid       { display: grid }
+.u-grid-2     { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+.u-grid-3     { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px }
+.u-grid-4     { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px }
+.u-grid-auto  { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap: 12px }
+.u-block      { display: block }
+.u-inline     { display: inline }
+.u-inline-flex{ display: inline-flex; align-items: center }
+.u-hidden     { display: none !important }
+.u-relative   { position: relative }
+.u-absolute   { position: absolute }
+.u-fixed      { position: fixed }
+.u-inset-0    { inset: 0 }
+.u-overflow-hidden { overflow: hidden }
+.u-overflow-auto   { overflow: auto }
+.u-truncate   { white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.u-w-full     { width: 100% }
+.u-h-full     { height: 100% }
+.u-max-w-sm   { max-width: 480px }
+.u-max-w-md   { max-width: 640px }
+.u-max-w-lg   { max-width: 800px }
+.u-max-w-xl   { max-width: 1000px }
+.u-mx-auto    { margin-left: auto; margin-right: auto }
+
+/* ─── 간격 (gap / padding / margin) ─────────── */
+.u-gap-1  { gap: 4px }
+.u-gap-2  { gap: 8px }
+.u-gap-3  { gap: 12px }
+.u-gap-4  { gap: 16px }
+.u-gap-5  { gap: 20px }
+.u-gap-6  { gap: 24px }
+.u-p-0    { padding: 0 }
+.u-p-1    { padding: 4px }
+.u-p-2    { padding: 8px }
+.u-p-3    { padding: 12px }
+.u-p-4    { padding: 16px }
+.u-p-5    { padding: 20px }
+.u-p-6    { padding: 24px }
+.u-px-2   { padding-left: 8px; padding-right: 8px }
+.u-px-3   { padding-left: 12px; padding-right: 12px }
+.u-px-4   { padding-left: 16px; padding-right: 16px }
+.u-px-5   { padding-left: 20px; padding-right: 20px }
+.u-px-6   { padding-left: 24px; padding-right: 24px }
+.u-py-2   { padding-top: 8px; padding-bottom: 8px }
+.u-py-3   { padding-top: 12px; padding-bottom: 12px }
+.u-py-4   { padding-top: 16px; padding-bottom: 16px }
+.u-py-5   { padding-top: 20px; padding-bottom: 20px }
+.u-m-0    { margin: 0 }
+.u-mb-0   { margin-bottom: 0 }
+.u-mb-1   { margin-bottom: 4px }
+.u-mb-2   { margin-bottom: 8px }
+.u-mb-3   { margin-bottom: 12px }
+.u-mb-4   { margin-bottom: 16px }
+.u-mb-5   { margin-bottom: 20px }
+.u-mb-6   { margin-bottom: 24px }
+.u-mt-auto{ margin-top: auto }
+
+/* ─── 색상 (배경/텍스트) ────────────────────── */
+.u-bg-white   { background: #fff }
+.u-bg-surface { background: var(--c-surface, #fff) }
+.u-bg-muted   { background: #f9fafb }
+.u-bg-primary { background: #6366f1; color: #fff }
+.u-bg-success { background: #10b981; color: #fff }
+.u-bg-warning { background: #f59e0b; color: #fff }
+.u-bg-danger  { background: #ef4444; color: #fff }
+.u-bg-info    { background: #0891b2; color: #fff }
+.u-bg-purple  { background: #7c3aed; color: #fff }
+.u-bg-subtle-primary { background: #ede9fe; color: #6366f1 }
+.u-bg-subtle-success { background: #dcfce7; color: #16a34a }
+.u-bg-subtle-warning { background: #fef3c7; color: #d97706 }
+.u-bg-subtle-danger  { background: #fef2f2; color: #ef4444 }
+.u-bg-subtle-info    { background: #e0f2fe; color: #0284c7 }
+.u-text-primary   { color: #6366f1 }
+.u-text-success   { color: #10b981 }
+.u-text-warning   { color: #f59e0b }
+.u-text-danger    { color: #ef4444 }
+.u-text-info      { color: #0891b2 }
+.u-text-muted     { color: #9ca3af }
+.u-text-body      { color: #374151 }
+.u-text-heading   { color: #111827 }
+.u-text-white     { color: #fff }
+
+/* ─── 타이포그래피 ───────────────────────────── */
+.u-text-xs   { font-size: .72rem }
+.u-text-sm   { font-size: .82rem }
+.u-text-base { font-size: .95rem }
+.u-text-lg   { font-size: 1.1rem }
+.u-text-xl   { font-size: 1.3rem }
+.u-text-2xl  { font-size: 1.6rem }
+.u-font-normal { font-weight: 400 }
+.u-font-medium { font-weight: 500 }
+.u-font-semibold { font-weight: 600 }
+.u-font-bold     { font-weight: 700 }
+.u-font-black    { font-weight: 900 }
+.u-text-center { text-align: center }
+.u-text-right  { text-align: right }
+.u-text-left   { text-align: left }
+.u-no-underline{ text-decoration: none }
+.u-leading-tight{ line-height: 1.3 }
+.u-leading-normal { line-height: 1.6 }
+.u-leading-loose  { line-height: 1.9 }
+.u-font-mono   { font-family: "SF Mono","Fira Code",monospace }
+
+/* ─── 테두리 / 그림자 / 반경 ────────────────── */
+.u-border     { border: 1px solid #e5e7eb }
+.u-border-t   { border-top: 1px solid #e5e7eb }
+.u-border-b   { border-bottom: 1px solid #e5e7eb }
+.u-border-none{ border: none }
+.u-rounded-sm { border-radius: 6px }
+.u-rounded    { border-radius: 8px }
+.u-rounded-md { border-radius: 12px }
+.u-rounded-lg { border-radius: 16px }
+.u-rounded-xl { border-radius: 20px }
+.u-rounded-full { border-radius: 9999px }
+.u-shadow-sm  { box-shadow: 0 1px 3px rgba(0,0,0,.07) }
+.u-shadow     { box-shadow: 0 2px 8px rgba(0,0,0,.08) }
+.u-shadow-md  { box-shadow: 0 4px 16px rgba(0,0,0,.10) }
+.u-shadow-lg  { box-shadow: 0 8px 32px rgba(0,0,0,.12) }
+
+/* ─── 컴포넌트 ──────────────────────────────── */
+.u-card {
+  background: #fff; border-radius: 14px; padding: 20px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.07); border: 1px solid #f3f4f6
+}
+.u-card-hover { transition: translate .2s, box-shadow .2s }
+.u-card-hover:hover { translate: 0 -2px; box-shadow: 0 4px 16px rgba(0,0,0,.10) }
+
+.u-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px 18px; border-radius: 8px; font-weight: 600; font-size: .88rem;
+  border: none; cursor: pointer; transition: opacity .15s; text-decoration: none
+}
+.u-btn:hover { opacity: .85 }
+.u-btn-primary { background: #6366f1; color: #fff }
+.u-btn-success { background: #10b981; color: #fff }
+.u-btn-warning { background: #f59e0b; color: #fff }
+.u-btn-danger  { background: #ef4444; color: #fff }
+.u-btn-info    { background: #0891b2; color: #fff }
+.u-btn-ghost   { background: transparent; border: 1px solid #e5e7eb; color: #374151 }
+.u-btn-sm      { padding: 5px 12px; font-size: .78rem }
+.u-btn-lg      { padding: 12px 24px; font-size: 1rem }
+.u-btn-full    { width: 100% }
+
+.u-badge {
+  display: inline-flex; align-items: center; padding: 2px 10px;
+  border-radius: 99px; font-size: .72rem; font-weight: 700
+}
+.u-badge-primary { background: #ede9fe; color: #6366f1 }
+.u-badge-success { background: #dcfce7; color: #16a34a }
+.u-badge-warning { background: #fef3c7; color: #d97706 }
+.u-badge-danger  { background: #fef2f2; color: #dc2626 }
+.u-badge-info    { background: #e0f2fe; color: #0284c7 }
+.u-badge-neutral { background: #f3f4f6; color: #6b7280 }
+
+.u-input {
+  width: 100%; padding: 9px 14px; border: 1px solid #d1d5db;
+  border-radius: 8px; font-size: .9rem; font-family: inherit;
+  transition: border-color .15s; box-sizing: border-box
+}
+.u-input:focus { outline: none; border-color: #6366f1 }
+.u-input:hover { border-color: #9ca3af }
+
+.u-label {
+  display: block; font-size: .78rem; font-weight: 600;
+  color: #6b7280; margin-bottom: 4px
+}
+
+.u-form-group  { display: flex; flex-direction: column; gap: 4px }
+
+.u-divider { height: 1px; background: #f3f4f6; border: none; margin: 12px 0 }
+
+.u-progress {
+  width: 100%; height: 6px; background: #f3f4f6;
+  border-radius: 3px; overflow: hidden
+}
+.u-progress-bar { height: 100%; border-radius: 3px; background: #6366f1 }
+
+.u-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: linear-gradient(135deg,#6366f1,#8b5cf6);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: .9rem; flex-shrink: 0
+}
+.u-avatar-sm { width: 28px; height: 28px; font-size: .72rem }
+.u-avatar-lg { width: 56px; height: 56px; font-size: 1.1rem }
+
+.u-empty-state {
+  text-align: center; padding: 60px 24px; color: #9ca3af;
+  background: #fff; border-radius: 16px
+}
+.u-empty-state .icon { font-size: 2.5rem; display: block; margin-bottom: 8px }
+.u-empty-state p { margin: 0 }
+
+.u-table { width: 100%; border-collapse: collapse }
+.u-table th { text-align: left; padding: 10px 14px; font-size: .78rem; font-weight: 700; color: #9ca3af; border-bottom: 1px solid #f3f4f6 }
+.u-table td { padding: 11px 14px; font-size: .88rem; border-bottom: 1px solid #fafafa }
+.u-table tr:hover td { background: #fafafa }
+
+.u-hero-gradient {
+  padding: 28px 24px; text-align: center; color: #fff
+}
+.u-hero-gradient h1 { font-size: 1.6rem; font-weight: 800; margin: 0 0 4px }
+.u-hero-gradient p  { opacity: .8; margin: 0; font-size: .9rem }
+
+/* ─── 반응형 ────────────────────────────────── */
+@media(max-width: 640px) {
+  .u-sm-col   { flex-direction: column }
+  .u-sm-full  { width: 100% }
+  .u-sm-grid-1{ grid-template-columns: 1fr !important }
+  .u-sm-hidden{ display: none !important }
+}

@@ -1,0 +1,70 @@
+; pages/flash/api.flx — 플래시카드 JSON API
+; GET  /flash/api → {decks}
+; POST /flash/api → action: add-deck|delete-deck|add-card|delete-card|answer
+
+(load "pages/flash/_db.flx")
+(flash-init)
+
+(defn render [req]
+  (server-json {"decks" (flash-all-decks)}))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add-deck")
+        (let [name (or (get body "name") "")
+              desc (or (get body "description") "")]
+          (if (= (str-trim name) "")
+            (server-json {"ok" false "error" "덱 이름 필요"} 400)
+            (do
+              (flash-add-deck name desc)
+              (server-json {"ok" true "decks" (flash-all-decks)}))))
+
+      (= action "delete-deck")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (flash-delete-deck id)
+              (server-json {"ok" true "decks" (flash-all-decks)}))))
+
+      (= action "add-card")
+        (let [deck-id (get body "deck_id")
+              front   (or (get body "front") "")
+              back    (or (get body "back") "")]
+          (if (or (= (str-trim front) "") (= (str-trim back) ""))
+            (server-json {"ok" false "error" "앞/뒤면 모두 필요"} 400)
+            (do
+              (flash-add-card deck-id front back)
+              (server-json {"ok" true}))))
+
+      (= action "delete-card")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (flash-delete-card id)
+              (server-json {"ok" true}))))
+
+      ; SM-2 답변 처리
+      (= action "answer")
+        (let [id      (get body "id")
+              quality (str-to-num (or (get body "quality") "0"))
+              card    (flash-card-by-id id)]
+          (if (= card nil)
+            (server-json {"ok" false "error" "카드 없음"} 400)
+            (let [result (flash-sm2-next
+                           (get card "interval_days")
+                           (get card "ease")
+                           (get card "reps")
+                           quality)]
+              (flash-update-card-srs id
+                (get result "interval")
+                (get result "ease")
+                (get result "reps")
+                (get result "next-at"))
+              (server-json {"ok" true "next_at" (get result "next-at")}))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))

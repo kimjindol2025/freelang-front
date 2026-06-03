@@ -1,0 +1,183 @@
+; pages/reading/index.flx — 독서 기록 서재
+
+(load "pages/reading/_db.flx")
+(reading-init)
+
+(island ReadingApp []
+  (let [books   (atom nil)
+        tab     (atom "reading")
+        form    (atom false)
+        title   (atom "")
+        author  (atom "")
+        status  (atom "reading")
+        pages   (atom "0")
+        color   (atom "#6366f1")
+        err     (atom "")
+
+        reload (fn [res]
+                 (reset! books (get res "books"))
+                 (reset! form false)
+                 (reset! title "") (reset! author "") (reset! err ""))
+
+        filtered (fn []
+                   (filter (fn [b] (= (get b "status") @tab)) @books))
+
+        add (fn []
+              (if (= (str-trim @title) "")
+                (reset! err "제목을 입력하세요")
+                (fetch-post! "/reading/api"
+                  {"action" "add" "title" @title "author" @author
+                   "status" @status "pages_total" @pages "cover_color" @color}
+                  reload)))
+
+        del (fn [id]
+              (fetch-post! "/reading/api" {"action" "delete" "id" id}
+                (fn [res] (reset! books (get res "books")))))
+
+        stars (fn [rating]
+                (arr-join
+                  (map
+                    (fn [i]
+                      (if (<= i rating) "★" "☆"))
+                    [1 2 3 4 5])
+                  ""))]
+
+    (fetch! "/reading/api" (fn [res] (reset! books (get res "books"))))
+
+    (if (= @books nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:720px;margin:0 auto;padding:24px"}
+
+        ; 탭
+        (h "div" {:style "display:flex;gap:8px;margin-bottom:20px"}
+          (str
+            (map
+              (fn [t]
+                (let [active (= (get t "key") @tab)]
+                  (h "button"
+                    {:style (str "padding:8px 18px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:.85rem;"
+                                 (if active "background:#7c3aed;color:white" "background:white;color:#6b7280;border:1px solid #e5e7eb"))
+                     :on-click (fn [] (reset! tab (get t "key")))}
+                    (str (get t "icon") " " (get t "label")
+                         " (" (length (filter (fn [b] (= (get b "status") (get t "key"))) @books)) ")"))))
+              [{"key" "reading" "icon" "📖" "label" "읽는 중"}
+               {"key" "done"    "icon" "✅" "label" "완독"}
+               {"key" "wish"    "icon" "📌" "label" "읽고 싶어요"}])
+            (h "button"
+              {:style "margin-left:auto;background:#7c3aed;color:white;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:.85rem"
+               :on-click (fn [] (reset! form true))}
+              "+ 추가")))
+
+        ; 추가 폼
+        (if @form
+          (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-size:1rem;font-weight:700"} "책 추가")
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "제목 *")
+                      (h! "input" {:type "text" :value @title :placeholder "책 제목"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! title (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "저자")
+                      (h! "input" {:type "text" :value @author :placeholder "저자명"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! author (.-value (.-target e))))})))))
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "상태")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e] (reset! status (.-value (.-target e))))}
+                        (str
+                          (h "option" {:value "reading"} "읽는 중")
+                          (h "option" {:value "wish"} "읽고 싶어요")
+                          (h "option" {:value "done"} "완독")))))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "총 페이지")
+                      (h! "input" {:type "number" :value @pages :placeholder "320"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! pages (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "커버 색")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e] (reset! color (.-value (.-target e))))}
+                        (str
+                          (h "option" {:value "#6366f1"} "인디고")
+                          (h "option" {:value "#7c3aed"} "퍼플")
+                          (h "option" {:value "#0891b2"} "시안")
+                          (h "option" {:value "#e11d48"} "레드")
+                          (h "option" {:value "#0d9488"} "틸")
+                          (h "option" {:value "#d97706"} "앰버")))))))
+              (when (not (= @err ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:#7c3aed;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                     :on-click (fn [] (add))}
+                    "저장")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! form false))}
+                    "취소")))))
+          "")
+
+        ; 책 그리드
+        (if (= (length (filtered)) 0)
+          (h "div" {:style "text-align:center;padding:60px;color:#9ca3af;background:white;border-radius:16px"}
+            (str (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "📚")
+                 (h "p" {:style "margin:0"} "목록이 비어 있습니다")))
+          (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px"}
+            (map
+              (fn [b]
+                (h "div" {:style "background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.07);cursor:pointer"}
+                  (str
+                    (h "a" {:href (str "/reading/" (get b "id")) :style "text-decoration:none;color:inherit"}
+                      (str
+                        (h "div" {:style (str "background:" (get b "cover_color") ";height:120px;display:flex;align-items:center;justify-content:center;color:white;font-size:2.5rem")}
+                          "📖")
+                        (h "div" {:style "padding:12px"}
+                          (str
+                            (h "div" {:style "font-weight:700;font-size:.85rem;line-height:1.4;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical"}
+                              (get b "title"))
+                            (h "div" {:style "font-size:.75rem;color:#9ca3af;margin-bottom:8px"}
+                              (if (= (get b "author") "") "저자 미상" (get b "author")))
+                            (if (and (= @tab "reading") (> (get b "pages_total") 0))
+                              (let [pct (* (/ (get b "pages_read") (get b "pages_total")) 100)]
+                                (h "div" {:style "height:4px;background:#e5e7eb;border-radius:2px;overflow:hidden"}
+                                  (h "div" {:style (str "height:100%;background:#7c3aed;width:" pct "%")} "")))
+                              "")
+                            (if (= @tab "done")
+                              (h "div" {:style "color:#f59e0b;font-size:.85rem"} (stars (get b "rating")))
+                              "")))))
+                    (h "button"
+                      {:style "width:100%;padding:6px;background:#fef2f2;border:none;border-top:1px solid #fecaca;color:#ef4444;cursor:pointer;font-size:.8rem"
+                       :on-click (fn [] (del (str (get b "id"))))}
+                      "삭제"))))
+              (filtered))))))))
+
+(defn render [req]
+  (let [total   (length (reading-all))
+        reading (length (reading-by-status "reading"))
+        done    (length (reading-by-status "done"))]
+    (layout-html "📚 독서 기록"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#7c3aed,#6366f1);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "📚 독서 기록")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str "읽는 중 " reading " · 완독 " done " · 합계 " total))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

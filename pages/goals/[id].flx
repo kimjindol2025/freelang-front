@@ -1,0 +1,108 @@
+; pages/goals/[id].flx — 목표 상세/KR 관리
+; GET  /goals/:id
+; POST /goals/:id
+
+(load "pages/goals/_db.flx")
+(goals-init)
+
+(defn render [req]
+  (let [id  (server-req-param req "id")
+        g   (goals-by-id id)
+        krs (goals-krs-by-goal id)
+        p   (goals-goal-progress id)]
+    (if (= g nil)
+      (server-redirect "/goals")
+      (layout-html (get g "title")
+        (h "div" {:style "max-width:640px;margin:0 auto;padding:24px"}
+          (str
+            (h "a" {:href "/goals" :style "color:#6366f1;text-decoration:none;font-size:.9rem;display:inline-block;margin-bottom:20px"} "← 목표 목록")
+            (h "div" {:style "background:white;border-radius:16px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:16px"}
+              (str
+                (h "div" {:style "display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px"}
+                  (str
+                    (h "div" {}
+                      (str
+                        (h "h1" {:style "font-size:1.3rem;font-weight:800;margin:0 0 6px"} (get g "title"))
+                        (h "span" {:style "font-size:.78rem;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:4px"}
+                          (get g "period"))))
+                    (h "div" {:style "font-size:2rem;font-weight:900;color:#6366f1"} (str p "%"))))
+                (h "div" {:style "height:8px;background:#f3f4f6;border-radius:4px;overflow:hidden;margin-bottom:24px"}
+                  (h "div" {:style (str "height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6);border-radius:4px;width:" p "%")} ""))
+                ; KR 목록
+                (h "h3" {:style "font-size:.9rem;font-weight:700;margin:0 0 12px;color:#6b7280"} "Key Results")
+                (if (= (length krs) 0)
+                  (h "p" {:style "color:#9ca3af;font-size:.85rem"} "아직 KR이 없습니다")
+                  (h "div" {:style "display:flex;flex-direction:column;gap:12px;margin-bottom:20px"}
+                    (arr-join
+                      (map
+                        (fn [kr]
+                          (let [kp (if (> (get kr "target") 0)
+                                     (floor (* (/ (get kr "current") (get kr "target")) 100))
+                                     0)
+                                c  (if (>= kp 80) "#10b981"
+                                     (if (>= kp 50) "#f59e0b" "#ef4444"))]
+                            (h "div" {:style "border:1px solid #f3f4f6;border-radius:10px;padding:14px 16px"}
+                              (str
+                                (h "div" {:style "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"}
+                                  (str
+                                    (h "span" {:style "font-size:.9rem;font-weight:600"} (get kr "title"))
+                                    (h "span" {:style (str "font-size:.8rem;font-weight:700;color:" c)} (str kp "%"))))
+                                (h "div" {:style "height:4px;background:#f3f4f6;border-radius:2px;overflow:hidden;margin-bottom:8px"}
+                                  (h "div" {:style (str "height:100%;background:" c ";width:" kp "%")} ""))
+                                (h "form" {:method "POST" :style "display:flex;gap:8px;align-items:center"}
+                                  (str
+                                    (h! "input" {:type "hidden" :name "kr_id" :value (str (get kr "id"))})
+                                    (h! "input" {:type "number" :name "current" :value (str (get kr "current"))
+                                                 :step "0.1" :max (str (get kr "target"))
+                                                 :style "flex:1;padding:6px 10px;border:1px solid #d1d5db;border-radius:7px;font-size:.85rem"})
+                                    (h "span" {:style "font-size:.8rem;color:#9ca3af"}
+                                      (str "/ " (get kr "target") " " (get kr "unit")))
+                                    (h! "input" {:type "hidden" :name "action" :value "update-kr"})
+                                    (h "button" {:type "submit"
+                                                 :style "padding:6px 14px;background:#6366f1;color:white;border:none;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:600"}
+                                      "업데이트")))))))
+                        krs)
+                      "")))
+                ; KR 추가 폼
+                (h "h3" {:style "font-size:.9rem;font-weight:700;margin:0 0 12px;color:#6b7280;border-top:1px solid #f3f4f6;padding-top:16px"}
+                  "KR 추가")
+                (h "form" {:method "POST"}
+                  (str
+                    (h "div" {:style "display:grid;grid-template-columns:2fr 1fr 1fr;gap:8px;margin-bottom:8px"}
+                      (str
+                        (h! "input" {:type "text" :name "kr_title" :placeholder "KR 제목"
+                                     :style "padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem"})
+                        (h! "input" {:type "number" :name "target" :placeholder "목표값" :value "100"
+                                     :style "padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem"})
+                        (h! "input" {:type "text" :name "unit" :placeholder "단위" :value "%"
+                                     :style "padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem"})))
+                    (h! "input" {:type "hidden" :name "action" :value "add-kr"})
+                    (h "button" {:type "submit"
+                                 :style "width:100%;padding:8px;background:#10b981;color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600"}
+                      "+ KR 추가")))))
+          ))
+        req))))
+
+(defn render_post [req]
+  (let [id     (server-req-param req "id")
+        action (form-get req "action")]
+    (cond
+      (= action "add-kr")
+        (let [title  (form-get req "kr_title")
+              target (form-get req "target")
+              unit   (form-get req "unit")]
+          (if (= (str-trim title) "")
+            (server-redirect (str "/goals/" id))
+            (do
+              (goals-add-kr id title target unit)
+              (server-redirect (str "/goals/" id)))))
+
+      (= action "update-kr")
+        (let [kr-id   (form-get req "kr_id")
+              current (form-get req "current")]
+          (do
+            (goals-update-kr kr-id current)
+            (server-redirect (str "/goals/" id))))
+
+      true
+        (server-redirect (str "/goals/" id)))))

@@ -1,0 +1,64 @@
+; pages/subs/api.flx — 구독 JSON API
+; GET  /subs/api → {subs, monthly_total}
+; POST /subs/api → action: add|delete|toggle
+
+(load "pages/subs/_db.flx")
+(subs-init)
+
+(defn calc-monthly [subs]
+  (reduce
+    (fn [acc s]
+      (if (= (get s "active") 1)
+        (let [a (get s "amount")
+              c (get s "cycle")]
+          (+ acc (cond
+            (= c "yearly") (/ a 12)
+            (= c "weekly") (* a 4.33)
+            true a)))
+        acc))
+    0
+    subs))
+
+(defn render [req]
+  (let [subs (subs-all)]
+    (server-json {"subs" subs "monthly_total" (floor (calc-monthly subs))})))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [name     (or (get body "name") "")
+              amount   (or (get body "amount") "0")
+              cycle    (or (get body "cycle") "monthly")
+              category (or (get body "category") "기타")
+              color    (or (get body "color") "#6366f1")
+              billing  (or (get body "next_billing") "")
+              note     (or (get body "note") "")]
+          (if (= (str-trim name) "")
+            (server-json {"ok" false "error" "서비스명 필요"} 400)
+            (do
+              (subs-add name amount cycle category color billing note)
+              (let [subs (subs-all)]
+                (server-json {"ok" true "subs" subs "monthly_total" (floor (calc-monthly subs))})))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (subs-delete id)
+              (let [subs (subs-all)]
+                (server-json {"ok" true "subs" subs "monthly_total" (floor (calc-monthly subs))})))))
+
+      (= action "toggle")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (subs-toggle id)
+              (let [subs (subs-all)]
+                (server-json {"ok" true "subs" subs "monthly_total" (floor (calc-monthly subs))})))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

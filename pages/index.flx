@@ -289,4 +289,35 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
 </div>
 """
 
+    """
+<style>
+.apps-section{margin-bottom:28px}
+.apps-section h2{font-size:1rem;font-weight:700;color:var(--tx);margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.app-card{background:var(--surface);border:1px solid var(--rim);border-radius:14px;
+  padding:18px 16px;text-decoration:none;color:inherit;display:flex;flex-direction:column;
+  align-items:center;gap:8px;text-align:center;
+  transition:border-color .2s,translate .2s}
+.app-card:hover{border-color:rgba(139,92,246,.45);translate:0 -3px;text-decoration:none;color:inherit}
+.app-card .icon{font-size:1.8rem;line-height:1}
+.app-card .name{font-size:.82rem;font-weight:700;color:var(--tx)}
+.app-card .desc{font-size:.7rem;color:var(--dim);line-height:1.45}
+</style>
+<div class="apps-section">
+  <h2>🗂️ 내 앱 <span style="font-size:.72rem;font-weight:500;color:var(--dim);background:rgba(139,92,246,.12);padding:2px 8px;border-radius:4px">10개 빌트인</span></h2>
+  <div class="apps-grid">
+    <a href="/files"   class="app-card"><span class="icon">📁</span><span class="name">파일</span><span class="desc">드라이브·첨부</span></a>
+    <a href="/photos"  class="app-card"><span class="icon">🖼️</span><span class="name">사진</span><span class="desc">갤러리·라이트박스</span></a>
+    <a href="/vault"   class="app-card"><span class="icon">🔐</span><span class="name">Vault</span><span class="desc">비밀번호 금고</span></a>
+    <a href="/contacts" class="app-card"><span class="icon">👤</span><span class="name">연락처</span><span class="desc">인맥·CRM</span></a>
+    <a href="/health"  class="app-card"><span class="icon">💪</span><span class="name">건강</span><span class="desc">운동·체중·수면</span></a>
+    <a href="/reading" class="app-card"><span class="icon">📚</span><span class="name">독서</span><span class="desc">서재·서평</span></a>
+    <a href="/goals"   class="app-card"><span class="icon">🎯</span><span class="name">목표</span><span class="desc">OKR·분기 목표</span></a>
+    <a href="/flash"   class="app-card"><span class="icon">🃏</span><span class="name">플래시카드</span><span class="desc">SRS 암기</span></a>
+    <a href="/subs"    class="app-card"><span class="icon">💳</span><span class="name">구독</span><span class="desc">정기결제 관리</span></a>
+    <a href="/feed"    class="app-card"><span class="icon">📡</span><span class="name">피드</span><span class="desc">RSS 뉴스</span></a>
+  </div>
+</div>
+"""
+
     "</div>") req))

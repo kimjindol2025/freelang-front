@@ -1,0 +1,68 @@
+; pages/vault/_db.flx — 비밀번호 금고 DB
+; ⚠️ 보안 참고: 서버 세션 기반 잠금. 암호화는 base64 obfuscation 수준.
+;    실제 암호화 필요 시 bootstrap.js에 Node.js crypto 노출 필요.
+(ns vault)
+
+(define VAULT-DB {:type "sqlite" :path "data/vault.db"})
+(define VAULT-MASTER "vault_master_2026")
+
+(defn init []
+  (do
+    (db-exec VAULT-DB
+      "CREATE TABLE IF NOT EXISTS vault_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        username TEXT DEFAULT '',
+        password_enc TEXT DEFAULT '',
+        url TEXT DEFAULT '',
+        note TEXT DEFAULT '',
+        category TEXT DEFAULT '기타',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])
+    (db-exec VAULT-DB
+      "CREATE TABLE IF NOT EXISTS vault_session (
+        id INTEGER PRIMARY KEY,
+        unlocked_at TEXT DEFAULT '',
+        token TEXT DEFAULT ''
+      )" [])
+    (db-exec VAULT-DB "INSERT OR IGNORE INTO vault_session (id) VALUES (1)" [])))
+
+(defn get-session []
+  (db-one VAULT-DB "SELECT * FROM vault_session WHERE id=1" []))
+
+(defn set-session [token]
+  (let [now (str-trim (shell "date '+%Y-%m-%d %H:%M:%S'"))]
+    (db-exec VAULT-DB "UPDATE vault_session SET unlocked_at=?,token=? WHERE id=1" [now token])))
+
+(defn clear-session []
+  (db-exec VAULT-DB "UPDATE vault_session SET unlocked_at='',token='' WHERE id=1" []))
+
+(defn is-unlocked [token]
+  (let [s (get-session)]
+    (if s
+      (= (get s "token") token)
+      false)))
+
+(defn all-items []
+  (db-query VAULT-DB "SELECT * FROM vault_items ORDER BY category ASC, label ASC" []))
+
+(defn by-id [id]
+  (db-one VAULT-DB "SELECT * FROM vault_items WHERE id=?" [(str-to-num id)]))
+
+; 간단한 base64 인코딩 (obfuscation용)
+(defn encode [s]
+  (str-trim (shell (str "echo -n '" s "' | base64"))))
+
+(defn decode [s]
+  (str-trim (shell (str "echo '" s "' | base64 -d"))))
+
+(defn add [label username password url note category]
+  (db-exec VAULT-DB
+    "INSERT INTO vault_items (label,username,password_enc,url,note,category) VALUES (?,?,?,?,?,?)"
+    [label username (encode password) url note category]))
+
+(defn delete [id]
+  (db-exec VAULT-DB "DELETE FROM vault_items WHERE id=?" [(str-to-num id)]))
+
+(defn check-master [pw]
+  (= pw VAULT-MASTER))

@@ -1,0 +1,40 @@
+; pages/contacts/_db.flx — 연락처 DB
+(ns contacts)
+
+(define CONTACTS-DB {:type "sqlite" :path "data/contacts.db"})
+
+(defn init []
+  (db-exec CONTACTS-DB
+    "CREATE TABLE IF NOT EXISTS contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      phone TEXT DEFAULT '',
+      email TEXT DEFAULT '',
+      memo TEXT DEFAULT '',
+      group_name TEXT DEFAULT '일반',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query CONTACTS-DB "SELECT * FROM contacts ORDER BY name ASC" []))
+
+(defn search [q]
+  (db-query CONTACTS-DB
+    "SELECT * FROM contacts WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY name ASC"
+    [(str "%" q "%") (str "%" q "%") (str "%" q "%")]))
+
+(defn by-id [id]
+  (db-one CONTACTS-DB "SELECT * FROM contacts WHERE id=?" [(str-to-num id)]))
+
+(defn add [name phone email memo group-name]
+  (db-exec CONTACTS-DB
+    "INSERT INTO contacts (name,phone,email,memo,group_name) VALUES (?,?,?,?,?)"
+    [name phone email memo group-name]))
+
+(defn update [id name phone email memo group-name]
+  (db-exec CONTACTS-DB
+    "UPDATE contacts SET name=?,phone=?,email=?,memo=?,group_name=? WHERE id=?"
+    [name phone email memo group-name (str-to-num id)]))
+
+(defn delete [id]
+  (db-exec CONTACTS-DB "DELETE FROM contacts WHERE id=?" [(str-to-num id)]))

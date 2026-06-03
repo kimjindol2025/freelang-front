@@ -1,0 +1,8 @@
+; pages/photos/api.flx — 사진만 반환
+; GET /photos/api → {files: [이미지만]}
+
+(load "pages/files/_db.flx")
+(files-init)
+
+(defn render [req]
+  (server-json {"files" (files-images)}))

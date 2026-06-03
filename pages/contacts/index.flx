@@ -1,0 +1,170 @@
+; pages/contacts/index.flx — 연락처 메인
+
+(load "pages/contacts/_db.flx")
+(contacts-init)
+
+(island ContactsApp []
+  (let [contacts (atom nil)
+        q        (atom "")
+        form     (atom false)
+        iname    (atom "")
+        phone    (atom "")
+        email    (atom "")
+        memo     (atom "")
+        group    (atom "일반")
+        err      (atom "")
+
+        reload (fn [res]
+                 (reset! contacts (get res "contacts"))
+                 (reset! form false)
+                 (reset! iname "") (reset! phone "") (reset! email "")
+                 (reset! memo "") (reset! err ""))
+
+        search (fn []
+                 (let [url (if (= (str-trim @q) "")
+                             "/contacts/api"
+                             (str "/contacts/api?q=" @q))]
+                   (fetch! url (fn [res] (reset! contacts (get res "contacts"))))))
+
+        add (fn []
+              (if (= (str-trim @iname) "")
+                (reset! err "이름을 입력하세요")
+                (fetch-post! "/contacts/api"
+                  {"action" "add" "name" @iname "phone" @phone
+                   "email" @email "memo" @memo "group" @group}
+                  reload)))
+
+        del (fn [id]
+              (when (js-confirm "삭제하시겠습니까?")
+                (fetch-post! "/contacts/api" {"action" "delete" "id" id}
+                  (fn [res] (reset! contacts (get res "contacts"))))))]
+
+    (fetch! "/contacts/api" (fn [res] (reset! contacts (get res "contacts"))))
+
+    (if (= @contacts nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:680px;margin:0 auto;padding:24px"}
+
+        ; 검색 + 추가 버튼
+        (h "div" {:style "display:flex;gap:10px;margin-bottom:20px"}
+          (str
+            (h "div" {:style "flex:1;position:relative"}
+              (str
+                (h! "input"
+                  {:type "text" :placeholder "이름, 전화, 이메일 검색…" :value @q
+                   :style "width:100%;padding:10px 16px 10px 40px;border:1px solid #d1d5db;border-radius:10px;font-size:.9rem"
+                   :on-input (fn [e]
+                               (reset! q (.-value (.-target e)))
+                               (search))})
+                (h "span" {:style "position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9ca3af"} "🔍")))
+            (h "button"
+              {:style "background:#6366f1;color:white;border:none;border-radius:10px;padding:10px 20px;cursor:pointer;font-weight:700;white-space:nowrap"
+               :on-click (fn [] (reset! form true))}
+              "+ 추가")))
+
+        ; 추가 폼
+        (if @form
+          (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-size:1rem;font-weight:700"} "연락처 추가")
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이름 *")
+                      (h! "input" {:type "text" :value @iname :placeholder "홍길동"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! iname (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "전화번호")
+                      (h! "input" {:type "tel" :value @phone :placeholder "010-0000-0000"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! phone (.-value (.-target e))))})))))
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이메일")
+                      (h! "input" {:type "email" :value @email :placeholder "hong@email.com"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! email (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "그룹")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e] (reset! group (.-value (.-target e))))}
+                        (str
+                          (h "option" {:value "일반"} "일반")
+                          (h "option" {:value "가족"} "가족")
+                          (h "option" {:value "친구"} "친구")
+                          (h "option" {:value "직장"} "직장")
+                          (h "option" {:value "비즈니스"} "비즈니스")))))))
+              (h "div" {:style "margin-bottom:16px"}
+                (str
+                  (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "메모")
+                  (h "textarea"
+                    {:rows "2" :value @memo :placeholder "메모…"
+                     :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;resize:none"
+                     :on-input (fn [e] (reset! memo (.-value (.-target e))))}
+                    "")))
+              (when (not (= @err ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:#6366f1;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                     :on-click (fn [] (add))}
+                    "저장")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! form false))}
+                    "취소")))))
+          "")
+
+        ; 목록
+        (if (= (length @contacts) 0)
+          (h "div" {:style "text-align:center;padding:60px;color:#9ca3af;background:white;border-radius:16px"}
+            (str
+              (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "👤")
+              (h "p" {:style "margin:0"} "연락처가 없습니다")))
+          (h "div" {:style "display:flex;flex-direction:column;gap:8px"}
+            (map
+              (fn [c]
+                (h "div" {:style "background:white;border-radius:12px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:14px"}
+                  (str
+                    (h "div" {:style "width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:1rem;flex-shrink:0"}
+                      (str-slice (get c "name") 0 1))
+                    (h "div" {:style "flex:1;min-width:0"}
+                      (str
+                        (h "div" {:style "font-weight:600;font-size:.95rem"} (get c "name"))
+                        (h "div" {:style "font-size:.8rem;color:#6b7280;margin-top:2px"}
+                          (str
+                            (if (not (= (get c "phone") "")) (str (get c "phone") "  ") "")
+                            (if (not (= (get c "email") "")) (get c "email") "")))
+                        (h "div" {:style "font-size:.72rem;color:#9ca3af;margin-top:2px"}
+                          (get c "group_name"))))
+                    (h "div" {:style "display:flex;gap:6px;flex-shrink:0"}
+                      (str
+                        (h "a"
+                          {:href (str "/contacts/" (get c "id"))
+                           :style "padding:6px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:.8rem;color:#374151;text-decoration:none"}
+                          "편집")
+                        (h "button"
+                          {:style "padding:6px 10px;background:none;border:1px solid #fecaca;border-radius:8px;color:#ef4444;cursor:pointer;font-size:.8rem"
+                           :on-click (fn [] (del (str (get c "id"))))}
+                          "삭제"))))))
+              @contacts)))))))
+
+(defn render [req]
+  (layout-html "👤 연락처"
+    (str
+      (h "div" {:style "background:linear-gradient(135deg,#0891b2,#06b6d4);color:white;padding:28px 24px;text-align:center"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "👤 연락처")
+          (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"} "인맥·연락처 관리")))
+      "ISLAND_PLACEHOLDER"
+      "ISLAND_SCRIPTS")
+    req))

@@ -1,0 +1,134 @@
+; pages/flash/index.flx — 플래시카드 덱 목록
+
+(load "pages/flash/_db.flx")
+(flash-init)
+
+(island FlashApp []
+  (let [decks     (atom nil)
+        show-form (atom false)
+        dname     (atom "")
+        ddesc     (atom "")
+        err       (atom "")
+
+        reload (fn [res]
+                 (reset! decks (get res "decks"))
+                 (reset! show-form false)
+                 (reset! dname "") (reset! ddesc "") (reset! err ""))
+
+        add (fn []
+              (if (= (str-trim @dname) "")
+                (reset! err "덱 이름을 입력하세요")
+                (fetch-post! "/flash/api"
+                  {"action" "add-deck" "name" @dname "description" @ddesc}
+                  reload)))
+
+        del (fn [id name]
+              (when (js-confirm (str "'" name "' 덱을 삭제하시겠습니까?"))
+                (fetch-post! "/flash/api" {"action" "delete-deck" "id" id} reload)))]
+
+    (fetch! "/flash/api" (fn [res] (reset! decks (get res "decks"))))
+
+    (if (= @decks nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:700px;margin:0 auto;padding:24px"}
+
+        ; 추가 버튼 / 폼
+        (if @show-form
+          (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-weight:700"} "새 덱 만들기")
+              (h "div" {:style "display:flex;flex-direction:column;gap:10px;margin-bottom:16px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "덱 이름 *")
+                      (h! "input" {:type "text" :value @dname :placeholder "ex. 영어 단어"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! dname (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "설명")
+                      (h! "input" {:type "text" :value @ddesc :placeholder "설명 (선택)"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! ddesc (.-value (.-target e))))})))))
+              (when (not (= @err ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:#f59e0b;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                     :on-click (fn [] (add))}
+                    "만들기")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! show-form false))}
+                    "취소")))))
+          (h "div" {:style "text-align:right;margin-bottom:16px"}
+            (h "button"
+              {:style "background:#f59e0b;color:white;border:none;border-radius:10px;padding:10px 20px;cursor:pointer;font-weight:700"
+               :on-click (fn [] (reset! show-form true))}
+              "+ 새 덱")))
+
+        ; 덱 목록
+        (if (= (length @decks) 0)
+          (h "div" {:style "background:white;border-radius:16px;padding:60px;text-align:center;color:#9ca3af"}
+            (str
+              (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "🃏")
+              (h "p" {:style "margin:0"} "덱을 만들어서 카드를 추가해보세요")))
+          (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px"}
+            (map
+              (fn [d]
+                (let [total (get d "card_count")
+                      due   (get d "due_count")]
+                  (h "div" {:style "background:white;border-radius:14px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.07)"}
+                    (str
+                      (h "div" {:style "background:linear-gradient(135deg,#f59e0b,#d97706);padding:20px;color:white"}
+                        (str
+                          (h "div" {:style "font-size:2rem;margin-bottom:8px"} "🃏")
+                          (h "div" {:style "font-weight:800;font-size:1rem"} (get d "name"))
+                          (if (not (= (get d "description") ""))
+                            (h "div" {:style "font-size:.75rem;opacity:.8;margin-top:2px"} (get d "description"))
+                            "")))
+                      (h "div" {:style "padding:14px 16px"}
+                        (str
+                          (h "div" {:style "display:flex;justify-content:space-between;margin-bottom:12px"}
+                            (str
+                              (h "span" {:style "font-size:.8rem;color:#6b7280"} (str total " 카드"))
+                              (if (> due 0)
+                                (h "span" {:style "font-size:.75rem;background:#fef3c7;color:#d97706;padding:2px 8px;border-radius:4px;font-weight:700"}
+                                  (str due " 오늘 복습"))
+                                (h "span" {:style "font-size:.75rem;color:#9ca3af"} "모두 완료"))))
+                          (h "div" {:style "display:flex;gap:6px"}
+                            (str
+                              (h "a"
+                                {:href (str "/flash/study?deck=" (get d "id"))
+                                 :style (str "flex:1;text-align:center;padding:7px;border-radius:7px;text-decoration:none;font-weight:600;font-size:.8rem;"
+                                             (if (> due 0)
+                                               "background:#f59e0b;color:white"
+                                               "background:#f3f4f6;color:#9ca3af"))}
+                                (if (> due 0) "학습 시작" "다 외웠어요"))
+                              (h "a"
+                                {:href (str "/flash/" (get d "id"))
+                                 :style "padding:7px 12px;border:1px solid #e5e7eb;border-radius:7px;text-decoration:none;color:#374151;font-size:.8rem"}
+                                "편집")
+                              (h "button"
+                                {:style "padding:7px 8px;background:none;border:1px solid #fecaca;border-radius:7px;color:#ef4444;cursor:pointer;font-size:.75rem"
+                                 :on-click (fn [] (del (str (get d "id")) (get d "name")))}
+                                "삭제"))))))))
+              @decks))))))))
+
+(defn render [req]
+  (let [decks (flash-all-decks)
+        total (reduce (fn [acc d] (+ acc (get d "card_count"))) 0 decks)
+        due   (reduce (fn [acc d] (+ acc (get d "due_count"))) 0 decks)]
+    (layout-html "🃏 플래시카드"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "🃏 플래시카드")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str (length decks) " 덱 · " total " 카드 · 오늘 복습 " due " 개"))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

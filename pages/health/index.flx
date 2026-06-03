@@ -1,0 +1,184 @@
+; pages/health/index.flx — 건강 기록 대시보드
+
+(load "pages/health/_db.flx")
+(health-init)
+
+(defn today-str []
+  (str-trim (shell "date '+%Y-%m-%d'")))
+
+(defn badge [label value unit color]
+  (h "div" {:style (str "background:" color ";border-radius:12px;padding:16px 20px;color:white;text-align:center")}
+    (str
+      (h "div" {:style "font-size:.75rem;opacity:.8;margin-bottom:4px"} label)
+      (h "div" {:style "font-size:1.6rem;font-weight:900"} (str value))
+      (h "div" {:style "font-size:.75rem;opacity:.7"} unit))))
+
+(island HealthApp []
+  (let [today    (atom nil)
+        type-tab (atom "weight")
+        form     (atom false)
+        date     (atom "")
+        itype    (atom "weight")
+        value    (atom "")
+        unit     (atom "kg")
+        note     (atom "")
+        err      (atom "")
+
+        reload-today (fn [res]
+                       (reset! today (get res "today"))
+                       (reset! form false)
+                       (reset! value "") (reset! note "") (reset! err ""))
+
+        add (fn []
+              (if (= (str-trim @value) "")
+                (reset! err "값을 입력하세요")
+                (fetch-post! "/health/api"
+                  {"action" "add" "date" @date "type" @itype
+                   "value" @value "unit" @unit "note" @note}
+                  reload-today)))
+
+        del (fn [id]
+              (fetch-post! "/health/api" {"action" "delete" "id" id}
+                (fn [res] (reset! today (get res "today")))))]
+
+    (fetch! "/health/api" (fn [res] (reset! today (get res "today"))))
+
+    (if (= @today nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:720px;margin:0 auto;padding:24px"}
+
+        ; 오늘 요약 카드
+        (h "div" {:style "margin-bottom:20px"}
+          (str
+            (h "div" {:style "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"}
+              (str
+                (h "h2" {:style "font-size:1rem;font-weight:700;margin:0"} "오늘 기록")
+                (h "button"
+                  {:style "background:#10b981;color:white;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:.85rem"
+                   :on-click (fn [] (reset! form true))}
+                  "+ 기록 추가")))
+            (if (= (length @today) 0)
+              (h "div" {:style "background:white;border-radius:12px;padding:24px;text-align:center;color:#9ca3af;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+                "오늘 기록이 없습니다")
+              (h "div" {:style "display:flex;flex-direction:column;gap:8px"}
+                (map
+                  (fn [log]
+                    (h "div" {:style "background:white;border-radius:10px;padding:12px 16px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:12px"}
+                      (str
+                        (h "span" {:style "font-size:1.2rem"}
+                          (cond
+                            (= (get log "type") "weight") "⚖️"
+                            (= (get log "type") "sleep")  "😴"
+                            (= (get log "type") "workout") "💪"
+                            true "📊"))
+                        (h "div" {:style "flex:1"}
+                          (str
+                            (h "span" {:style "font-weight:600"} (str (get log "value") " " (get log "unit")))
+                            (if (not (= (get log "note") ""))
+                              (h "span" {:style "color:#9ca3af;font-size:.85rem;margin-left:8px"} (get log "note"))
+                              "")))
+                        (h "span" {:style "font-size:.75rem;color:#9ca3af"}
+                          (cond
+                            (= (get log "type") "weight") "체중"
+                            (= (get log "type") "sleep")  "수면"
+                            (= (get log "type") "workout") "운동"
+                            true (get log "type"))))))
+                  @today)))))
+
+        ; 기록 추가 폼
+        (if @form
+          (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-size:1rem;font-weight:700"} "기록 추가")
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "종류")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                         :on-change (fn [e]
+                                      (let [v (.-value (.-target e))]
+                                        (reset! itype v)
+                                        (reset! unit (cond
+                                          (= v "weight") "kg"
+                                          (= v "sleep") "시간"
+                                          (= v "workout") "분"
+                                          true ""))))}
+                        (str
+                          (h "option" {:value "weight"} "⚖️ 체중")
+                          (h "option" {:value "sleep"} "😴 수면")
+                          (h "option" {:value "workout"} "💪 운동")
+                          (h "option" {:value "water"} "💧 수분")
+                          (h "option" {:value "steps"} "🚶 걸음수"))))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "날짜")
+                      (h! "input" {:type "date" :value @date
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! date (.-value (.-target e))))})))))
+              (h "div" {:style "display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "값 *")
+                      (h! "input" {:type "number" :step "0.1" :value @value :placeholder "70.5"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! value (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "단위")
+                      (h! "input" {:type "text" :value @unit :placeholder "kg"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! unit (.-value (.-target e))))})))))
+              (h "div" {:style "margin-bottom:16px"}
+                (str
+                  (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "메모")
+                  (h! "input" {:type "text" :value @note :placeholder "메모 (선택)"
+                                :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                :on-input (fn [e] (reset! note (.-value (.-target e))))})))
+              (when (not (= @err ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:#10b981;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                     :on-click (fn [] (add))}
+                    "저장")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! form false))}
+                    "취소")))))
+          "")
+
+        ; 기록 보기 링크
+        (h "div" {:style "display:grid;grid-template-columns:repeat(3,1fr);gap:12px"}
+          (str
+            (map
+              (fn [t]
+                (h "a"
+                  {:href (str "/health/log?type=" (get t "key"))
+                   :style "background:white;border-radius:12px;padding:16px;text-align:center;text-decoration:none;color:inherit;box-shadow:0 1px 4px rgba(0,0,0,.06);display:block;transition:transform .15s"
+                   :onmouseover "this.style.transform='translateY(-2px)'"
+                   :onmouseout "this.style.transform=''"}
+                  (str
+                    (h "div" {:style "font-size:1.8rem;margin-bottom:6px"} (get t "icon"))
+                    (h "div" {:style "font-weight:600;font-size:.9rem"} (get t "label"))
+                    (h "div" {:style "font-size:.75rem;color:#9ca3af;margin-top:2px"} "기록 보기"))))
+              [{"key" "weight" "icon" "⚖️" "label" "체중"}
+               {"key" "sleep"  "icon" "😴" "label" "수면"}
+               {"key" "workout" "icon" "💪" "label" "운동"}]))))))))
+
+(defn render [req]
+  (let [today (health-today-summary)]
+    (layout-html "💪 건강 기록"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#10b981,#059669);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "💪 건강 기록")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str "오늘 " (today-str) " · " (length today) "개 기록"))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

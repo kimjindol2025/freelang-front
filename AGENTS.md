@@ -154,8 +154,14 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/api/sla/report` | pages/api/sla/report.flx |
 | `/api/sla/status` | pages/api/sla/status.flx |
 | `/api/sla` | pages/api/sla.flx |
+| `/app/api-init` | pages/app/api-init.flx |
+| `/app/api` | pages/app/api.flx |
+| `/app` | pages/app/index.flx |
 | `/contact/thanks` | pages/contact/thanks.flx |
 | `/contact` | pages/contact.flx |
+| `/contacts/:id` | pages/contacts/[id].flx |
+| `/contacts/api` | pages/contacts/api.flx |
+| `/contacts` | pages/contacts/index.flx |
 | `/counter` | pages/counter.flx |
 | `/dashboard/alerts` | pages/dashboard/alerts.flx |
 | `/dashboard/charts` | pages/dashboard/charts.flx |
@@ -195,8 +201,22 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/examples/29-bmi` | pages/examples/29-bmi.flx |
 | `/examples/30-lightbox` | pages/examples/30-lightbox.flx |
 | `/examples` | pages/examples/index.flx |
+| `/feed/api` | pages/feed/api.flx |
+| `/feed` | pages/feed/index.flx |
 | `/fetch-demo` | pages/fetch-demo.flx |
+| `/files/api` | pages/files/api.flx |
+| `/files` | pages/files/index.flx |
+| `/flash/:id` | pages/flash/[id].flx |
+| `/flash/api` | pages/flash/api.flx |
+| `/flash` | pages/flash/index.flx |
+| `/flash/study` | pages/flash/study.flx |
 | `/freelang` | pages/freelang.flx |
+| `/goals/:id` | pages/goals/[id].flx |
+| `/goals/api` | pages/goals/api.flx |
+| `/goals` | pages/goals/index.flx |
+| `/health/api` | pages/health/api.flx |
+| `/health` | pages/health/index.flx |
+| `/health/log` | pages/health/log.flx |
 | `/` | pages/index.flx |
 | `/intro` | pages/intro.flx |
 | `/login` | pages/login.flx |
@@ -204,7 +224,12 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/logs` | pages/logs.flx |
 | `/notes-island` | pages/notes-island.flx |
 | `/notes` | pages/notes.flx |
+| `/photos/api` | pages/photos/api.flx |
+| `/photos` | pages/photos/index.flx |
 | `/playground` | pages/playground.flx |
+| `/reading/:id` | pages/reading/[id].flx |
+| `/reading/api` | pages/reading/api.flx |
+| `/reading` | pages/reading/index.flx |
 | `/shop/cart` | pages/shop/cart.flx |
 | `/shop` | pages/shop/index.flx |
 | `/shop/orders/:id` | pages/shop/orders/[id].flx |
@@ -212,11 +237,15 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/shop/products/:id` | pages/shop/products/[id].flx |
 | `/shop/users/:id` | pages/shop/users/[id].flx |
 | `/styled` | pages/styled.flx |
+| `/subs/api` | pages/subs/api.flx |
+| `/subs` | pages/subs/index.flx |
 | `/tasks` | pages/tasks.flx |
 | `/test-helpers` | pages/test-helpers.flx |
 | `/todo` | pages/todo.flx |
 | `/upload` | pages/upload.flx |
 | `/users/:id` | pages/users/[id].flx |
+| `/vault/api` | pages/vault/api.flx |
+| `/vault` | pages/vault/index.flx |
 
 ## 네이밍 규칙
 

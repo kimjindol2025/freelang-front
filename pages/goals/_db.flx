@@ -1,0 +1,68 @@
+; pages/goals/_db.flx — 목표/OKR DB
+(ns goals)
+
+(define GOALS-DB {:type "sqlite" :path "data/goals.db"})
+
+(defn init []
+  (do
+    (db-exec GOALS-DB
+      "CREATE TABLE IF NOT EXISTS goals (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        period TEXT DEFAULT '2026-Q2',
+        status TEXT DEFAULT 'active',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])
+    (db-exec GOALS-DB
+      "CREATE TABLE IF NOT EXISTS key_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        goal_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        target REAL DEFAULT 100,
+        current REAL DEFAULT 0,
+        unit TEXT DEFAULT '%',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])))
+
+(defn all []
+  (db-query GOALS-DB "SELECT * FROM goals ORDER BY status ASC, created_at DESC" []))
+
+(defn by-id [id]
+  (db-one GOALS-DB "SELECT * FROM goals WHERE id=?" [(str-to-num id)]))
+
+(defn krs-by-goal [goal-id]
+  (db-query GOALS-DB "SELECT * FROM key_results WHERE goal_id=? ORDER BY id ASC" [(str-to-num goal-id)]))
+
+(defn add-goal [title period]
+  (db-exec GOALS-DB "INSERT INTO goals (title,period) VALUES (?,?)" [title period]))
+
+(defn add-kr [goal-id title target unit]
+  (db-exec GOALS-DB
+    "INSERT INTO key_results (goal_id,title,target,unit) VALUES (?,?,?,?)"
+    [(str-to-num goal-id) title (str-to-num target) unit]))
+
+(defn update-kr [id current]
+  (db-exec GOALS-DB "UPDATE key_results SET current=? WHERE id=?" [(str-to-num current) (str-to-num id)]))
+
+(defn delete-goal [id]
+  (do
+    (db-exec GOALS-DB "DELETE FROM key_results WHERE goal_id=?" [(str-to-num id)])
+    (db-exec GOALS-DB "DELETE FROM goals WHERE id=?" [(str-to-num id)])))
+
+(defn delete-kr [id]
+  (db-exec GOALS-DB "DELETE FROM key_results WHERE id=?" [(str-to-num id)]))
+
+(defn goal-progress [goal-id]
+  (let [krs (krs-by-goal goal-id)
+        total (length krs)]
+    (if (= total 0)
+      0
+      (let [sum (reduce
+                  (fn [acc kr]
+                    (let [t (get kr "target")
+                          c (get kr "current")
+                          pct (if (> t 0) (/ (* c 100) t) 0)]
+                      (+ acc pct)))
+                  0
+                  krs)]
+        (floor (/ sum total))))))

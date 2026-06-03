@@ -1,0 +1,68 @@
+; pages/photos/index.flx — 사진 갤러리
+
+(load "pages/files/_db.flx")
+(files-init)
+
+(island PhotosApp []
+  (let [photos   (atom nil)
+        selected (atom nil)
+
+        close (fn [] (reset! selected nil))]
+
+    (fetch! "/photos/api"
+      (fn [res] (reset! photos (get res "files"))))
+
+    (if (= @photos nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:900px;margin:0 auto;padding:24px"}
+
+        ; 라이트박스 (선택된 사진)
+        (if @selected
+          (h "div"
+            {:style "position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px"
+             :on-click (fn [] (close))}
+            (str
+              (h "div" {:style "position:absolute;top:16px;right:16px;color:white;font-size:2rem;cursor:pointer"
+                        :on-click (fn [] (close))}
+                "×")
+              (h "img" {:src (str "/" (get @selected "path"))
+                        :style "max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px"
+                        :on-click (fn [e] (.stopPropagation e))}
+                "")))
+          "")
+
+        ; 갤러리 그리드
+        (if (= (length @photos) 0)
+          (h "div" {:style "background:white;border-radius:16px;padding:60px;text-align:center;color:#9ca3af"}
+            (str
+              (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "🖼️")
+              (h "p" {:style "margin:0"} (str "사진이 없습니다. "
+                (h "a" {:href "/files" :style "color:#6366f1"} "파일 드라이브") "에서 이미지를 업로드하세요."))))
+          (h "div" {:style "columns:3 180px;gap:12px"}
+            (map
+              (fn [f]
+                (h "div" {:style "break-inside:avoid;margin-bottom:12px;cursor:pointer;border-radius:10px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.1)"
+                           :on-click (fn [] (reset! selected f))}
+                  (h "img"
+                    {:src (str "/" (get f "path"))
+                     :style "width:100%;display:block;transition:transform .2s"
+                     :onmouseover "this.style.transform='scale(1.02)'"
+                     :onmouseout "this.style.transform='scale(1)'"}
+                    "")))
+              @photos)))))))
+
+(defn render [req]
+  (let [photos (files-images)
+        count  (length photos)]
+    (layout-html "🖼️ 사진"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#e11d48,#be185d);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "🖼️ 사진")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str count " 장 · "
+                (h "a" {:href "/files" :style "color:rgba(255,255,255,.8)"} "파일 드라이브에서 업로드")))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

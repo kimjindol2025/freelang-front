@@ -1,0 +1,37 @@
+; pages/files/api.flx — 파일 드라이브 API
+; GET  /files/api → {files}
+; POST /files/api → upload (multipart) or action: delete
+
+(load "pages/files/_db.flx")
+(files-init)
+
+(defn render [req]
+  (let [folder (or (server-req-query req "folder") "/")]
+    (server-json {"files" (files-by-folder folder)})))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (get body "action")]
+    (if (= action "delete")
+      (let [id (get body "id")]
+        (if (= id nil)
+          (server-json {"ok" false "error" "id 필요"} 400)
+          (do
+            (files-delete id)
+            (server-json {"ok" true "files" (files-all)}))))
+      ; 파일 업로드
+      (let [uploaded (server-req-files req)
+            file     (if (> (length uploaded) 0) (first uploaded) nil)]
+        (if (= file nil)
+          (server-json {"ok" false "error" "파일이 없습니다"} 400)
+          (let [orig  (get file "originalname")
+                size  (get file "size")
+                mime  (get file "mimetype")
+                tmp   (get file "path")
+                dest  (str "public/uploads/" orig)]
+            (if (> size 10485760)
+              (server-json {"ok" false "error" "파일 크기 초과 (최대 10MB)"} 400)
+              (do
+                (shell (str "cp '" tmp "' '" dest "'"))
+                (files-add orig dest size mime "/" "")
+                (server-json {"ok" true "files" (files-all)})))))))))

@@ -1,0 +1,64 @@
+; pages/vault/api.flx — 비밀번호 금고 API
+; GET  /vault/api?token=T → {ok, items} (토큰 유효 시)
+; POST /vault/api → action: unlock|lock|add|delete
+
+(load "pages/vault/_db.flx")
+(vault-init)
+
+(defn render [req]
+  (let [token (or (server-req-query req "token") "")]
+    (if (vault-is-unlocked token)
+      (let [raw   (vault-all-items)
+            items (map
+                    (fn [item]
+                      (obj-merge item {"password_enc" (vault-decode (get item "password_enc"))}))
+                    raw)]
+        (server-json {"ok" true "items" items}))
+      (server-json {"ok" false "locked" true} 401))))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "unlock")
+        (let [pw (or (get body "password") "")]
+          (if (vault-check-master pw)
+            (let [token (str-trim (shell "openssl rand -hex 16"))]
+              (vault-set-session token)
+              (server-json {"ok" true "token" token}))
+            (server-json {"ok" false "error" "비밀번호가 틀렸습니다"} 401)))
+
+      (= action "lock")
+        (do
+          (vault-clear-session)
+          (server-json {"ok" true}))
+
+      (= action "add")
+        (let [token (or (get body "token") "")]
+          (if (not (vault-is-unlocked token))
+            (server-json {"ok" false "locked" true} 401)
+            (let [label    (or (get body "label") "")
+                  username (or (get body "username") "")
+                  password (or (get body "password") "")
+                  url      (or (get body "url") "")
+                  note     (or (get body "note") "")
+                  category (or (get body "category") "기타")]
+              (if (= (str-trim label) "")
+                (server-json {"ok" false "error" "레이블 필요"} 400)
+                (do
+                  (vault-add label username password url note category)
+                  (server-json {"ok" true}))))))
+
+      (= action "delete")
+        (let [token (or (get body "token") "")
+              id    (get body "id")]
+          (if (not (vault-is-unlocked token))
+            (server-json {"ok" false "locked" true} 401)
+            (if (= id nil)
+              (server-json {"ok" false "error" "id 필요"} 400)
+              (do
+                (vault-delete id)
+                (server-json {"ok" true})))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))

@@ -1,0 +1,52 @@
+; pages/reading/api.flx — 독서 JSON API
+; GET  /reading/api → {books}
+; POST /reading/api → action: add|delete|update-progress|update-review
+
+(load "pages/reading/_db.flx")
+(reading-init)
+
+(defn render [req]
+  (server-json {"books" (reading-all)}))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [title  (or (get body "title") "")
+              author (or (get body "author") "")
+              status (or (get body "status") "wish")
+              pages  (or (get body "pages_total") "0")
+              color  (or (get body "cover_color") "#6366f1")]
+          (if (= (str-trim title) "")
+            (server-json {"ok" false "error" "제목 필요"} 400)
+            (do
+              (reading-add title author status pages color)
+              (server-json {"ok" true "books" (reading-all)}))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (reading-delete id)
+              (server-json {"ok" true "books" (reading-all)}))))
+
+      (= action "update-progress")
+        (let [id      (get body "id")
+              pages   (or (get body "pages_read") "0")
+              status  (or (get body "status") "reading")
+              started (or (get body "started_at") "")
+              finished (or (get body "finished_at") "")]
+          (reading-update-progress id pages status started finished)
+          (server-json {"ok" true "books" (reading-all)}))
+
+      (= action "update-review")
+        (let [id     (get body "id")
+              rating (or (get body "rating") "0")
+              review (or (get body "review") "")]
+          (reading-update-review id rating review)
+          (server-json {"ok" true}))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))
