@@ -1,128 +1,169 @@
 {
   "project": "fl-front",
   "date": "2026-06-03",
-  "session": "언어 정검 + 예제 30개 전수 확인",
+  "session": "언어 정검 + AI-Native DX 6종 구현",
   "path": "/root/kim/freelang-front",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
-  "last_commit": "d27eeec",
+  "last_commit": "ed89ab1",
   "ports": {
     "app": 40850,
     "hmr": 40851
   },
   "start": "cd /root/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
+  "build_json": "node fl-front-build.js --json",
+  "island_test": "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
+  "ai_context": "GET http://localhost:40851/~ai",
 
   "done": [
-    "언어 정검: 예제 01~30 코드 전수 리뷰",
-    "fix(24-pagination): pages 계산식 버그 수정 — (+ 1 (/ (- total 1) per)) → (floor (/ (+ total per-1) per)). total이 per의 배수일 때 페이지 수 1개 초과 표시되던 문제. (e7ee433→4496c4b)",
-    "fix(22-temp-convert): 화씨 부동소수점 노출 — 37°C → 98.60000000000001°F. round×10/10으로 1자리 처리. (e7ee433)",
-    "fix(29-bmi): BMI 소수점 과다 표시 — 22.491349... → 22.5. (e7ee433)",
-    "fix(fl-front-build): math 헬퍼 false positive 해소 — floor·ceil·abs·min-val·max-val을 FL_FRONT_HELPERS에 등록. (b795391)",
-    "fix(form-validate): filter 인자 순서 오류 — (filter keys fn) → (filter fn keys). 05-form-validate POST 500 해소. (d27eeec)",
-    "검증: HMR 실시간 반영 확인 (파일 수정 → 2초 내 반영)",
-    "검증: GET 30개 예제 전수 200 확인",
-    "검증: POST 동작 (04-form, 05-form-validate), 쿼리 파라미터 (03, 24, 25), JSON API (26)",
-    "검증: Island 22개 — div 마운트 포인트 존재 + JS 문법 파싱 전수 통과"
+    "언어 정검: 예제 01~30 코드 전수 리뷰 + 서버 동작 확인 (30/30 GET, POST, 쿼리)",
+    "fix(24-pagination): pages = (floor (/ (+ total per-1) per)). e7ee433→4496c4b",
+    "fix(22-temp-convert): 화씨 부동소수점 → round 1자리. e7ee433",
+    "fix(29-bmi): BMI 소수점 과다 → round 1자리. e7ee433",
+    "fix(fl-front-build): math 헬퍼 false positive — floor/ceil/abs/min-val/max-val 등록. b795391",
+    "fix(form-validate): (filter keys fn) → (filter fn keys). POST 500 해소. d27eeec",
+    "feat(FL DevTools): 브라우저 우하단 🔧 패널 — store 실시간 + island 목록 + 에러. fba19ad",
+    "feat(defstore): store 키 레지스트리 — 빌드 미선언 경고 + 런타임 초기값 주입. 24abe2f",
+    "feat(type-check): arity 불일치 경고 + island 경계 서버함수 사용 에러. 0c18b48",
+    "feat(AI-Native DX): JSON 빌드 출력(--json) + /~ai 쿼리(6개 엔드포인트) + island-runner.js headless 22/22. ed89ab1",
+    "fix(island-compiler): [map1 map2 ...] 벡터가 map1(map2,...) 함수 호출로 오파싱되던 버그. ed89ab1",
+    "blog: ID=975(언어정검), ID=977(AI-Native DX) 게시"
   ],
 
   "bugs_found": [
     {
       "file": "pages/examples/24-pagination.flx",
-      "bug": "pages 계산식 — total이 per의 배수일 때 (/ 10 5) = 2.0 → (+ 1 2.0) = 3.0 → range 0 3.0 = [0,1,2] → 페이지 3개 표시 (2여야 함)",
-      "fix": "(ceil (/ total per)) 시도했으나 fl-front 서버 컨텍스트에 ceil 없음 → (floor (/ (+ total per-1) per)) 으로 재수정",
-      "note": "현재 예제 데이터(16개)는 우연히 맞아서 운영 중에 안 잡힘. 교육용 코드라 정확성이 특히 중요."
+      "bug": "total이 per 배수일 때 pages가 소수 → range가 1 더 긴 배열 반환 → 페이지 수 초과",
+      "fix": "(floor (/ (+ total (- per 1)) per))",
+      "note": "ceil 먼저 썼다가 서버 컨텍스트에 미정의 → 2번 수정. 교육용 데이터(16개)가 우연히 맞아서 장기간 미발견."
     },
     {
       "file": "pages/examples/22-temp-convert.flx",
-      "bug": "37°C → 화씨 98.60000000000001 — JS 부동소수점 표현 노출",
-      "fix": "(/ (round (* f 10)) 10) 으로 1자리 반올림"
+      "bug": "37°C → 98.60000000000001°F 부동소수점 노출",
+      "fix": "(/ (round (* f 10)) 10)"
     },
     {
       "file": "pages/examples/29-bmi.flx",
-      "bug": "BMI 22.491349480968857 — 소수점 과다",
+      "bug": "BMI 22.491349... 소수점 과다",
       "fix": "(/ (round (* bmi 10)) 10)"
     },
     {
-      "file": "fl-front-build.js",
-      "bug": "form-validate 내부 (filter keys fn) — FL filter는 (filter fn coll) 순서인데 거꾸로 씀. 모든 POST 요청 500",
+      "file": "fl-front-build.js (form-validate 정의)",
+      "bug": "(filter keys fn) 인자 순서 역전 → 모든 POST 500",
       "fix": "(filter (fn [k] ...) keys)"
+    },
+    {
+      "file": "island-compiler.js",
+      "bug": "[map1 map2 map3] 벡터 리터럴을 map1(map2,map3) 함수 호출로 오파싱. 08-tabs/09-accordion/21-cart 등 headless 실행 실패로 발견.",
+      "fix": "emitList 상단에 head?.sym 없으면 벡터 리터럴로 처리하는 조건 추가"
     }
   ],
 
   "mistakes": [
     {
-      "what": "ceil 사용 후 두 번 수정",
-      "detail": "24-pagination에서 (ceil ...) 으로 수정 → 빌드 경고 '미정의' → (floor ...) 으로 재수정. 수정 전 fl-front 서버 컨텍스트에서 사용 가능한 함수 목록을 먼저 확인했어야 했다. _app.fl.out.js 상단을 보면 ceil_val은 있지만 ceil이 없음. 커밋 2개가 1개로 줄었을 것.",
-      "lesson": "fl-front 서버에서 쓸 수 있는 함수는 KNOWN_STDLIB + FL_FRONT_HELPERS 교집합. 새 함수 쓰기 전 grep 먼저."
+      "what": "ceil → floor 2번 수정",
+      "detail": "fl-front 서버 컨텍스트 함수 목록 확인 없이 ceil 사용. _app.fl.out.js 보면 ceil_val은 있지만 ceil 없음.",
+      "lesson": "새 함수 쓰기 전 grep으로 _app.fl.out.js / FL_FRONT_HELPERS 확인 필수."
     },
     {
-      "what": "Island 검증 테스트를 처음에 틀리게 작성",
-      "detail": "id=\"island-\" (쌍따옴표) 로 탐색했는데 실제 HTML은 id='island-...' (단따옴표) 사용. 22개 전부 ❌로 나와서 혼란. 또 new Function(islandScript) 에서 document·fetch 등 브라우저 API 없어서 syntax-err로 오탐. 실제로는 전부 정상이었음.",
-      "lesson": "HTML 속성 따옴표는 단/쌍 양쪽 확인. Node.js에서 브라우저 JS 문법 검사 시 stub 필수."
+      "what": "arity 파서 2번 재작성",
+      "detail": "첫 시도: ;[^\\n]* 로 주석 제거 → style 문자열 내 ; 도 제거 → 파싱 깨짐. 두 번째: depth>0에서 문자열도 argc 카운트. 세 번째에서야 정상.",
+      "lesson": "FL 소스 파싱 시 항상 stripComments(문자열 보호 버전) 사용. 정규식 주석 제거 금지."
     },
     {
-      "what": "form-validate 버그를 언어 정검에서 못 잡음",
-      "detail": "코드 리뷰로 (filter keys fn) 인자 순서를 눈으로 못 잡았다. 실제 POST 테스트 돌렸을 때야 500으로 발견. 서버 정적 분석 단계에서 인자 순서까지는 안 잡힘 — 런타임 에러.",
-      "lesson": "FL filter/map/reduce 인자 순서는 코드 리뷰만으로 잡기 어렵다. 예제 POST 동작 테스트가 필수."
+      "what": "Island 초기 검증 테스트 오탐",
+      "detail": "id=\"island-\" 쌍따옴표 탐색 → 실제 HTML은 단따옴표. 22개 전부 ❌ 오탐. new Function() 브라우저 API 미스텁으로 syntax-err 오탐.",
+      "lesson": "HTML 속성 탐색은 단/쌍 양쪽. Node.js에서 브라우저 JS 실행 시 document/fetch/location stub 필수."
+    },
+    {
+      "what": "island-runner 첫 실행 [object Object] 출력",
+      "detail": "_fl_str가 VNode를 stringify할 때 toString() 없어서 [object Object]. VNode에 toString()=this._serialize() 추가로 해결.",
+      "lesson": "VirtualDOM 노드는 반드시 toString()을 구현해야 _fl_str와 호환됨."
     }
   ],
 
+  "ai_native_dx": {
+    "build_json": {
+      "cmd": "node fl-front-build.js --json | jq '.issues'",
+      "output": "{ ok, time, elapsed, routes[], helpers[], store_keys[], issues[], sourceMap }"
+    },
+    "ai_endpoints": {
+      "summary":  "GET :40851/~ai",
+      "routes":   "GET :40851/~ai/routes",
+      "fns":      "GET :40851/~ai/fns  (defn 시그니처 205개)",
+      "store":    "GET :40851/~ai/store",
+      "issues":   "GET :40851/~ai/issues",
+      "errors":   "GET :40851/~ai/errors"
+    },
+    "island_runner": {
+      "cmd": "node island-runner.js <file.flx> [--island=Name] [--click=selector] [--dispatch=key:val] [--store={...}]",
+      "result": "{ ok, results[{island, ok, html, html_after, store, events, sim}] }",
+      "coverage": "22/22 예제 Island PASS"
+    }
+  },
+
   "what_claude_cant_verify": [
-    "Island 실제 인터랙션 — atom 반응성, 클릭 이벤트, 화면 갱신. 브라우저가 없어서 JS 실행 자체를 확인 불가. 문법 통과 + div 존재만 확인함.",
     "다크모드 전환 시각적 동작",
-    "SPA 라우터 뷰 트랜지션 애니메이션",
-    "Island 간 store 공유 실시간 반응 (23-like-store)"
+    "SPA 라우터 뷰 트랜지션 애니메이션 (startViewTransition)",
+    "Island 실제 브라우저 인터랙션 — island-runner로 atom/store는 검증 가능하나 실제 DOM 렌더링·CSS 시각적 결과는 불가"
   ],
+
+  "what_claude_can_now_verify": [
+    "Island atom 상태 변화 (--click 시뮬레이션)",
+    "Island dispatch/store 동기화 (23-like-store 등)",
+    "Island 렌더 HTML 구조 (VirtualDOM 직렬화)",
+    "빌드 이슈 전수 (JSON 출력으로 파싱)",
+    "서버 함수 목록 (GET /~ai/fns)"
+  ],
+
+  "build_checks": {
+    "order": [
+      "괄호 균형",
+      "Island JS 문법 (new Function)",
+      "island 경계 — 서버 전용 함수 island 내 사용 → exit 1",
+      "미정의 함수",
+      "store 키 레지스트리 (defstore 선언 여부)",
+      "arity 불일치"
+    ],
+    "store_keys_registered": ["count", "likes", "logs", "log_filter", "log_running", "notes"]
+  },
 
   "next": [
     {
       "id": "P0",
-      "priority": "urgent",
-      "title": "브라우저에서 Island 인터랙션 직접 확인",
-      "what": "atom 클릭 반응, store 공유(23), fetch!(27), 실시간 투표(28) 등 JS 실행 동작 육안 검증. Claude가 할 수 없는 부분.",
-      "how": "localhost:40850/examples 열어서 06~30 순서대로 클릭 테스트"
+      "title": "auto_errors open 항목 처리",
+      "what": "handle-get/post/delete-errors, get-custom-metric-data, record-custom-metric — 대시보드 관련 미정의 5개. 오래된 open.",
+      "files": ["pages/dashboard/"]
     },
     {
       "id": "P1",
-      "title": "auto_errors open 항목 3개 처리",
-      "what": "handle-get/post/delete-errors, get-custom-metric-data, record-custom-metric — 대시보드 관련 미정의 함수 5개. open 상태로 방치 중.",
-      "files": ["pages/dashboard/"]
+      "title": "island-runner /~ai/test 통합",
+      "what": "GET /~ai/test?file=examples/23-like-store → island-runner 결과를 HTTP API로 노출. AI가 HTTP 한 번으로 Island 검증 가능.",
+      "files": ["dev-server.js", "island-runner.js"]
     },
     {
       "id": "P2",
       "title": "삼중따옴표 안 ${변수} 보간",
-      "what": "이전 세션에서 미완. interpreter.js 구현 필요.",
+      "what": "이전 세션부터 미완. interpreter.js 구현 필요.",
       "files": ["freelang-v11/self/runtime/interpreter.js"]
     }
   ],
 
   "insights": [
-    "교육용 코드는 동작만 되면 안 된다 — 공식이 설명처럼 정확해야 한다. 24번 pages 공식이 16개 데이터에서 우연히 맞았지만 틀린 공식이었다.",
-    "filter 인자 순서 버그는 코드 보는 것만으로는 안 잡힌다. 테스트가 없으면 런타임에서만 발견된다.",
-    "Island 검증의 한계: HTML 구조와 JS 문법은 서버에서 확인 가능하지만, atom 반응성·이벤트 동작은 브라우저 없이 확인 불가. 이 경계를 솔직히 말해야 한다."
+    "방향 결정이 기술보다 중요했다. '인간용 아님 AI 전용으로 가자' 한 마디로 에디터 플러그인 대신 headless 실행기를 만들었다.",
+    "Island headless 실행기를 만들다가 island-compiler 벡터 파싱 버그를 발견했다. 새 도구가 기존 버그를 드러낸다.",
+    "arity 파서는 3번 고쳐야 했다. FL 소스 파싱은 ;를 주석으로 단순 처리할 수 없다 — 문자열 안의 ;가 style 값에 자주 등장한다.",
+    "what_claude_cant_verify 목록이 줄었다. Island atom/store는 이제 headless로 검증 가능. 남은 것: 시각적 렌더링."
   ],
 
   "env": {
     "os": "Android PRoot Ubuntu (aarch64)",
     "node": "v24.15.0",
-    "freelang": "v11 (bootstrap.js는 /root/freelang-v11/)",
-    "bootstrap": "/root/freelang-v11/bootstrap.js",
-    "note": "dev-server.js 기동 시 포트 40851 HMR 먼저 확인. 이전 프로세스 kill 후 재시작."
+    "freelang": "v11 (/root/freelang-v11/bootstrap.js)",
+    "note": "dev-server 기동 전 포트 40851 확인. 기존 프로세스 kill 후 재시작. island-runner.js는 서버 불필요 — 독립 실행."
   },
 
   "auto_errors": [
-    {
-      "time": "2026-06-03T11:06:14.919Z",
-      "message": "'floor' 정의 없음",
-      "status": "resolved",
-      "resolved_at": "2026-06-03T11:14:19.190Z"
-    },
-    {
-      "time": "2026-06-03T11:05:02.612Z",
-      "message": "'ceil' 정의 없음",
-      "status": "resolved",
-      "resolved_at": "2026-06-03T11:06:14.919Z"
-    },
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-delete-errors' 정의 없음",
