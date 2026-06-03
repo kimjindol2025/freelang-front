@@ -365,6 +365,7 @@ const _fl={
   },
 };
 const _fl_str=(...xs)=>xs.map(String).join('');
+window._fl=_fl;
 </script>`;
 
 // ── .flx 파일에서 (island ...) 블록 추출 ────────────────────
