@@ -1294,9 +1294,203 @@ function validateStoreKeys(routes, helpers) {
   return declared;
 }
 
+// ══════════════════════════════════════════════════════════════
+// E. Arity 체크 — defn 인자 수 vs 호출 인자 수 불일치 경고
+// ══════════════════════════════════════════════════════════════
+
+// 문자열 내부 ; 보호하는 주석 제거 (삼중따옴표 지원)
+function stripComments(src) {
+  let out = '', i = 0;
+  while (i < src.length) {
+    if (src[i] === '"') {
+      if (src[i+1] === '"' && src[i+2] === '"') {
+        // 삼중따옴표 — 닫는 """ 까지 통째로 복사
+        out += '"""'; i += 3;
+        while (i < src.length) {
+          if (src[i] === '"' && src[i+1] === '"' && src[i+2] === '"') {
+            out += '"""'; i += 3; break;
+          }
+          out += src[i++];
+        }
+      } else {
+        // 일반 문자열 → 그대로 복사
+        out += src[i++];
+        while (i < src.length && src[i] !== '"') {
+          if (src[i] === '\\') { out += src[i++]; }
+          out += src[i++];
+        }
+        if (i < src.length) out += src[i++]; // closing "
+      }
+    } else if (src[i] === ';') {
+      // 줄 끝까지 스킵
+      while (i < src.length && src[i] !== '\n') i++;
+    } else {
+      out += src[i++];
+    }
+  }
+  return out;
+}
+
+function validateArity(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+
+  // 1패스: (defn name [p1 p2 ...] ...) 수집
+  const sigs = new Map(); // name → {arity, file, variadic}
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const noComments = stripComments(src);
+    for (const m of noComments.matchAll(/\(defn\s+([\w-]+)\s+\[([^\]]*)\]/g)) {
+      const name = m[1];
+      const params = m[2].trim();
+      // & rest 가변인자 파라미터
+      const variadic = params.includes('&') || params.includes('...');
+      const arity = variadic ? -1 : (params === '' ? 0 : params.split(/\s+/).filter(Boolean).length);
+      if (!sigs.has(name)) sigs.set(name, { arity, file: path.basename(f), variadic });
+    }
+  }
+
+  // 2패스: 호출부에서 (name arg1 arg2 ...) 인자 수 비교
+  // 단순 파서: 최상위 괄호 카운팅으로 인자 구분
+  const issues = [];
+  const SKIP = new Set(['defn','define','let','fn','if','when','do','and','or','not',
+    'try','catch','str','map','filter','reduce','island','defstore','cond','case']);
+
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const noComments = stripComments(src);
+    const base = path.basename(f);
+    let i = 0;
+    while (i < noComments.length) {
+      // (name ... 패턴 찾기
+      if (noComments[i] !== '(') { i++; continue; }
+      i++;
+      // 함수명 읽기
+      const nameStart = i;
+      while (i < noComments.length && !/[\s()]/.test(noComments[i])) i++;
+      const name = noComments.slice(nameStart, i);
+      if (!sigs.has(name) || SKIP.has(name)) continue;
+      const { arity, variadic } = sigs.get(name);
+      if (variadic) continue;
+      // 인자 개수 세기 — depth=0 기준 토큰만 카운트
+      // depth=0에서: (, 문자열, 비공백 → 새 인자 시작
+      // depth>0: 무시 (괄호 짝만 추적)
+      let depth = 0, argc = 0, inArg = false;
+      while (i < noComments.length) {
+        const ch = noComments[i];
+        if (ch === '(' || ch === '[' || ch === '{') {
+          if (depth === 0) { argc++; inArg = true; }
+          depth++;
+        } else if (ch === ')' || ch === ']' || ch === '}') {
+          if (depth === 0) break; // 호출 종료
+          depth--;
+          if (depth === 0) inArg = false;
+        } else if (ch === '"') {
+          // 문자열 리터럴 — depth=0에서만 카운트
+          i++;
+          while (i < noComments.length && noComments[i] !== '"') {
+            if (noComments[i] === '\\') i++;
+            i++;
+          }
+          if (depth === 0 && !inArg) { argc++; inArg = true; }
+        } else if (/\S/.test(ch) && depth === 0) {
+          if (!inArg) { argc++; inArg = true; }
+        } else if (/\s/.test(ch) && depth === 0) {
+          inArg = false;
+        }
+        i++;
+      }
+      if (argc !== arity) {
+        // 라인 번호 추정
+        const lineNo = noComments.slice(0, nameStart).split('\n').length;
+        issues.push({ file: base, name, expected: arity, got: argc, line: lineNo });
+      }
+    }
+  }
+
+  if (issues.length === 0) {
+    console.log('  \x1b[32m✅ arity 이상 없음\x1b[0m');
+  } else {
+    console.log('\n\x1b[33m⚠️  [arity] 인자 수 불일치\x1b[0m');
+    const seen = new Set();
+    for (const { file, name, expected, got, line } of issues) {
+      const k = `${file}:${name}:${line}`;
+      if (seen.has(k)) continue; seen.add(k);
+      console.log(`  \x1b[33m⚠\x1b[0m ${file}:${line} — (${name}) 인자 ${expected}개 필요, ${got}개 전달`);
+    }
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// F. Island 경계 체크 — island 안에서 서버 전용 함수 호출 감지
+// ══════════════════════════════════════════════════════════════
+const ISLAND_SAFE = new Set([
+  // 제어 흐름
+  'let','fn','if','when','do','and','or','not','cond','case',
+  // 비교·산술
+  '=','not=','>','<','>=','<=','+','-','*','/','mod',
+  // atom
+  'atom','deref','swap!','reset!',
+  // 컬렉션
+  'str','get','get-in','assoc','dissoc','map','filter','reduce',
+  'length','first','last','rest','push','nth','range',
+  'empty?','nil?','not=','or','and',
+  // store
+  'get-store','dispatch','watch-store',
+  // fetch
+  'fetch!','fetch-post!','fetch-delete!',
+  // DOM
+  'h','str',
+  // 기타 허용
+  'let','fn','if','when','island','defstore',
+]);
+
+// 서버 전용 함수 — island 안에서 쓰면 런타임 에러
+const SERVER_ONLY = new Set([
+  'server-html','server-json','server-text','server-redirect',
+  'server-status','server-header','server-req-path','server-req-query',
+  'server-req-param','server-req-json','server-req-body',
+  'server-event-stream','server-start',
+  'form-get','form-field','form-data','form-validate',
+  'layout','layout-html','layout-html-seo','layout-core',
+  'db-migrate','db-fetch-stats',
+  'url-decode','export-to-csv','export-to-json',
+]);
+
+function validateIslandBoundary(routes) {
+  const issues = [];
+  for (const r of routes) {
+    let src; try { src = fs.readFileSync(r.file, 'utf8'); } catch { continue; }
+    const islands = islandCompiler.extractIslands(src);
+    for (const { block } of islands) {
+      const noStr = block.replace(/"[^"]*"/g, '""'); // 문자열 안 함수명 제외
+      for (const m of noStr.matchAll(/\(([\w-]+)/g)) {
+        const fn = m[1];
+        if (SERVER_ONLY.has(fn)) {
+          const lineNo = block.slice(0, m.index).split('\n').length;
+          issues.push({ file: path.basename(r.file), fn, line: lineNo });
+        }
+      }
+    }
+  }
+
+  if (issues.length === 0) {
+    console.log('  \x1b[32m✅ island 경계 이상 없음\x1b[0m');
+  } else {
+    console.log('\n\x1b[31m❌ [island] 서버 전용 함수 island 내 사용 — 런타임 에러 발생\x1b[0m');
+    const seen = new Set();
+    for (const { file, fn, line } of issues) {
+      const k = `${file}:${fn}:${line}`;
+      if (seen.has(k)) continue; seen.add(k);
+      console.log(`  \x1b[31m✗\x1b[0m ${file}:${line} — (${fn}) 서버 전용 함수`);
+    }
+    process.exit(1);
+  }
+}
+
 checkAllParens(routes, helpers);
 detectDangerousPatterns(routes, helpers);
 validateIslandJs(routes);
+validateIslandBoundary(routes);
 
 const { content: appContent, sourceMap } = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
@@ -1307,6 +1501,9 @@ validateHAttributes(routes, helpers, bindings);
 
 // D. store 키 레지스트리
 const storeRegistry = validateStoreKeys(routes, helpers);
+
+// E. Arity 체크
+validateArity(routes, helpers);
 
 // C. AGENTS.md 자동 생성
 fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes, helpers), 'utf8');
