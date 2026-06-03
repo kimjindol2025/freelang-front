@@ -72,7 +72,7 @@ function removeStyleBlocks(src) {
 }
 const OUT_FILE    = path.join(__dirname, '_app.fl');
 const AGENTS_FILE = path.join(__dirname, 'AGENTS.md');
-const PORT        = 40850;
+const PORT        = parseInt(process.env.PORT || '40850');
 
 // ══════════════════════════════════════════════════════════════
 // A. FreeLang stdlib 함수 목록 자동 로드 (빌드 시 1회)
