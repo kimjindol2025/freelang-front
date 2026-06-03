@@ -1,10 +1,10 @@
 {
   "project": "fl-front",
   "date": "2026-06-03",
-  "session": "언어 정검 + AI-Native DX 6종 구현",
+  "session": "언어 정검 + AI-Native DX 6종 + /~ai/test",
   "path": "/root/kim/freelang-front",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
-  "last_commit": "ed89ab1",
+  "last_commit": "205f7b1",
   "ports": {
     "app": 40850,
     "hmr": 40851
@@ -12,7 +12,8 @@
   "start": "cd /root/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
   "build_json": "node fl-front-build.js --json",
-  "island_test": "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
+  "island_test_cli":  "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
+  "island_test_http": "GET http://localhost:40851/~ai/test?file=<path>[&island][&click][&store]",
   "ai_context": "GET http://localhost:40851/~ai",
 
   "done": [
@@ -26,16 +27,17 @@
     "feat(defstore): store 키 레지스트리 — 빌드 미선언 경고 + 런타임 초기값 주입. 24abe2f",
     "feat(type-check): arity 불일치 경고 + island 경계 서버함수 사용 에러. 0c18b48",
     "feat(AI-Native DX): JSON 빌드 출력(--json) + /~ai 쿼리(6개 엔드포인트) + island-runner.js headless 22/22. ed89ab1",
-    "fix(island-compiler): [map1 map2 ...] 벡터가 map1(map2,...) 함수 호출로 오파싱되던 버그. ed89ab1",
+    "fix(island-compiler): [map1 map2 ...] 벡터 오파싱 버그 수정. ed89ab1",
+    "feat(/~ai/test): Island headless HTTP API. 205f7b1",
     "blog: ID=975(언어정검), ID=977(AI-Native DX) 게시"
   ],
 
   "bugs_found": [
     {
       "file": "pages/examples/24-pagination.flx",
-      "bug": "total이 per 배수일 때 pages가 소수 → range가 1 더 긴 배열 반환 → 페이지 수 초과",
+      "bug": "total이 per 배수일 때 pages가 소수 → range가 1 더 긴 배열 → 페이지 수 초과",
       "fix": "(floor (/ (+ total (- per 1)) per))",
-      "note": "ceil 먼저 썼다가 서버 컨텍스트에 미정의 → 2번 수정. 교육용 데이터(16개)가 우연히 맞아서 장기간 미발견."
+      "note": "교육용 데이터(16개)가 우연히 맞아서 장기간 미발견."
     },
     {
       "file": "pages/examples/22-temp-convert.flx",
@@ -54,31 +56,27 @@
     },
     {
       "file": "island-compiler.js",
-      "bug": "[map1 map2 map3] 벡터 리터럴을 map1(map2,map3) 함수 호출로 오파싱. 08-tabs/09-accordion/21-cart 등 headless 실행 실패로 발견.",
-      "fix": "emitList 상단에 head?.sym 없으면 벡터 리터럴로 처리하는 조건 추가"
+      "bug": "[map1 map2 map3] 벡터 리터럴 → map1(map2,map3) 함수 호출로 오파싱",
+      "fix": "emitList 상단에 head?.sym 없으면 벡터 리터럴로 처리"
     }
   ],
 
   "mistakes": [
     {
       "what": "ceil → floor 2번 수정",
-      "detail": "fl-front 서버 컨텍스트 함수 목록 확인 없이 ceil 사용. _app.fl.out.js 보면 ceil_val은 있지만 ceil 없음.",
       "lesson": "새 함수 쓰기 전 grep으로 _app.fl.out.js / FL_FRONT_HELPERS 확인 필수."
     },
     {
-      "what": "arity 파서 2번 재작성",
-      "detail": "첫 시도: ;[^\\n]* 로 주석 제거 → style 문자열 내 ; 도 제거 → 파싱 깨짐. 두 번째: depth>0에서 문자열도 argc 카운트. 세 번째에서야 정상.",
+      "what": "arity 파서 3번 재작성",
       "lesson": "FL 소스 파싱 시 항상 stripComments(문자열 보호 버전) 사용. 정규식 주석 제거 금지."
     },
     {
-      "what": "Island 초기 검증 테스트 오탐",
-      "detail": "id=\"island-\" 쌍따옴표 탐색 → 실제 HTML은 단따옴표. 22개 전부 ❌ 오탐. new Function() 브라우저 API 미스텁으로 syntax-err 오탐.",
-      "lesson": "HTML 속성 탐색은 단/쌍 양쪽. Node.js에서 브라우저 JS 실행 시 document/fetch/location stub 필수."
+      "what": "Island 초기 검증 오탐 (단/쌍따옴표, 브라우저 API 미스텁)",
+      "lesson": "Node.js에서 브라우저 JS 실행 시 document/fetch/location stub 필수."
     },
     {
-      "what": "island-runner 첫 실행 [object Object] 출력",
-      "detail": "_fl_str가 VNode를 stringify할 때 toString() 없어서 [object Object]. VNode에 toString()=this._serialize() 추가로 해결.",
-      "lesson": "VirtualDOM 노드는 반드시 toString()을 구현해야 _fl_str와 호환됨."
+      "what": "island-runner VNode toString() 누락 → [object Object]",
+      "lesson": "VirtualDOM 노드는 toString()=_serialize() 구현 필수."
     }
   ],
 
@@ -93,7 +91,8 @@
       "fns":      "GET :40851/~ai/fns  (defn 시그니처 205개)",
       "store":    "GET :40851/~ai/store",
       "issues":   "GET :40851/~ai/issues",
-      "errors":   "GET :40851/~ai/errors"
+      "errors":   "GET :40851/~ai/errors",
+      "test":     "GET :40851/~ai/test?file=<path>[&island=Name][&click=sel][&store={...}]"
     },
     "island_runner": {
       "cmd": "node island-runner.js <file.flx> [--island=Name] [--click=selector] [--dispatch=key:val] [--store={...}]",
@@ -104,16 +103,17 @@
 
   "what_claude_cant_verify": [
     "다크모드 전환 시각적 동작",
-    "SPA 라우터 뷰 트랜지션 애니메이션 (startViewTransition)",
-    "Island 실제 브라우저 인터랙션 — island-runner로 atom/store는 검증 가능하나 실제 DOM 렌더링·CSS 시각적 결과는 불가"
+    "SPA 라우터 뷰 트랜지션 애니메이션",
+    "Island CSS 시각적 렌더링 결과"
   ],
 
   "what_claude_can_now_verify": [
-    "Island atom 상태 변화 (--click 시뮬레이션)",
-    "Island dispatch/store 동기화 (23-like-store 등)",
+    "Island atom 상태 변화 (GET /~ai/test?click=selector)",
+    "Island dispatch/store 동기화 (GET /~ai/test?store={...}&click=button)",
     "Island 렌더 HTML 구조 (VirtualDOM 직렬화)",
-    "빌드 이슈 전수 (JSON 출력으로 파싱)",
-    "서버 함수 목록 (GET /~ai/fns)"
+    "빌드 이슈 전수 (node fl-front-build.js --json | jq .issues)",
+    "서버 함수 목록 (GET /~ai/fns)",
+    "미정의 함수 여부 (GET /~ai/issues)"
   ],
 
   "build_checks": {
@@ -131,18 +131,6 @@
   "next": [
     {
       "id": "P0",
-      "title": "auto_errors open 항목 처리",
-      "what": "handle-get/post/delete-errors, get-custom-metric-data, record-custom-metric — 대시보드 관련 미정의 5개. 오래된 open.",
-      "files": ["pages/dashboard/"]
-    },
-    {
-      "id": "P1",
-      "title": "island-runner /~ai/test 통합",
-      "what": "GET /~ai/test?file=examples/23-like-store → island-runner 결과를 HTTP API로 노출. AI가 HTTP 한 번으로 Island 검증 가능.",
-      "files": ["dev-server.js", "island-runner.js"]
-    },
-    {
-      "id": "P2",
       "title": "삼중따옴표 안 ${변수} 보간",
       "what": "이전 세션부터 미완. interpreter.js 구현 필요.",
       "files": ["freelang-v11/self/runtime/interpreter.js"]
@@ -150,10 +138,10 @@
   ],
 
   "insights": [
-    "방향 결정이 기술보다 중요했다. '인간용 아님 AI 전용으로 가자' 한 마디로 에디터 플러그인 대신 headless 실행기를 만들었다.",
+    "'인간용 아님 AI 전용으로 가자' 한 마디로 에디터 플러그인 대신 headless 실행기를 만들었다. 방향 결정이 기술보다 중요했다.",
     "Island headless 실행기를 만들다가 island-compiler 벡터 파싱 버그를 발견했다. 새 도구가 기존 버그를 드러낸다.",
-    "arity 파서는 3번 고쳐야 했다. FL 소스 파싱은 ;를 주석으로 단순 처리할 수 없다 — 문자열 안의 ;가 style 값에 자주 등장한다.",
-    "what_claude_cant_verify 목록이 줄었다. Island atom/store는 이제 headless로 검증 가능. 남은 것: 시각적 렌더링."
+    "arity 파서는 3번 고쳐야 했다. FL 소스 파싱은 ;를 주석으로 단순 처리할 수 없다.",
+    "what_claude_cant_verify 목록이 CSS 시각적 결과 하나만 남았다. 나머지는 전부 headless·JSON으로 검증 가능."
   ],
 
   "env": {
@@ -167,27 +155,29 @@
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-delete-errors' 정의 없음",
-      "status": "open"
+      "status": "resolved",
+      "note": "error-api.fl에 구현. (load ...) 로 정상 로드. build --json issues:0 확인."
     },
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-get-errors' 정의 없음",
-      "status": "open"
+      "status": "resolved"
     },
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-post-errors' 정의 없음",
-      "status": "open"
+      "status": "resolved"
     },
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'get-custom-metric-data' 정의 없음",
-      "status": "open"
+      "status": "resolved",
+      "note": "performance-monitor.fl에 구현. (load ...) 정상."
     },
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'record-custom-metric' 정의 없음",
-      "status": "open"
+      "status": "resolved"
     }
   ]
 }
