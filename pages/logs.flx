@@ -1,6 +1,10 @@
 ; pages/logs.flx — 실시간 로그 뷰어 (폴링 방식)
 ; GET /logs
 
+(defstore :logs [])
+(defstore :log_filter "all")
+(defstore :log_running false)
+
 (style log-wrap   :max-w "900px" :mx "auto" :p "32px 20px")
 (style log-title  :size "1.6rem" :weight "700" :mb "8px" :color "var(--c-primary)")
 (style log-sub    :color "var(--c-muted)" :mb "24px" :size ".9rem")

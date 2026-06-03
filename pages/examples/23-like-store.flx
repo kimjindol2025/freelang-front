@@ -2,6 +2,9 @@
 ; 예제 23 — 좋아요(글로벌 store): Island 간 상태 공유
 ; 배우는 것: get-store / dispatch / [:watch "key"], 여러 Island 동기화
 
+; store 키 선언 — 초기값 0, 빌드 시 미선언 키 경고
+(defstore :likes 0)
+
 ; Island 0: 좋아요 버튼
 (island LikeButton []
   (let [n (or (get-store "likes") 0)]

@@ -1,6 +1,8 @@
 ; pages/notes-island.flx — Island 기반 노트 앱
 ; GET /notes-island
 
+(defstore :notes [])
+
 (style ni-wrap  :max-w "800px" :mx "auto" :p "32px 20px")
 (style ni-title :size "1.6rem" :weight "700" :mb "4px" :color "var(--c-primary)")
 (style ni-sub   :color "var(--c-muted)" :mb "24px" :size ".9rem")

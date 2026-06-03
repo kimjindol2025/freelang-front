@@ -94,7 +94,7 @@ const FL_FRONT_HELPERS = new Set([
   'chart_bar','chart-bar','chart_line','chart-line',
   'arr_join','arr-join','h',
   // 빌드 타임에 변환되는 특수 구문
-  'island','server-fn','server_fn',
+  'island','server-fn','server_fn','defstore',
   // core FreeLang
   'defn','define','let','if','do','when','str','get','get_in','get-in',
   'first','last','rest','map','filter','reduce','length','push',
@@ -953,6 +953,8 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
         `$1 ${styleTag}`
       );
     }
+    // 1b) (defstore :key init) — 빌드 타임 전용, FL 런타임에 넘기지 않음
+    src = src.replace(/\(defstore\s+:?[\w-]+\s+[^)]+\)\n?/g, '').trim();
     // 2) (island ...) 블록 컴파일
     const islands = islandCompiler.extractIslands(src);
     // 2a) 최상위 island 블록 완전 제거 (FL 런타임에서 실행 불가)
@@ -978,8 +980,25 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
         const snake = name.replace(/-/g, '_');
         return `var ${snake}="${cls}";`;
       }).join('\n');
+      // defstore 초기값 — island 런타임 로드 직후 store 초기화
+      const storeInitJs = (() => {
+        const allSrc = [...helpers, r.file].map(f => { try { return fs.readFileSync(f,'utf8'); } catch { return ''; } }).join('\n');
+        const inits = [];
+        for (const m of allSrc.matchAll(/\(defstore\s+:?([\w-]+)\s+([^)]+)\)/g)) {
+          const key = m[1], rawInit = m[2].trim();
+          // 간단한 리터럴만 변환: 숫자, true/false, "", [], {}
+          let jsVal = rawInit;
+          if (rawInit === '[]' || rawInit === '{}') jsVal = rawInit;
+          else if (rawInit === 'true' || rawInit === 'false') jsVal = rawInit;
+          else if (/^-?\d+(\.\d+)?$/.test(rawInit)) jsVal = rawInit;
+          else if (/^"[^"]*"$/.test(rawInit)) jsVal = rawInit;
+          else jsVal = 'null';
+          inits.push(`if(_fl.get_store("${key}")==null)_fl.dispatch("${key}",${jsVal});`);
+        }
+        return inits.join('\n');
+      })();
       const scriptBlock = islandCompiler.FL_ISLAND_RT +
-        `<script>\n${cssVarsJs}\n${compiledScripts.join('\n')}\n</script>`;
+        `<script>\n${cssVarsJs}\n${storeInitJs}\n${compiledScripts.join('\n')}\n</script>`;
       // 번호별 플레이스홀더 개별 교체 ("ISLAND_PLACEHOLDER_0", "_1" ...)
       islands.forEach((item, idx) => {
         const nameMatch = item.block.match(/\(island\s+([\w-]+)/);
@@ -1225,6 +1244,56 @@ function validateIslandJs(routes) {
   console.log('  \x1b[32m✅ Island JS 문법 정상\x1b[0m');
 }
 
+// ══════════════════════════════════════════════════════════════
+// D. store 키 레지스트리 — (defstore :key init) 수집 + 미선언 키 경고
+// ══════════════════════════════════════════════════════════════
+function validateStoreKeys(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  // 1패스: (defstore :key init) 선언 수집
+  const declared = new Map(); // key → {file, init}
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    for (const m of src.matchAll(/\(defstore\s+:?([\w-]+)\s+([^)]+)\)/g)) {
+      const key = m[1], init = m[2].trim(), base = path.basename(f);
+      if (!declared.has(key)) declared.set(key, { file: base, init });
+    }
+  }
+  if (declared.size === 0) return; // defstore 없으면 검사 스킵
+
+  // 2패스: island 블록 내 dispatch/get-store 호출에서 키 수집
+  const issues = [];
+  for (const r of routes) {
+    let src; try { src = fs.readFileSync(r.file, 'utf8'); } catch { continue; }
+    const islands = islandCompiler.extractIslands(src);
+    for (const { block } of islands) {
+      // dispatch "key" / get-store "key" 패턴
+      for (const m of block.matchAll(/\(dispatch\s+"([\w-]+)"/g)) {
+        if (!declared.has(m[1]))
+          issues.push({ file: path.basename(r.file), fn: 'dispatch', key: m[1] });
+      }
+      for (const m of block.matchAll(/\(get-store\s+"([\w-]+)"/g)) {
+        if (!declared.has(m[1]))
+          issues.push({ file: path.basename(r.file), fn: 'get-store', key: m[1] });
+      }
+    }
+  }
+
+  const keys = [...declared.keys()];
+  console.log(`  \x1b[36m[store]\x1b[0m 등록된 키: ${keys.map(k=>':'+k).join(', ')}`);
+  if (issues.length === 0) {
+    console.log('  \x1b[32m✅ store 키 전부 선언됨\x1b[0m');
+  } else {
+    console.log('\n\x1b[33m⚠️  [store] 미선언 store 키 — (defstore :key init) 추가 필요\x1b[0m');
+    const seen = new Set();
+    for (const { file, fn, key } of issues) {
+      const k = `${file}:${key}`;
+      if (seen.has(k)) continue; seen.add(k);
+      console.log(`  \x1b[33m⚠\x1b[0m ${file} — (${fn} "${key}") 키 미선언`);
+    }
+  }
+  return declared;
+}
+
 checkAllParens(routes, helpers);
 detectDangerousPatterns(routes, helpers);
 validateIslandJs(routes);
@@ -1235,6 +1304,9 @@ fs.writeFileSync(OUT_FILE, appContent, 'utf8');
 // A. 빌드 시 미정의 함수 감지 (원본 .flx 파일 기준)
 validateFunctions(routes, helpers, bindings);
 validateHAttributes(routes, helpers, bindings);
+
+// D. store 키 레지스트리
+const storeRegistry = validateStoreKeys(routes, helpers);
 
 // C. AGENTS.md 자동 생성
 fs.writeFileSync(AGENTS_FILE, generateAgentsMd(routes, helpers), 'utf8');

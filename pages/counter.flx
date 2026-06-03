@@ -1,5 +1,7 @@
 ; pages/counter.flx — 글로벌 store 연동 데모
 
+(defstore :count 0)
+
 (style counter-page :align "center" :p "48px 24px")
 (style counter-box :bg "white" :radius "16px" :p "40px" :shadow "md" :display "inline-block" :min-w "320px")
 (style counter-btn :size "1.5rem" :p "12px 28px" :cursor "pointer"
