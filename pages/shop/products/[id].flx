@@ -1,0 +1,139 @@
+; pages/shop/products/[id].flx — 상품 상세
+; GET /shop/products/:id
+
+(defn SHOP_API [] "http://localhost:40081")
+
+(defn fetch-product [id]
+  (let [res    (http-get (str (SHOP_API) "/api/products/" id))
+        parsed (json_parse (get res "body"))]
+    (if (get parsed "ok") (get parsed "data") nil)))
+
+(defn product-emoji [cat]
+  (cond
+    (= cat "전자제품") "📱"
+    (= cat "의류")     "👕"
+    (= cat "식품")     "🍱"
+    (= cat "생활용품") "🏠"
+    (= cat "스포츠")   "⚽"
+    (= cat "뷰티")     "💄"
+    true               "🛍"))
+
+;; 장바구니 담기 Island — 상품 정보는 서버가 JS 변수로 주입
+(island AddToCart []
+  (let [pid   (atom (or window.PRODUCT_ID 0))
+        stock (atom (or window.PRODUCT_STOCK 0))
+        uid   (atom 1)
+        qty   (atom 1)
+        msg   (atom "")
+        busy  (atom false)]
+    (h "div" {"style" "margin-top:24px"}
+      (h "div" {"style" "display:flex;align-items:center;gap:10px;margin-bottom:16px"}
+        (h "label" {"style" "font-size:.875rem;color:#6b7280;white-space:nowrap"} "회원 ID")
+        (h "input"
+          {"type" "number" "value" (str (deref uid)) "min" "1"
+           "style" "width:80px;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:.9rem"
+           "on-change" (fn [e]
+             (let [v (str-to-num (get-in e ["target" "value"]))]
+               (when (not (nil? v)) (reset! uid v))))}))
+      (h "div" {"style" "display:flex;align-items:center;gap:10px;margin-bottom:20px"}
+        (h "label" {"style" "font-size:.875rem;color:#6b7280;white-space:nowrap"} "수량")
+        (h "button"
+          {"style" "width:32px;height:32px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;font-size:1.2rem;cursor:pointer"
+           "on-click" (fn [] (when (> (deref qty) 1) (swap! qty (fn [q] (- q 1)))))}
+          "−")
+        (h "span" {"style" "font-size:1.1rem;font-weight:700;min-width:32px;text-align:center"} (str (deref qty)))
+        (h "button"
+          {"style" "width:32px;height:32px;border:1px solid #e5e7eb;border-radius:6px;background:#fff;font-size:1.2rem;cursor:pointer"
+           "on-click" (fn [] (swap! qty (fn [q] (+ q 1))))}
+          "+"))
+      (h "button"
+        {"style" (str "width:100%;padding:14px;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;"
+                      (if (> (deref stock) 0)
+                        "background:#6366f1;color:#fff"
+                        "background:#e5e7eb;color:#9ca3af;cursor:not-allowed"))
+         "on-click" (fn []
+           (when (and (> (deref stock) 0) (not (deref busy)))
+             (reset! busy true)
+             (reset! msg "")
+             (fetch-post! (str (SHOP_API) "/api/cart")
+               {:user_id (deref uid) :product_id (deref pid) :qty (deref qty)}
+               (fn [res]
+                 (reset! busy false)
+                 (reset! msg
+                   (if (get res "ok")
+                     (str "✅ 장바구니에 담았습니다! (" (deref qty) "개)")
+                     (str "❌ " (?? (get res "error") "오류")))))))))
+        (if (> (deref stock) 0)
+          (if (deref busy) "처리 중..." "🛒 장바구니 담기")
+          "품절"))
+      (when (not (or (nil? (deref msg)) (= (deref msg) "")))
+        (h "div"
+          {"style" "margin-top:12px;padding:12px 16px;border-radius:8px;font-size:.9rem;font-weight:600;background:#f0fdf4;color:#166534;border:1px solid #bbf7d0"}
+          (deref msg))))))
+
+(defn render [req]
+  (let [id (get (get req "params") "id")
+        p  (fetch-product id)]
+    (if (nil? p)
+      (server-status 404 "상품을 찾을 수 없습니다")
+      (layout-html (str (get p "name") " — 쇼핑몰")
+        (str
+          """
+<style>
+body{background:#f9fafb}
+.wrap{max-width:900px;margin:0 auto;padding:32px 20px}
+.nav{margin-bottom:20px;font-size:.875rem}
+.nav a{color:#6b7280;text-decoration:none}
+.nav a:hover{color:#6366f1}
+.nav span{color:#9ca3af;margin:0 6px}
+.card{background:#fff;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:640px){.card{grid-template-columns:1fr}}
+.img-side{background:linear-gradient(135deg,#f3f4f6,#e5e7eb);display:flex;align-items:center;justify-content:center;font-size:8rem;min-height:300px}
+.info-side{padding:32px}
+.cat-badge{display:inline-block;font-size:.72rem;font-weight:700;color:#6366f1;background:#ede9fe;padding:4px 12px;border-radius:99px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:16px}
+.prod-name{font-size:1.5rem;font-weight:800;color:#111827;line-height:1.3;margin-bottom:12px}
+.prod-desc{font-size:.9rem;color:#6b7280;line-height:1.7;margin-bottom:20px}
+.price-row{display:flex;align-items:baseline;gap:8px;margin-bottom:8px}
+.price{font-size:2rem;font-weight:800;color:#111827}
+.price-unit{font-size:.875rem;color:#6b7280}
+.stock-badge{display:inline-block;font-size:.8rem;font-weight:600;padding:4px 10px;border-radius:99px;margin-bottom:20px}
+.stock-ok{background:#dcfce7;color:#166534}
+.stock-none{background:#fee2e2;color:#991b1b}
+.divider{height:1px;background:#f3f4f6;margin:20px 0}
+.meta{font-size:.8rem;color:#9ca3af}
+</style>
+"""
+          ;; 상품 ID·재고를 JS 전역 변수로 주입
+          (str "<script>var PRODUCT_ID=" (get p "id") ";var PRODUCT_STOCK=" (get p "stock") ";</script>")
+          (h "div" {"class" "wrap"}
+            (h "div" {"class" "nav"}
+              (h "a" {"href" "/shop"} "상품 목록")
+              (h "span" {} "›")
+              (h "a" {"href" (str "/shop?category=" (get p "category"))} (get p "category"))
+              (h "span" {} "›")
+              (h "span" {"style" "color:#111827"} (get p "name")))
+            (h "div" {"class" "card"}
+              (h "div" {"class" "img-side"} (product-emoji (get p "category")))
+              (h "div" {"class" "info-side"}
+                (h "span" {"class" "cat-badge"} (get p "category"))
+                (h "h1" {"class" "prod-name"} (get p "name"))
+                (h "p" {"class" "prod-desc"} (?? (get p "description") ""))
+                (h "div" {"class" "price-row"}
+                  (h "span" {"class" "price"} (str "₩" (get p "price")))
+                  (h "span" {"class" "price-unit"} "원"))
+                (h "span"
+                  {"class" (if (> (get p "stock") 0) "stock-badge stock-ok" "stock-badge stock-none")}
+                  (if (> (get p "stock") 0) (str "재고 " (get p "stock") "개") "품절"))
+                (h "div" {"class" "divider"})
+                "ISLAND_PLACEHOLDER"
+                "ISLAND_SCRIPTS"
+                (h "div" {"class" "divider"})
+                (h "p" {"class" "meta"} (str "상품번호: #" (get p "id") " · 등록일: " (get p "created_at")))))
+            (h "div" {"style" "margin-top:24px;display:flex;gap:12px"}
+              (h "a" {"href" "/shop"
+                      "style" "padding:10px 20px;border:1px solid #e5e7eb;border-radius:8px;font-size:.875rem;font-weight:600;color:#6b7280;text-decoration:none"}
+                "← 목록으로")
+              (h "a" {"href" "/shop/cart"
+                      "style" "padding:10px 20px;border:1px solid #6366f1;border-radius:8px;font-size:.875rem;font-weight:600;color:#6366f1;text-decoration:none"}
+                "🛒 장바구니 보기"))))
+        req))))
