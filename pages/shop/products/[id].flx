@@ -1,22 +1,12 @@
 ; pages/shop/products/[id].flx — 상품 상세
 ; GET /shop/products/:id
 
-(defn SHOP_API [] "http://localhost:40081")
+(load "pages/shop/_shared.flx")
 
 (defn fetch-product [id]
-  (let [res    (http-get (str (SHOP_API) "/api/products/" id))
+  (let [res    (http-get (str (shop-api-base) "/api/products/" id))
         parsed (json_parse (get res "body"))]
     (if (get parsed "ok") (get parsed "data") nil)))
-
-(defn product-emoji [cat]
-  (cond
-    (= cat "전자제품") "📱"
-    (= cat "의류")     "👕"
-    (= cat "식품")     "🍱"
-    (= cat "생활용품") "🏠"
-    (= cat "스포츠")   "⚽"
-    (= cat "뷰티")     "💄"
-    true               "🛍"))
 
 ;; 장바구니 담기 Island — 상품 정보는 서버가 JS 변수로 주입
 (island AddToCart []
@@ -55,7 +45,7 @@
            (when (and (> (deref stock) 0) (not (deref busy)))
              (reset! busy true)
              (reset! msg "")
-             (fetch-post! (str (SHOP_API) "/api/cart")
+             (fetch-post! (str (shop-api-base) "/api/cart")
                {:user_id (deref uid) :product_id (deref pid) :qty (deref qty)}
                (fn [res]
                  (reset! busy false)
@@ -113,7 +103,7 @@ body{background:#f9fafb}
               (h "span" {} "›")
               (h "span" {"style" "color:#111827"} (get p "name")))
             (h "div" {"class" "card"}
-              (h "div" {"class" "img-side"} (product-emoji (get p "category")))
+              (h "div" {"class" "img-side"} (shop-product-emoji (get p "category")))
               (h "div" {"class" "info-side"}
                 (h "span" {"class" "cat-badge"} (get p "category"))
                 (h "h1" {"class" "prod-name"} (get p "name"))

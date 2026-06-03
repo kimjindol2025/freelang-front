@@ -1,10 +1,10 @@
 ; pages/shop/index.flx — 쇼핑몰 메인 (상품 목록)
 ; GET /shop
 
-(defn SHOP_API [] "http://localhost:40081")
+(load "pages/shop/_shared.flx")
 
 (defn fetch-products [category kw]
-  (let [base (str (SHOP_API) "/api/products?size=30")
+  (let [base (str (shop-api-base) "/api/products?size=30")
         url  (cond
                (not (or (nil? kw) (= kw "")))            (str base "&q=" kw)
                (not (or (nil? category) (= category ""))) (str base "&category=" category)
@@ -23,15 +23,6 @@
        "style" (str "display:inline-block;padding:6px 14px;border-radius:20px;font-size:.82rem;font-weight:600;text-decoration:none;margin:0 4px 8px 0;cursor:pointer;" (if active on off))}
       cat)))
 
-(defn product-emoji [cat]
-  (cond
-    (= cat "전자제품") "📱"
-    (= cat "의류")     "👕"
-    (= cat "식품")     "🍱"
-    (= cat "생활용품") "🏠"
-    (= cat "스포츠")   "⚽"
-    (= cat "뷰티")     "💄"
-    true               "🛍"))
 
 (defn product-card [p]
   (let [price (str (get p "price"))
@@ -41,7 +32,7 @@
        "style" "background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;text-decoration:none;color:inherit;cursor:pointer"}
       (h "div"
         {"style" "background:linear-gradient(135deg,#f3f4f6,#e5e7eb);height:160px;display:flex;align-items:center;justify-content:center;font-size:3rem"}
-        (product-emoji (get p "category")))
+        (shop-product-emoji (get p "category")))
       (h "div" {"style" "padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:6px"}
         (h "span"
           {"style" "font-size:.72rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.05em"}

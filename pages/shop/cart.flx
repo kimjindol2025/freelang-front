@@ -1,7 +1,7 @@
 ; pages/shop/cart.flx — 장바구니 (Island 상태 관리)
 ; GET /shop/cart
 
-(defn SHOP_API [] "http://localhost:40081")
+(load "pages/shop/_shared.flx")
 
 (island ShopCart []
   (let [user-id (atom 1)
@@ -11,18 +11,18 @@
 
     (defn load-cart []
       (reset! loading true)
-      (fetch! (str (SHOP_API) "/api/cart/" (deref user-id))
+      (fetch! (str (shop-api-base) "/api/cart/" (deref user-id))
         (fn [res]
           (reset! loading false)
           (when (get res "ok")
             (reset! items (?? (get (get res "data") "items") []))))))
 
     (defn remove-item [id]
-      (fetch-delete! (str (SHOP_API) "/api/cart/" id)
+      (fetch-delete! (str (shop-api-base) "/api/cart/" id)
         (fn [_] (load-cart))))
 
     (defn place-order []
-      (fetch-post! (str (SHOP_API) "/api/orders")
+      (fetch-post! (str (shop-api-base) "/api/orders")
         {:user_id (deref user-id)}
         (fn [res]
           (if (get res "ok")

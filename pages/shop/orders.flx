@@ -1,7 +1,7 @@
 ; pages/shop/orders.flx — 주문 내역
 ; GET /shop/orders
 
-(defn SHOP_API [] "http://localhost:40081")
+(load "pages/shop/_shared.flx")
 
 (defn status-badge [s]
   (let [styles {"paid"    "background:#dcfce7;color:#166534"
@@ -21,14 +21,14 @@
     (defn load-orders []
       (reset! loading true)
       (reset! detail nil)
-      (fetch! (str (SHOP_API) "/api/orders/user/" (deref user-id))
+      (fetch! (str (shop-api-base) "/api/orders/user/" (deref user-id))
         (fn [res]
           (reset! loading false)
           (when (get res "ok")
             (reset! orders (?? (get (get res "data") "orders") []))))))
 
     (defn load-detail [oid]
-      (fetch! (str (SHOP_API) "/api/orders/" oid)
+      (fetch! (str (shop-api-base) "/api/orders/" oid)
         (fn [res]
           (when (get res "ok")
             (reset! detail (get res "data"))))))

@@ -228,7 +228,13 @@ function validateFunctions(routes, helpers, bindings) {
       if (!loadPath) continue;
       try {
         const loadedSrc = fs.readFileSync(loadPath, 'utf8');
-        for (const lm of loadedSrc.matchAll(/\(defn\s+([\w-]+)/g))  defined.add(lm[1]);
+        // (ns name) 선언 확인 — 있으면 defn에 접두사 붙여서 등록
+        const nsM = loadedSrc.match(/^\s*\(ns\s+([\w-]+)\s*\)/m);
+        const nsPrefix = nsM ? nsM[1] + '-' : '';
+        for (const lm of loadedSrc.matchAll(/\(defn\s+([\w-]+)/g)) {
+          defined.add(nsPrefix + lm[1]);
+          if (nsPrefix) defined.add(lm[1]); // 원본도 등록 (내부 호출용)
+        }
         for (const lm of loadedSrc.matchAll(/\(define\s+([\w-]+)/g)) defined.add(lm[1]);
       } catch { /* 무시 */ }
     }
@@ -755,6 +761,33 @@ function generate(routes, bindings = [], helpers = [], appCss = '') {
     lines.push('');
   }
 
+  // (ns name) 선언이 있는 소스에 접두사를 자동 적용
+  // (defn foo ...) → (defn name-foo ...), 파일 내 (foo ...) → (name-foo ...)
+  function applyNs(src) {
+    const nsMatch = src.match(/^\s*\(ns\s+([\w-]+)\s*\)/m);
+    if (!nsMatch) return src;
+    const ns = nsMatch[1];
+    // ns 선언 제거
+    let result = src.replace(/^\s*\(ns\s+[\w-]+\s*\)\n?/m, '');
+    // defn 이름 수집
+    const names = [...result.matchAll(/\(defn\s+([\w-]+)/g)].map(m => m[1])
+      .filter(n => !n.startsWith(ns + '-')); // 이미 접두사 있으면 제외
+    if (!names.length) return result;
+    // 1. defn 선언 rename
+    result = result.replace(/\(defn\s+([\w-]+)/g, (m, name) =>
+      names.includes(name) ? `(defn ${ns}-${name}` : m);
+    // 2. 호출부 rename — 문자열 바깥에서만
+    for (const name of names) {
+      const re = new RegExp(`\\(${name}(?=[\\s()\n])`, 'g');
+      // stripComments로 문자열 보호 후 치환
+      const nc = stripComments(result);
+      const replaced = nc.replace(re, `(${ns}-${name}`);
+      // 변경된 위치만 원본에 적용 (단순 전체 교체)
+      if (nc !== replaced) result = result.replace(re, `(${ns}-${name}`);
+    }
+    return `; ── ns: ${ns} ──\n${result}`;
+  }
+
   // (load "file.fl") 인라인 처리 헬퍼
   const inlinedLoads = new Set();
   function resolveLoad(src, baseDir) {
@@ -768,7 +801,7 @@ function generate(routes, bindings = [], helpers = [], appCss = '') {
       if (!loadPath) return `; (load "${loadFile}" — 파일 없음)`;
       if (inlinedLoads.has(loadPath)) return '; (load already inlined)';
       inlinedLoads.add(loadPath);
-      const content = fs.readFileSync(loadPath, 'utf8').trim();
+      const content = applyNs(fs.readFileSync(loadPath, 'utf8').trim());
       return `; ── inlined: ${loadFile} ──\n${content}\n; ── end: ${loadFile} ──`;
     });
   }
@@ -1519,8 +1552,57 @@ const storeRegistry = validateStoreKeys(routes, helpers);
 // E. Arity 체크
 validateArity(routes, helpers);
 
+// H. 함수명 충돌 감지
+detectNameCollisions(routes, helpers);
+
 // G. Island 회귀 테스트 (async — 마지막에 실행)
 runIslandTests().catch(e => console.error('테스트 실행 오류:', e.message));
+
+// ══════════════════════════════════════════════════════════════
+// H. 함수명 충돌 감지 — 동일 이름이 여러 파일에 정의된 경우 경고
+// ══════════════════════════════════════════════════════════════
+function detectNameCollisions(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  // 각 파일의 defn 목록 (로드된 파일 포함)
+  const fnMap = new Map(); // fnName → [file, ...]
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const base = path.basename(f);
+    // (ns ...) 있으면 해당 파일은 접두사로 격리됨 — 충돌 없음
+    if (/^\s*\(ns\s+[\w-]+\s*\)/m.test(src)) continue;
+    // load 파일도 스캔
+    for (const m of src.matchAll(/\(load\s+"([^"]+)"/g)) {
+      const candidates = [
+        path.resolve(path.dirname(f), m[1]),
+        path.resolve(__dirname, m[1]),
+        path.resolve(__dirname, 'pages', m[1]),
+      ];
+      const lp = candidates.find(p => { try { fs.accessSync(p); return true; } catch { return false; } });
+      if (!lp) continue;
+      const lsrc = fs.readFileSync(lp, 'utf8');
+      if (/^\s*\(ns\s+[\w-]+\s*\)/m.test(lsrc)) continue; // ns 있으면 격리됨
+      for (const lm of lsrc.matchAll(/\(defn\s+([\w-]+)/g)) {
+        const name = lm[1];
+        if (!fnMap.has(name)) fnMap.set(name, []);
+        if (!fnMap.get(name).includes(path.basename(lp))) fnMap.get(name).push(path.basename(lp));
+      }
+    }
+    for (const m of src.matchAll(/\(defn\s+([\w-]+)/g)) {
+      const name = m[1];
+      if (!fnMap.has(name)) fnMap.set(name, []);
+      if (!fnMap.get(name).includes(base)) fnMap.get(name).push(base);
+    }
+  }
+  const SKIP_NAMES = new Set(['render','render_post','render_delete','render_patch']);
+  const collisions = [...fnMap.entries()].filter(([n, files]) => !SKIP_NAMES.has(n) && files.length > 1);
+  if (collisions.length === 0) {
+    console.log('  \x1b[32m✅ 함수명 충돌 없음\x1b[0m');
+  } else {
+    console.log('\n\x1b[33m⚠️  [namespace] 함수명 충돌 — (ns name) 선언으로 격리 필요\x1b[0m');
+    for (const [name, files] of collisions)
+      console.log(`  \x1b[33m⚠\x1b[0m (${name}) — ${files.join(', ')}`);
+  }
+}
 
 // G. Island 회귀 테스트 — tests/*.test.flx 자동 실행
 async function runIslandTests() {

@@ -1,9 +1,12 @@
 ; pages/app/_db.flx — 노트앱 SQLite 헬퍼
-; fl-front에서 (load "pages/app/_db.flx") 로 사용
+; (ns app) → 모든 defn에 app- 접두사 자동 적용
+; 외부에서: (app-notes-init), (app-notes-all), (app-note-add content) ...
+
+(ns app)
 
 (define APP-DB {:type "sqlite" :path "data/notes-app.db"})
 
-(defn app-notes-init []
+(defn notes-init []
   (db-exec APP-DB
     "CREATE TABLE IF NOT EXISTS notes (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -12,19 +15,19 @@
       created_at TEXT DEFAULT (datetime('now','localtime'))
     )" []))
 
-(defn app-notes-all []
+(defn notes-all []
   (db-query APP-DB
     "SELECT * FROM notes ORDER BY pinned DESC, id DESC" []))
 
-(defn app-note-add [content]
+(defn note-add [content]
   (db-exec APP-DB
     "INSERT INTO notes (content) VALUES (?)" [(str-trim content)]))
 
-(defn app-note-delete [id]
+(defn note-delete [id]
   (db-exec APP-DB
     "DELETE FROM notes WHERE id = ?" [(str-to-num id)]))
 
-(defn app-note-pin-toggle [id]
+(defn note-pin-toggle [id]
   (db-exec APP-DB
     "UPDATE notes SET pinned = CASE WHEN pinned=1 THEN 0 ELSE 1 END WHERE id = ?"
     [(str-to-num id)]))
