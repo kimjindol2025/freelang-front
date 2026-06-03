@@ -1,0 +1,39 @@
+; pages/examples/28-poll.flx
+; 예제 28 — 실시간 투표: 클릭으로 득표 증가, 막대 그래프로 비율 표시
+; 배우는 것: atom 객체 배열, reduce 로 합계, 비율 계산 + 동적 너비
+
+(island Poll []
+  (let [opts  (atom [{"id" 1 "label" "FreeLang" "votes" 8}
+                     {"id" 2 "label" "TypeScript" "votes" 5}
+                     {"id" 3 "label" "Rust" "votes" 3}])
+        total (reduce (fn [acc x] (+ acc (get x "votes"))) 0 @opts)
+        vote  (fn [id]
+                (swap! opts (fn [xs]
+                  (map (fn [x] (if (= (get x "id") id) (assoc x "votes" (+ (get x "votes") 1)) x)) xs))))]
+    (h "div" {}
+      (map
+        (fn [o]
+          (let [pct (if (> total 0) (/ (* (get o "votes") 100) total) 0)]
+            (h "div" {:style "margin-bottom:14px;cursor:pointer" :on-click (fn [] (vote (get o "id")))}
+              (str
+                (h "div" {:style "display:flex;justify-content:space-between;font-size:.9rem;margin-bottom:4px"}
+                  (str
+                    (h "span" {:style "font-weight:600"} (get o "label"))
+                    (h "span" {:style "color:#6b7280"} (str (str (get o "votes")) "표"))))
+                (h "div" {:style "height:14px;background:#eef2ff;border-radius:99px;overflow:hidden"}
+                  (h "div" {:style (str "height:100%;background:#6366f1;border-radius:99px;width:" (str pct) "%")} ""))))))
+        @opts))))
+
+(defn render [req]
+  (layout-html "28 · 투표"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "실시간 투표")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "항목을 클릭하면 득표가 오르고, reduce 합계로 비율 막대를 다시 그립니다.")
+          (h "div" {:style "background:white;border-radius:12px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+            "ISLAND_PLACEHOLDER")
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

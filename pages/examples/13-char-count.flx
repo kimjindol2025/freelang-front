@@ -1,0 +1,32 @@
+; pages/examples/13-char-count.flx
+; 예제 13 — 글자수 카운터: 입력 길이를 실시간 표시, 한도 초과 경고
+; 배우는 것: atom 문자열, length, 비교로 색상 분기
+
+(island CharCount []
+  (let [text  (atom "")
+        limit 100
+        used  (length @text)
+        over  (> used limit)]
+    (h "div" {}
+      (str
+        (h "textarea" {:value @text :rows "4" :placeholder "메시지를 입력하세요…"
+                       :style "width:100%;padding:12px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;resize:vertical"
+                       :on-input (fn [e] (reset! text (.-value (.-target e))))})
+        (h "div" {:style (str "text-align:right;font-size:.85rem;margin-top:6px;" (if over "color:#ef4444;font-weight:700" "color:#9ca3af"))}
+          (str (str used) " / " (str limit)))
+        (if over
+          (h "p" {:style "color:#ef4444;font-size:.85rem;margin:4px 0 0"} "⚠️ 글자 수 한도를 초과했습니다.")
+          "")))))
+
+(defn render [req]
+  (layout-html "13 · 글자수 카운터"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "글자수 카운터")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "입력 길이를 length 로 세고, 한도 초과 시 비교로 경고를 띄웁니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

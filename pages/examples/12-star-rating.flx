@@ -1,0 +1,32 @@
+; pages/examples/12-star-rating.flx
+; 예제 12 — 별점: 클릭으로 평점 선택, 채움 여부는 비교로 결정
+; 배우는 것: atom 숫자, map + 비교(>=), 조건부 스타일
+
+(island StarRating []
+  (let [rating (atom 3)
+        stars  [1 2 3 4 5]]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:flex;gap:6px;font-size:2.2rem"}
+          (map
+            (fn [n]
+              (h "span" {:style (str "cursor:pointer;" (if (>= @rating n) "color:#fbbf24" "color:#d1d5db"))
+                         :on-click (fn [] (reset! rating n))}
+                "★"))
+            stars))
+        (h "p" {:style "color:#6b7280;margin-top:12px"}
+          (str "선택한 평점: " (str @rating) " / 5"))))))
+
+(defn render [req]
+  (layout-html "12 · 별점"
+    (str
+      (h "div" {:style "max-width:420px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "별점")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "별을 클릭하면 atom 값이 바뀌고, (>= rating n) 으로 채움을 결정합니다.")
+          (h "div" {:style "background:white;border-radius:12px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+            "ISLAND_PLACEHOLDER")
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

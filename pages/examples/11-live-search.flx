@@ -1,0 +1,32 @@
+; pages/examples/11-live-search.flx
+; 예제 11 — 라이브 검색: 입력 즉시 클라이언트 필터링
+; 배우는 것: atom + filter + 문자열 interop (.includes .toLowerCase)
+
+(island LiveSearch []
+  (let [all   ["JavaScript" "TypeScript" "Python" "Rust" "Go" "Kotlin" "Swift" "Ruby" "Elixir" "Haskell"]
+        query (atom "")
+        hits  (filter (fn [x] (.includes (.toLowerCase x) (.toLowerCase @query))) all)]
+    (h "div" {}
+      (str
+        (h "input" {:value @query :placeholder "언어 이름 검색…"
+                    :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;margin-bottom:12px"
+                    :on-input (fn [e] (reset! query (.-value (.-target e))))})
+        (h "p" {:style "color:#9ca3af;font-size:.85rem;margin:0 0 8px"} (str (length hits) "개 결과"))
+        (h "ul" {:style "list-style:none;margin:0;padding:0"}
+          (map
+            (fn [x]
+              (h "li" {:style "padding:10px 14px;background:white;border-radius:8px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06)"} x))
+            hits))))))
+
+(defn render [req]
+  (layout-html "11 · 라이브 검색"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "라이브 검색")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "입력하는 즉시 클라이언트에서 필터링합니다 (서버 왕복 없음).")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

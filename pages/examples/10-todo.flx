@@ -1,0 +1,54 @@
+; pages/examples/10-todo.flx
+; 예제 10 — To-Do: 로컬 atom 배열로 추가·완료·삭제
+; 배우는 것: atom 배열, push, filter, map, assoc, :on-input/:on-keydown
+
+(island Todo []
+  (let [items (atom [{"id" 1 "text" "FreeLang 배우기" "done" false}
+                     {"id" 2 "text" "Island 만들기"   "done" true}])
+        draft (atom "")
+        seq   (atom 3)
+        add   (fn []
+                (when (not= @draft "")
+                  (swap! items (fn [xs] (push xs {"id" @seq "text" @draft "done" false})))
+                  (reset! seq (+ @seq 1))
+                  (reset! draft "")))]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:flex;gap:8px;margin-bottom:16px"}
+          (str
+            (h "input" {:value @draft :placeholder "할 일을 입력하고 Enter"
+                        :style "flex:1;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem"
+                        :on-input (fn [e] (reset! draft (.-value (.-target e))))
+                        :on-keydown (fn [e] (when (= (.-key e) "Enter") (add)))})
+            (h "button" {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:10px 18px;cursor:pointer"
+                         :on-click (fn [] (add))} "추가")))
+        (h "ul" {:style "list-style:none;margin:0;padding:0"}
+          (map
+            (fn [it]
+              (h "li" {:style "display:flex;align-items:center;gap:10px;padding:12px 14px;background:white;border-radius:8px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06)"}
+                (str
+                  (h "input" {:type "checkbox" :checked (get it "done")
+                              :style "width:18px;height:18px;cursor:pointer"
+                              :on-click (fn []
+                                (swap! items (fn [xs]
+                                  (map (fn [x] (if (= (get x "id") (get it "id"))
+                                                 (assoc x "done" (not (get x "done"))) x)) xs))))})
+                  (h "span" {:style (str "flex:1;" (if (get it "done") "text-decoration:line-through;color:#9ca3af" "color:#111827"))}
+                    (get it "text"))
+                  (h "button" {:style "background:none;border:none;color:#ef4444;cursor:pointer;font-size:1.1rem"
+                               :on-click (fn []
+                                 (swap! items (fn [xs] (filter (fn [x] (not= (get x "id") (get it "id"))) xs))))} "×"))))
+            @items))))))
+
+(defn render [req]
+  (layout-html "10 · To-Do"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "To-Do 리스트")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "atom 배열로 추가·완료·삭제를 모두 클라이언트에서 처리합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

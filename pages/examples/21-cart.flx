@@ -1,0 +1,51 @@
+; pages/examples/21-cart.flx
+; 예제 21 — 장바구니: 수량 증감과 총액 합산
+; 배우는 것: atom 객체 배열, assoc 로 불변 갱신, reduce 로 합계
+
+(island Cart []
+  (let [items (atom [{"id" 1 "name" "아메리카노" "price" 4500 "qty" 1}
+                     {"id" 2 "name" "카페라떼"   "price" 5000 "qty" 2}
+                     {"id" 3 "name" "크루아상"   "price" 3800 "qty" 1}])
+        chg   (fn [id d]
+                (swap! items (fn [xs]
+                  (map (fn [x]
+                         (if (= (get x "id") id)
+                           (assoc x "qty" (if (< (+ (get x "qty") d) 1) 1 (+ (get x "qty") d)))
+                           x)) xs))))
+        total (reduce (fn [acc x] (+ acc (* (get x "price") (get x "qty")))) 0 @items)]
+    (h "div" {}
+      (str
+        (h "div" {}
+          (map
+            (fn [it]
+              (h "div" {:style "display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f3f6"}
+                (str
+                  (h "span" {:style "flex:1"} (get it "name"))
+                  (h "div" {:style "display:flex;align-items:center;gap:10px"}
+                    (str
+                      (h "button" {:style "width:28px;height:28px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer"
+                                   :on-click (fn [] (chg (get it "id") -1))} "−")
+                      (h "span" {:style "min-width:20px;text-align:center"} (str (get it "qty")))
+                      (h "button" {:style "width:28px;height:28px;border:1px solid #e5e7eb;border-radius:6px;background:white;cursor:pointer"
+                                   :on-click (fn [] (chg (get it "id") 1))} "+")
+                      (h "span" {:style "min-width:72px;text-align:right;color:#6366f1;font-weight:700"}
+                        (str (* (get it "price") (get it "qty")) "원")))))))
+            @items))
+        (h "div" {:style "display:flex;justify-content:space-between;padding-top:16px;font-size:1.1rem;font-weight:800"}
+          (str
+            (h "span" {} "합계")
+            (h "span" {:style "color:#6366f1"} (str total "원"))))))))
+
+(defn render [req]
+  (layout-html "21 · 장바구니"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "장바구니")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "수량을 바꾸면 assoc 로 불변 갱신하고, reduce 로 총액을 다시 계산합니다.")
+          (h "div" {:style "background:white;border-radius:12px;padding:8px 20px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+            "ISLAND_PLACEHOLDER")
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

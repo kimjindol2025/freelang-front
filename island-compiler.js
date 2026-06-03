@@ -126,6 +126,11 @@ function emitList(node, ctx) {
   if (head?.sym === '/')      return `(${args.map(a=>emit(a,ctx)).join(' / ')})`;
   if (head?.sym === '=')      return `(${emit(args[0],ctx)} === ${emit(args[1],ctx)})`;
   if (head?.sym === 'not=')   return `(${emit(args[0],ctx)} !== ${emit(args[1],ctx)})`;
+  if (head?.sym === '>')      return `(${emit(args[0],ctx)} > ${emit(args[1],ctx)})`;
+  if (head?.sym === '<')      return `(${emit(args[0],ctx)} < ${emit(args[1],ctx)})`;
+  if (head?.sym === '>=')     return `(${emit(args[0],ctx)} >= ${emit(args[1],ctx)})`;
+  if (head?.sym === '<=')     return `(${emit(args[0],ctx)} <= ${emit(args[1],ctx)})`;
+  if (head?.sym === 'mod')    return `(${emit(args[0],ctx)} % ${emit(args[1],ctx)})`;
   if (head?.sym === 'not')    return `!(${emit(args[0],ctx)})`;
   if (head?.sym === 'when')   return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : null`;
   if (head?.sym === 'or')     return `(${args.map(a=>`(${emit(a,ctx)})`).join(' || ')})`;
@@ -151,6 +156,12 @@ function emitList(node, ctx) {
   if (head?.sym === 'fetch!')        return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'fetch-post!')   return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
   if (head?.sym === 'fetch-delete!') return `_fl.fetch_delete(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  // Clojure interop: (.-prop obj) → (obj).prop  — DOM 이벤트 값 접근 등
+  if (head?.sym && head.sym.startsWith('.-'))
+    return `(${emit(args[0], ctx)}).${head.sym.slice(2)}`;
+  // Clojure interop: (.method obj a b) → (obj).method(a, b)
+  if (head?.sym && head.sym.startsWith('.') && head.sym.length > 1)
+    return `(${emit(args[0], ctx)}).${head.sym.slice(1)}(${args.slice(1).map(a => emit(a, ctx)).join(', ')})`;
   // 일반 함수 호출
   const fn = emit(head, ctx);
   return `${fn}(${args.map(a => emit(a, ctx)).join(', ')})`;

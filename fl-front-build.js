@@ -231,8 +231,13 @@ function validateFunctions(routes, helpers, bindings) {
   // 2패스: 각 원본 .flx 파일에서 미정의 함수 감지
   const issues = [];
   for (const f of allFiles) {
-    const src = fs.readFileSync(f, 'utf8');
+    let src = fs.readFileSync(f, 'utf8');
     const fileName = path.basename(f);
+    // island 블록 제거 — 내부는 island-compiler 가 별도 검증하므로 서버 함수 검사 대상 아님.
+    // (let 바인딩 로컬 함수 add/chg 등이 미정의로 오탐되는 것 방지). 라인 번호는 공백 치환으로 보존.
+    for (const isl of islandCompiler.extractIslands(src)) {
+      src = src.replace(isl.block, isl.block.replace(/[^\n]/g, ' '));
+    }
     const strippedLines = src
       .replace(/"""[\s\S]*?"""/g, '"__TRIPLE__"')        // 삼중따옴표 먼저
       .replace(/"(?:[^"\\]|\\[\s\S])*"/g, '"__STR__"')  // 더블쿼트
@@ -991,13 +996,15 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
     }
     lines.push(`; ── ${r.file} ──`);
     const smStart = lines.length + 1; // 소스맵 시작 라인
+    // ^ 앵커(/m) — 주석 안의 "(defn render [req])" 같은 텍스트를 잘못 잡지 않도록
+    // 줄 맨 앞의 실제 정의만 rename 한다.
     let renamed = src.replace(
-      /\(defn render \[\$?req\]/,
+      /^\(defn render \[\$?req\]/m,
       `(defn ${r.fnName}__inner [req]`
     );
     // render_post 함수도 있으면 fnName_post 로 rename
     renamed = renamed.replace(
-      /\(defn render_post \[\$?req\]/,
+      /^\(defn render_post \[\$?req\]/m,
       `(defn ${r.fnName}_post__inner [req]`
     );
     lines.push(renamed);

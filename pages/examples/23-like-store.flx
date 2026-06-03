@@ -1,0 +1,32 @@
+; pages/examples/23-like-store.flx
+; 예제 23 — 좋아요(글로벌 store): Island 간 상태 공유
+; 배우는 것: get-store / dispatch / [:watch "key"], 여러 Island 동기화
+
+; Island 0: 좋아요 버튼
+(island LikeButton []
+  (let [n (or (get-store "likes") 0)]
+    (h "button" {:style "background:#ef4444;color:white;border:none;border-radius:99px;padding:12px 24px;font-size:1rem;cursor:pointer"
+                 :on-click (fn [] (dispatch "likes" (+ (or (get-store "likes") 0) 1)))}
+      (str "❤️  좋아요 " (str n)))))
+
+; Island 1: 다른 위치의 카운트 뷰 (store 변화를 watch)
+(island LikeBadge [:watch "likes"]
+  (let [n (or (get-store "likes") 0)]
+    (h "div" {:style "background:#fee2e2;color:#b91c1c;border-radius:10px;padding:14px 18px;font-weight:700;text-align:center"}
+      (str "현재 좋아요: " (str n) "개"))))
+
+(defn render [req]
+  (layout-html "23 · 좋아요 (store)"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "글로벌 store 공유")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "버튼 Island 와 뱃지 Island 가 같은 store 키 \"likes\" 를 공유합니다. 하나를 누르면 둘 다 갱신됩니다.")
+          (h "div" {:style "background:white;border-radius:12px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:18px;align-items:center"}
+            (str
+              "ISLAND_PLACEHOLDER_0"
+              "ISLAND_PLACEHOLDER_1"))
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

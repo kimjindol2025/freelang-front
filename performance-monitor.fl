@@ -267,9 +267,10 @@
 ; ── API: DELETE /api/metrics (성능 로그 초기화) ──
 (defn handle-delete-metrics [$req]
   (try
-    (reset! performance-log [])
-    (log-info "Performance log cleared")
-    (server-json {"ok" true} 200)
+    (do
+      (reset! performance-log [])
+      (log-info "Performance log cleared")
+      (server-json {"ok" true} 200))
 
     (catch $e
       (log-error (str "Error handling DELETE /api/metrics: " $e))

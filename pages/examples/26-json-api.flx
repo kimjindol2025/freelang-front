@@ -1,0 +1,11 @@
+; pages/examples/26-json-api.flx
+; 예제 26 — JSON API: render 가 HTML 대신 JSON 을 반환하는 엔드포인트
+; 배우는 것: server-json, 예제 27(fetch)이 호출하는 백엔드
+
+(defn render [req]
+  (server-json
+    {:ok true
+     :time "2026-06-03"
+     :items [{:id 1 :name "FreeLang" :stars 4200}
+             {:id 2 :name "Island"   :stars 1800}
+             {:id 3 :name "FreeDoc"  :stars 950}]}))
