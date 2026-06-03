@@ -1,0 +1,41 @@
+; pages/app/api.flx — 노트앱 JSON API
+; POST /app/api  body: {action: "add"|"delete"|"pin", content?, id?}
+; GET  /app/api  → 노트 목록
+
+(load "pages/app/_db.flx")
+
+(app-notes-init)
+
+(defn render [req]
+  (server-json {"ok" true "notes" (app-notes-all)}))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [content (or (get body "content") "")]
+          (if (= (str-trim content) "")
+            (server-json {"ok" false "error" "내용을 입력하세요"} 400)
+            (do
+              (app-note-add content)
+              (server-json {"ok" true "notes" (app-notes-all)}))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (nil? id)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (app-note-delete id)
+              (server-json {"ok" true "notes" (app-notes-all)}))))
+
+      (= action "pin")
+        (let [id (get body "id")]
+          (if (nil? id)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (app-note-pin-toggle id)
+              (server-json {"ok" true "notes" (app-notes-all)}))))
+
+      true
+        (server-json {"ok" false "error" (str "알 수 없는 action: " action)} 400))))

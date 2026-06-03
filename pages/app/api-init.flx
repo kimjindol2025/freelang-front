@@ -1,0 +1,9 @@
+; pages/app/api-init.flx — Island 초기 데이터 로드
+; GET /app/api-init → {"notes": [...]}
+
+(load "pages/app/_db.flx")
+
+(app-notes-init)
+
+(defn render [req]
+  (server-json {"ok" true "notes" (app-notes-all)}))
