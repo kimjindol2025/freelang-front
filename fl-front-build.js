@@ -629,7 +629,7 @@ const INJECTED_HELPERS = `
 
 ; form-validate — 필수 키 검증 → {"valid" true/false "errors" [...누락키]}
 (defn form-validate [req keys]
-  (let [missing (filter keys (fn [k] (= (form-get req k) "")))]
+  (let [missing (filter (fn [k] (= (form-get req k) "")) keys)]
     {"valid" (= (length missing) 0)
      "errors" missing}))
 
