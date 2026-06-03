@@ -112,6 +112,8 @@ const FL_FRONT_HELPERS = new Set([
   // INJECTED_HELPERS에서 자동 주입되는 함수들
   'round','str-slice','str_slice','map-indexed','map_indexed',
   'empty?','h!','h-attrs','arr-join','arr_join',
+  // _app.fl.out.js 상단에 const로 주입되는 math 헬퍼
+  'floor','ceil','ceil-val','ceil_val','abs','min-val','min_val','max-val','max_val',
   // FL v11 stdlib — ls-fns 미등록이지만 런타임 동작
   'cond','string?','str-includes','str_includes',
   'str-to-num','str_to_num','str-to-upper','str_to_upper','str-to-lower','str_to_lower',
