@@ -9,7 +9,16 @@ const crypto         = require('crypto');
 const styleCompiler  = require('./style-compiler');
 const islandCompiler = require('./island-compiler');
 
-const CACHE_FILE = path.join(__dirname, '.build-cache.json');
+const CACHE_FILE  = path.join(__dirname, '.build-cache.json');
+const JSON_MODE   = process.argv.includes('--json');
+const BUILD_ISSUES = []; // {level:'error'|'warn', check:str, file:str, line:int, message:str}
+
+function issue(level, check, file, line, message) {
+  BUILD_ISSUES.push({ level, check, file: file||'', line: line||0, message });
+}
+// JSON_MODE 에서 텍스트 출력 억제
+const _log = console.log.bind(console);
+if (JSON_MODE) console.log = () => {};
 
 // 빌드 캐시 로드/저장
 function loadCache() {
@@ -275,6 +284,7 @@ function validateFunctions(routes, helpers, bindings) {
       ? `\n      → \x1b[36m${suggestions.join(', ')}\x1b[0m`
       : '';
     console.log(`  \x1b[31m✗\x1b[0m ${file}:${line} — '${fn}' 정의 없음${hint}`);
+    issue('warn', 'undefined-fn', file, line, `'${fn}' 정의 없음`);
   }
   console.log('');
 }
@@ -1289,6 +1299,7 @@ function validateStoreKeys(routes, helpers) {
       const k = `${file}:${key}`;
       if (seen.has(k)) continue; seen.add(k);
       console.log(`  \x1b[33m⚠\x1b[0m ${file} — (${fn} "${key}") 키 미선언`);
+      issue('warn','store-key',file,0,`(${fn} "${key}") 키 미선언 — (defstore :${key} init) 추가 필요`);
     }
   }
   return declared;
@@ -1416,6 +1427,7 @@ function validateArity(routes, helpers) {
       const k = `${file}:${name}:${line}`;
       if (seen.has(k)) continue; seen.add(k);
       console.log(`  \x1b[33m⚠\x1b[0m ${file}:${line} — (${name}) 인자 ${expected}개 필요, ${got}개 전달`);
+      issue('warn','arity',file,line,`(${name}) 인자 ${expected}개 필요, ${got}개 전달`);
     }
   }
 }
@@ -1482,8 +1494,9 @@ function validateIslandBoundary(routes) {
       const k = `${file}:${fn}:${line}`;
       if (seen.has(k)) continue; seen.add(k);
       console.log(`  \x1b[31m✗\x1b[0m ${file}:${line} — (${fn}) 서버 전용 함수`);
+      issue('error','island-boundary',file,line,`(${fn}) 서버 전용 함수를 island 안에서 사용`);
     }
-    process.exit(1);
+    if (!JSON_MODE) process.exit(1);
   }
 }
 
@@ -1517,23 +1530,29 @@ newCache['style-compiler.js'] = fileHash(path.join(__dirname, 'style-compiler.js
 newCache.sourceMap = sourceMap;
 saveCache(newCache);
 
-// 빌드 상태 저장 → dev-server.js /~ai 엔드포인트용
+// 빌드 상태 저장 → /~ai 엔드포인트용
+const elapsed = Date.now() - BUILD_START;
+const errors  = BUILD_ISSUES.filter(i => i.level === 'error');
+const warns   = BUILD_ISSUES.filter(i => i.level === 'warn');
+
 const buildState = {
-  ok: true,
+  ok: errors.length === 0,
   time: new Date().toISOString(),
-  routes: routes.map(r => ({ route: r.route, file: r.file, fn: r.fnName })),
+  elapsed,
+  routes: routes.map(r => ({ route: r.route, file: path.basename(r.file), fn: r.fnName })),
   helpers: helpers.map(h => path.basename(h)),
+  store_keys: [...(storeRegistry||new Map()).keys()],
+  issues: BUILD_ISSUES,
   sourceMap,
-  warnings: [],
 };
 try {
-  fs.writeFileSync(
-    path.join(__dirname, '.build-state.json'),
-    JSON.stringify(buildState, null, 2),
-    'utf8'
-  );
+  fs.writeFileSync(path.join(__dirname, '.build-state.json'), JSON.stringify(buildState, null, 2), 'utf8');
 } catch {}
 
-const elapsed = Date.now() - BUILD_START;
-console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);
-console.log(`✅ AGENTS.md 갱신 완료`);
+if (JSON_MODE) {
+  // AI 파이프용: 순수 JSON만 stdout
+  process.stdout.write(JSON.stringify(buildState, null, 2) + '\n');
+} else {
+  console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);
+  console.log(`✅ AGENTS.md 갱신 완료`);
+}

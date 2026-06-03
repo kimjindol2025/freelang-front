@@ -136,27 +136,88 @@ const hmrServer = http.createServer((req, res) => {
     return;
   }
 
-  // AI 통합 상태 조회 (GET /~ai) — curl로 현재 앱 상태 전체 파악
-  if (req.url === '/~ai' && req.method === 'GET') {
-    const state = {
-      build: {
-        ok:       lastBuildState.ok,
-        time:     lastBuildState.time,
-        warnings: lastBuildState.warnings || [],
-      },
-      routes:   (lastBuildState.routes || []).map(r => r.route),
-      helpers:  lastBuildState.helpers || [],
-      sourceMap: lastBuildState.sourceMap || {},
-      browserErrors: errorLog.slice(0, 10),
-      islandErrors: errorLog.filter(e => e.type === 'island').slice(0, 5),
-      tip: [
-        'POST http://localhost:40851/~errors  — 브라우저 에러 수집',
-        'DELETE http://localhost:40851/~errors — 에러 초기화',
-        'GET http://localhost:40850/<route>   — 앱 접근',
-      ],
-    };
-    res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(state, null, 2));
+  // ── /~ai/* — AI 전용 컨텍스트 쿼리 엔드포인트 ──────────────
+  if (req.url.startsWith('/~ai') && req.method === 'GET') {
+    const u = req.url.replace(/\?.*$/, '');
+    const json = (obj) => { res.writeHead(200,{...cors,'Content-Type':'application/json'}); res.end(JSON.stringify(obj,null,2)); };
+
+    // GET /~ai — 전체 요약
+    if (u === '/~ai') {
+      json({
+        build:  { ok: lastBuildState.ok, time: lastBuildState.time, elapsed: lastBuildState.elapsed },
+        issues: (lastBuildState.issues||[]),
+        routes: (lastBuildState.routes||[]).map(r=>r.route),
+        helpers: lastBuildState.helpers||[],
+        store_keys: lastBuildState.store_keys||[],
+        browser_errors: errorLog.slice(0,10),
+        endpoints: {
+          '/~ai':        'GET — 이 요약',
+          '/~ai/routes': 'GET — 라우트 + 파일 + fnName',
+          '/~ai/fns':    'GET — defn 시그니처 목록',
+          '/~ai/store':  'GET — store 키 + 초기값',
+          '/~ai/issues': 'GET — 빌드 이슈 목록 (errors+warns)',
+          '/~ai/errors': 'GET — 브라우저 런타임 에러',
+        },
+      });
+      return;
+    }
+
+    // GET /~ai/routes
+    if (u === '/~ai/routes') {
+      json({ routes: lastBuildState.routes || [] });
+      return;
+    }
+
+    // GET /~ai/fns — 전체 .flx 파일의 defn 시그니처
+    if (u === '/~ai/fns') {
+      try {
+        const fs2 = require('fs'), path2 = require('path');
+        const pagesDir = path2.join(__dirname, 'pages');
+        const fns = [];
+        const seen = new Set();
+        function scanDir(dir) {
+          for (const entry of fs2.readdirSync(dir, {withFileTypes:true})) {
+            const full = path2.join(dir, entry.name);
+            if (entry.isDirectory()) { scanDir(full); continue; }
+            if (!entry.name.endsWith('.flx') && !entry.name.endsWith('.fl')) continue;
+            const src = fs2.readFileSync(full,'utf8');
+            for (const m of src.matchAll(/\(defn\s+([\w-]+)\s+\[([^\]]*)\]/g)) {
+              const key = m[1]+':'+path2.basename(full);
+              if (seen.has(key)) continue; seen.add(key);
+              fns.push({ name:m[1], params:m[2].trim().split(/\s+/).filter(Boolean), file:path2.basename(full) });
+            }
+          }
+        }
+        scanDir(pagesDir);
+        json({ count: fns.length, fns });
+      } catch(e) { json({ error: e.message }); }
+      return;
+    }
+
+    // GET /~ai/store
+    if (u === '/~ai/store') {
+      json({ store_keys: lastBuildState.store_keys || [] });
+      return;
+    }
+
+    // GET /~ai/issues
+    if (u === '/~ai/issues') {
+      const issues = lastBuildState.issues || [];
+      json({
+        ok: issues.filter(i=>i.level==='error').length === 0,
+        errors: issues.filter(i=>i.level==='error'),
+        warns:  issues.filter(i=>i.level==='warn'),
+      });
+      return;
+    }
+
+    // GET /~ai/errors — 브라우저 런타임 에러
+    if (u === '/~ai/errors') {
+      json({ count: errorLog.length, errors: errorLog.slice(0,20) });
+      return;
+    }
+
+    res.writeHead(404,cors); res.end(JSON.stringify({error:'unknown /~ai endpoint'}));
     return;
   }
 

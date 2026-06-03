@@ -109,6 +109,11 @@ function emitList(node, ctx) {
   const head = node[0];
   const args = node.slice(1);
 
+  // head가 sym이 아니면 벡터 리터럴 [v1 v2 ...]
+  if (head?.sym === undefined && !Array.isArray(head)) {
+    return `[${node.map(n => emit(n, ctx)).join(', ')}]`;
+  }
+
   if (head?.sym === 'island') return emitIsland(args, ctx);
   if (head?.sym === 'let')    return emitLet(args, ctx);
   if (head?.sym === 'fn')     return emitFn(args, ctx);
