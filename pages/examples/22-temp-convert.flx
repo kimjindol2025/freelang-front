@@ -4,8 +4,8 @@
 
 (island TempConvert []
   (let [c (atom 25)
-        f (+ (* @c (/ 9 5)) 32)
-        k (+ @c 273.15)]
+        f (/ (round (* (+ (* @c (/ 9 5)) 32) 10)) 10)
+        k (/ (round (* (+ @c 273.15) 10)) 10)]
     (h "div" {}
       (str
         (h "label" {:style "display:block;font-size:.85rem;color:#6b7280;margin-bottom:6px"} "섭씨 (°C)")

@@ -31,7 +31,7 @@
                             :on-input (fn [e] (reset! w-kg (.-valueAsNumber (.-target e))))})))))
         (h "div" {:style (str "border-radius:12px;padding:28px;text-align:center;color:white;background:" col)}
           (str
-            (h "div" {:style "font-size:2.4rem;font-weight:800"} (str bmi))
+            (h "div" {:style "font-size:2.4rem;font-weight:800"} (str (/ (round (* bmi 10)) 10)))
             (h "div" {:style "font-size:1rem;font-weight:600;opacity:.9"} cat)))))))
 
 (defn render [req]
