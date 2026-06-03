@@ -11,7 +11,13 @@ const islandCompiler = require('./island-compiler');
 
 const CACHE_FILE  = path.join(__dirname, '.build-cache.json');
 const JSON_MODE   = process.argv.includes('--json');
-const BUILD_ISSUES = []; // {level:'error'|'warn', check:str, file:str, line:int, message:str}
+const BUILD_ISSUES = [];
+
+// ── 유틸리티 CSS 자동 주입 (skl-utils.css 또는 utils.css 존재 시) ────
+const SKL_UTILS_PATH = [path.join(__dirname, "skl-utils.css"), path.join(__dirname, "utils.css")].find(p => fs.existsSync(p));
+const SKL_UTILS_CSS  = SKL_UTILS_PATH ? fs.readFileSync(SKL_UTILS_PATH, "utf8").replace(/\s+/g, " ").trim() : "";
+
+// {level:'error'|'warn', check:str, file:str, line:int, message:str}
 
 function issue(level, check, file, line, message) {
   BUILD_ISSUES.push({ level, check, file: file||'', line: line||0, message });
@@ -141,6 +147,54 @@ const FL_FRONT_HELPERS = new Set([
   'server-response','server_response',
   'export-to-csv','export_to_csv','export-to-json','export_to_json',
   'type','type-of','type_of',
+  // ── MariaDB 런타임 ───────────────────────────────────────
+  'mariadb_pool_connect','mariadb-pool-connect',
+  'mariadb_pool_query','mariadb-pool-query',
+  'mariadb_pool_exec','mariadb-pool-exec',
+  'mariadb_query','mariadb-query',
+  'mariadb_exec','mariadb-exec',
+  // ── HTTP 클라이언트 ──────────────────────────────────────
+  'http_get','http-get','http_post','http-post',
+  'http_get_bearer','http-get-bearer',
+  'http_request','http-request',
+  // ── 문자열 ──────────────────────────────────────────────
+  'str_contains','str-contains',
+  'str_trim','str-trim','trim',
+  'str_split','str-split','str_join','str-join',
+  'str_replace','str-replace',
+  'str_pad','str-pad','str_repeat','str-repeat',
+  'str_count','str-count',
+  // ── 배열/컬렉션 ─────────────────────────────────────────
+  'concat','flatten','zip','unzip',
+  'group-by','group_by','partition',
+  'distinct','unique','dedupe',
+  'any?','every?','some?',
+  'count','sum','min','max',
+  // ── 날짜/시간 ───────────────────────────────────────────
+  'now-ms','now_ms','now-iso','now_iso',
+  // ── JSON ────────────────────────────────────────────────
+  'json_parse','json-parse',
+  'json_stringify','json-stringify','json-str',
+  // ── 서버 req/res ────────────────────────────────────────
+  'server-req-body','server_req_body',
+  'server-req-cookie','server_req_cookie',
+  'server-req-header','server_req_header',
+  'server-req-param','server_req_param',
+  'server-req-method','server_req_method',
+  'server-req-path','server_req_path',
+  'server-status','server_status',
+  'server-set-cookie','server_set_cookie',
+  'server-csp-nonce','server_csp_nonce',
+  'server-text','server_text',
+  // ── 파일/시스템 ─────────────────────────────────────────
+  'file_read','file-read','file_write','file-write',
+  'file_exists','file-exists','file_exists?',
+  'shell','shell_exec','shell-exec',
+  'env_get','env-get','shell_env',
+  // ── 기타 ────────────────────────────────────────────────
+  'js-prompt','js-confirm',
+  'parse-int','parse_int','parse-float','parse_float',
+  'obj-merge','obj_merge','merge','assoc-in','update-in',
 ]);
 
 const KNOWN_STDLIB = loadFreeLangStdlib();
@@ -1058,6 +1112,10 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       }).join('');
       src = src.replace(/"ISLAND_PLACEHOLDER"/g, JSON.stringify(allDivs));
       src = src.replace(/"ISLAND_SCRIPTS"/g, JSON.stringify(scriptBlock));
+      // utils.css / skl-utils.css → <style> 태그 뒤에 자동 주입
+      if (SKL_UTILS_CSS) {
+        src = src.replace(/<style>/g, `<style>${SKL_UTILS_CSS}`);
+      }
     }
     lines.push(`; ── ${r.file} ──`);
     const smStart = lines.length + 1; // 소스맵 시작 라인
