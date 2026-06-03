@@ -217,6 +217,33 @@ const hmrServer = http.createServer((req, res) => {
       return;
     }
 
+    // GET /~ai/test?file=pages/examples/23-like-store.flx&island=likebutton&click=button&store={"likes":5}
+    // Island headless 실행기 HTTP API
+    if (u === '/~ai/test') {
+      const qs  = new URLSearchParams(req.url.split('?')[1] || '');
+      const file = qs.get('file');
+      if (!file) { json({ error: 'file 파라미터 필요. 예: /~ai/test?file=pages/examples/06-counter.flx' }); return; }
+      const fullPath = require('path').resolve(__dirname, file);
+      try {
+        require('fs').accessSync(fullPath);
+      } catch {
+        json({ error: `파일 없음: ${file}` }); return;
+      }
+      try {
+        const runner = require('./island-runner');
+        const opts = {
+          island:   qs.get('island')   || undefined,
+          click:    qs.get('click')    || undefined,
+          dispatch: qs.get('dispatch') || undefined,
+          store:    qs.get('store')    ? JSON.parse(qs.get('store')) : undefined,
+        };
+        runner.run(fullPath, opts).then(result => json(result)).catch(e => json({ ok:false, error:e.message }));
+      } catch(e) {
+        json({ ok:false, error:e.message });
+      }
+      return;
+    }
+
     res.writeHead(404,cors); res.end(JSON.stringify({error:'unknown /~ai endpoint'}));
     return;
   }
