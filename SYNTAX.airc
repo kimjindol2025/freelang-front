@@ -1,0 +1,299 @@
+{
+  "$": "airc-syntax",
+  "version": "1.0.0",
+  "project": "freelang-front",
+  "for": "다른 Claude 인스턴스 — FreeLang 프론트엔드 문법 완전 레퍼런스",
+  "date": "2026-06-03",
+
+  "summary": "FreeLang(.flx)로 SSR 페이지를 만드는 방법. Next.js처럼 pages/ 폴더 기반 라우팅. npm 패키지 0개.",
+
+  "setup": {
+    "paths": {
+      "runtime": "/home/kim/바탕화면/kim/freelang-v11/bootstrap.js",
+      "front":   "/home/kim/바탕화면/kim/freelang-front",
+      "symlink": "freelang-front/runtime/bootstrap.js → freelang-v11/bootstrap.js"
+    },
+    "commands": {
+      "build": "cd /home/kim/바탕화면/kim/freelang-front && node fl-front-build.js",
+      "dev":   "cd /home/kim/바탕화면/kim/freelang-front && node dev-server.js",
+      "run":   "node runtime/bootstrap.js run _app.fl",
+      "ports": { "app": 40850, "hmr_api": 40851 }
+    },
+    "ai_debug": {
+      "summary":  "GET http://localhost:40851/~ai",
+      "issues":   "GET http://localhost:40851/~ai/issues",
+      "errors":   "GET http://localhost:40851/~ai/errors",
+      "build_json": "node fl-front-build.js --json | jq .issues"
+    }
+  },
+
+  "routing": {
+    "rule": "pages/*.flx → URL 자동 매핑. _ 접두사 파일은 헬퍼(라우팅 제외)",
+    "examples": {
+      "pages/index.flx":           "/",
+      "pages/about.flx":           "/about",
+      "pages/blog/index.flx":      "/blog",
+      "pages/users/[id].flx":      "/users/:id",
+      "pages/api/hello.flx":       "/api/hello",
+      "pages/_layout.flx":         "(헬퍼 — 라우팅 없음)",
+      "pages/_db.flx":             "(헬퍼 — 라우팅 없음)"
+    },
+    "helpers": {
+      "_layout.flx": "공통 레이아웃, nav, CSS 토큰",
+      "_db.flx":     "SQLite 연결 + 마이그레이션",
+      "_auth.flx":   "세션 쿠키 인증",
+      "_charts.flx": "SVG 차트 헬퍼",
+      "_error.flx":  "404/500 페이지"
+    }
+  },
+
+  "page_patterns": {
+    "get_only": {
+      "code": "(defn render [req]\n  (layout-html \"페이지 제목\"\n    (h \"div\" {:class card}\n      (h \"p\" {} \"내용\"))\n    req))",
+      "note": "render 함수 하나만 있으면 GET만 처리"
+    },
+    "get_and_post": {
+      "code": "(defn render [req]\n  (layout-html \"폼\"\n    (h \"form\" {:method \"post\" :action \"/my-page\"}\n      (h \"input\" {:name \"name\" :type \"text\"})\n      (h \"button\" {:type \"submit\"} \"제출\"))\n    req))\n\n(defn render_post [req]\n  (let [name (form-get req \"name\")]\n    (server-redirect \"/\")))",
+      "note": "render_post 추가하면 POST 핸들러 자동 등록"
+    },
+    "json_api": {
+      "code": "(defn render [req]\n  (server-json {:status \"ok\" :data [1 2 3]}))",
+      "note": "pages/api/*.flx → JSON API 엔드포인트"
+    },
+    "dynamic_route": {
+      "code": "; 파일명: pages/users/[id].flx\n(defn render [req]\n  (let [id (server-req-param req \"id\")]\n    (layout-html \"유저\"\n      (h \"p\" {} (str \"ID: \" id))\n      req)))",
+      "note": "[id] → :id 경로 파라미터"
+    }
+  },
+
+  "html_builder": {
+    "h": {
+      "signature": "(h tag attrs content)",
+      "examples": [
+        "(h \"div\" {:class card :id \"wrap\"} \"내용\")     ; → <div class='card__hash' id='wrap'>내용</div>",
+        "(h \"a\" {:href \"/path\" :data-spa \"1\"} \"링크\")  ; SPA 라우팅 (새로고침 없음)",
+        "(h \"ul\" {} (arr-join (map render-item items) \"\"))  ; 리스트 렌더링"
+      ]
+    },
+    "h_self_close": {
+      "signature": "(h! tag attrs)",
+      "examples": [
+        "(h! \"input\" {:type \"text\" :name \"email\" :placeholder \"이메일\"})",
+        "(h! \"img\" {:src \"/logo.png\" :alt \"로고\"})"
+      ]
+    },
+    "arr_join": {
+      "usage": "배열 항목을 하나의 HTML 문자열로 합치기",
+      "code": "(arr-join (map (fn [item] (h \"li\" {} (get item \"name\"))) items) \"\")"
+    },
+    "multi_children": {
+      "code": "(h \"div\" {:class card}\n  (str\n    (h \"h2\" {} \"제목\")\n    (h \"p\"  {} \"내용\")\n    (h \"a\" {:href \"/\"} \"홈\")))",
+      "note": "자식이 여러 개면 str로 연결"
+    }
+  },
+
+  "css_dsl": {
+    "style_block": {
+      "code": "(style card-box\n  :bg      \"white\"\n  :radius  \"12px\"\n  :shadow  \"sm\"\n  :padding \"20px\"\n  :border  \"1px solid #e5e7eb\")",
+      "usage": "(h \"div\" {:class card-box} \"내용\")",
+      "note": "빌드 시 해시 suffix 자동 추가 → CSS 격리. style 블록은 페이지 상단에 선언"
+    },
+    "responsive": {
+      "code": "(style hero\n  :p    \"40px\"\n  :sm-p \"20px\"\n  :md-p \"28px\")",
+      "note": ":sm- :md- :lg- 접두사 → @media breakpoint 자동 생성"
+    },
+    "css_variables": {
+      "available": [
+        "var(--c-primary)   ; 인디고 계열 주색",
+        "var(--c-bg)        ; 배경 (다크모드 자동 전환)",
+        "var(--c-surface)   ; 카드 배경",
+        "var(--c-border)    ; 테두리",
+        "var(--c-text)      ; 본문 텍스트",
+        "var(--c-muted)     ; 보조 텍스트",
+        "var(--radius-sm)   ; 8px",
+        "var(--radius-md)   ; 12px"
+      ]
+    },
+    "builtin_classes": {
+      "card":   "흰 배경 + 테두리 + 그림자 + hover 애니메이션",
+      "badge":  "인라인 태그 스타일",
+      "stat":   "숫자 강조 카드",
+      "muted":  "보조 텍스트"
+    }
+  },
+
+  "island": {
+    "concept": "Island = 클라이언트에서 실행되는 인터랙티브 컴포넌트. 나머지는 SSR.",
+    "local_state": {
+      "code": "(island Counter []\n  (let [n (atom 0)]\n    (h \"div\" {}\n      (h \"span\" {} (str @n))\n      (h \"button\" {:on-click (fn [] (swap! n (fn [v] (+ v 1))))} \"+\")\n      (h \"button\" {:on-click (fn [] (reset! n 0))} \"리셋\"))))",
+      "atoms": {
+        "create":  "(atom 초기값)",
+        "read":    "@state   ; deref 단축 표기",
+        "update":  "(reset! state 새값)",
+        "update_fn": "(swap! state (fn [v] (+ v 1)))"
+      }
+    },
+    "global_store": {
+      "code": "; 선언 (페이지 상단)\n(defstore :count 0)\n\n; 읽기\n(island Viewer [:watch \"count\"]\n  (h \"p\" {} (str \"값: \" (or (get-store \"count\") 0))))\n\n; 쓰기\n(island Btn []\n  (h \"button\" {:on-click (fn [] (dispatch \"count\" (+ (or (get-store \"count\") 0) 1)))} \"+\"))",
+      "note": "[:watch \"key\"] → 스토어 변경 시 리렌더. 여러 Island가 같은 스토어 공유 가능"
+    },
+    "async_fetch": {
+      "get":  "(fetch! \"/api/items\" (fn [data] (dispatch \"items\" data)))",
+      "post": "(fetch-post! \"/api/save\" {:name \"홍길동\"} (fn [res] (reset! status \"저장됨\")))",
+      "delete": "(fetch-delete! (str \"/api/items/\" id) (fn [_] ...))",
+      "note": "Island 블록 안에서만 사용 가능. 서버 함수(db-query 등) Island 안 사용 금지"
+    },
+    "multiple_islands": {
+      "code": "(defn render [req]\n  (layout-html \"제목\"\n    (str\n      \"ISLAND_PLACEHOLDER_0\"\n      \"ISLAND_PLACEHOLDER_1\"\n      \"ISLAND_SCRIPTS\")\n    req))",
+      "note": "Island가 1개면 ISLAND_PLACEHOLDER. 여러 개면 _0, _1, ... 번호 사용"
+    },
+    "events": {
+      "click":    ":on-click (fn [] ...)",
+      "input":    ":on-input (fn [e] (reset! val (.-value (.-target e))))",
+      "keydown":  ":on-keydown (fn [e] (when (= (.-key e) \"Enter\") ...))",
+      "ctrl_enter": ":on-keydown (fn [e] (when (and (.-ctrlKey e) (= (.-key e) \"Enter\")) ...))"
+    }
+  },
+
+  "request": {
+    "read": {
+      "form_field":   "(form-get req \"name\")           ; POST 폼 필드 (없으면 \"\")",
+      "form_all":     "(form-data req)                  ; 전체 body 맵",
+      "form_validate": "(form-validate req [\"name\" \"email\"])  ; → {:valid true :errors []}",
+      "query":        "(server-req-query req \"q\")       ; ?q= 쿼리스트링",
+      "param":        "(server-req-param req \"id\")      ; /path/:id 경로 파라미터",
+      "json_body":    "(get req \"body\")                 ; JSON POST 바디 맵",
+      "cookie":       "(get (get req \"cookies\") \"session\")"
+    },
+    "respond": {
+      "html":     "(server-html \"<html>...\")       ; 200 HTML",
+      "json":     "(server-json {:ok true :data x}) ; 200 JSON",
+      "redirect": "(server-redirect \"/path\")       ; 302",
+      "status":   "(server-status 404 \"<html>...\") ; 상태 코드 지정",
+      "cookie":   "(let [c (server-set-cookie \"session\" token {:max_age 86400})]\n  (server-html-cookie \"<html>\" c))"
+    }
+  },
+
+  "database": {
+    "setup": {
+      "code": "(define DB {:type \"sqlite\" :path \"data/app.db\"})",
+      "note": "_db.flx 헬퍼에서 이미 정의됨. 페이지에서 DB 바로 사용 가능"
+    },
+    "query":  "(db-query DB \"SELECT * FROM items WHERE done = ?\" [0])",
+    "exec":   "(db-exec  DB \"INSERT INTO items (text) VALUES (?)\" [text])",
+    "update": "(db-exec  DB \"UPDATE items SET done = ? WHERE id = ?\" [1 id])",
+    "delete": "(db-exec  DB \"DELETE FROM items WHERE id = ?\" [id])",
+    "migrate": {
+      "code": "(db-exec DB \"CREATE TABLE IF NOT EXISTS todos (\n  id INTEGER PRIMARY KEY AUTOINCREMENT,\n  text TEXT NOT NULL,\n  done INTEGER DEFAULT 0,\n  created_at DATETIME DEFAULT CURRENT_TIMESTAMP\n)\" [])",
+      "note": "페이지 또는 _db.flx 최상위에 한 번만 실행"
+    }
+  },
+
+  "layout": {
+    "basic": "(layout-html \"페이지 제목\" html-content req)",
+    "with_seo": "(layout-html-seo \"제목\" content req {:description \"설명\" :og-image \"/img.png\"})",
+    "note": "_layout.flx에 정의. nav, footer, CSS 토큰, HMR 스크립트 자동 포함"
+  },
+
+  "string_ops": {
+    "concat":      "(str a b c)                         ; 연결",
+    "interpolate": "\"\"\"<h1>${title}</h1>\"\"\"           ; 삼중따옴표 보간",
+    "include":     "(str-includes s sub)               ; 포함 여부",
+    "lower":       "(str-to-lower s)",
+    "upper":       "(str-to-upper s)",
+    "trim":        "(str-trim s)",
+    "split":       "(str-split s \",\")                 ; 배열 반환",
+    "replace":     "(str-replace s old new)",
+    "blank":       "(str-blank? s)                     ; nil/빈문자/공백 → true",
+    "slice":       "(str-slice s 0 10)"
+  },
+
+  "array_ops": {
+    "create":   "[1 2 3]",
+    "push":     "(push arr item)                       ; 끝에 추가",
+    "map":      "(map (fn [x] ...) arr)               ; 변환",
+    "filter":   "(filter (fn [x] ...) arr)            ; 필터링",
+    "reduce":   "(reduce (fn [acc x] ...) init arr)   ; 축약",
+    "find":     "(find-first (fn [x] (= (get x \"id\") id)) arr)",
+    "update_item": "(map (fn [n] (if (= (get n \"id\") id) (assoc n \"done\" 1) n)) arr)",
+    "remove":   "(filter (fn [n] (not (= (get n \"id\") id))) arr)",
+    "length":   "(length arr)",
+    "join":     "(arr-join arr \", \")                  ; 문자열로 합치기"
+  },
+
+  "map_ops": {
+    "get":      "(get m \"key\")                        ; 없으면 nil",
+    "get_default": "(get m \"key\" \"기본값\")",
+    "get_in":   "(get-in m [\"a\" \"b\"])               ; 중첩 접근",
+    "assoc":    "(assoc m \"key\" val)                  ; 새 맵 반환 (불변)",
+    "assoc_in": "(assoc-in m [\"a\" \"b\"] val)         ; 중첩 갱신",
+    "nil_merge": "(?? (get m \"nick\") (get m \"name\")) ; 첫 non-nil 값"
+  },
+
+  "common_patterns": {
+    "conditional_class": {
+      "code": "(h \"div\" {:class (if active active-cls base-cls)} \"내용\")",
+      "island_only": true
+    },
+    "list_render": {
+      "code": "(arr-join\n  (map (fn [item]\n    (h \"li\" {:class list-item}\n      (get item \"name\")))\n    items)\n  \"\")"
+    },
+    "nil_guard": {
+      "code": "(if (nil? x) \"기본값\" x)\n(or x \"기본값\")\n(when (not (nil? x)) (do-something x))"
+    },
+    "loading_state": {
+      "code": "(island Loader []\n  (let [data  (atom nil)\n        ready (atom false)]\n    (when (not @ready)\n      (reset! ready true)\n      (fetch! \"/api/data\" (fn [res] (reset! data res))))\n    (if (nil? @data)\n      (h \"p\" {} \"로딩 중...\")\n      (h \"div\" {} (str @data)))))"
+    },
+    "search_filter": {
+      "code": "(filter\n  (fn [item]\n    (or (= @query \"\")\n        (str-includes\n          (str-to-lower (get item \"name\"))\n          (str-to-lower @query))))\n  all-items)"
+    }
+  },
+
+  "anti_patterns": {
+    "island_boundary": [
+      "(island Foo []\n  (db-query DB ...)   ; ❌ Island 안에 서버 함수 금지",
+      "(island Foo []\n  (server-html ...)   ; ❌ Island 안에 응답 함수 금지"
+    ],
+    "wrong_fn_order": [
+      "(map arr fn)       ; ❌ 인자 순서 반대",
+      "(map fn arr)       ; ✅ fn 먼저",
+      "(filter arr fn)    ; ❌",
+      "(filter fn arr)    ; ✅"
+    ],
+    "wrong_keywords": [
+      "(def x 1)          ; ❌ Clojure 문법",
+      "(define x 1)       ; ✅",
+      "(merge a b)        ; ❌",
+      "(obj-merge a b)    ; ✅",
+      "(assoc m :key v)   ; ❌ 키워드 키 불가",
+      "(assoc m \"key\" v)  ; ✅"
+    ],
+    "server_only_fns": "db-query, db-exec, server-html, server-json, server-redirect, auth-* 는 Island 밖에서만"
+  },
+
+  "build_checks": {
+    "order": [
+      "1. 괄호 균형 — 불균형 시 빌드 중단",
+      "2. Island JS 문법 오류 — 빌드 중단",
+      "3. Island 경계 위반 (서버 함수 → Island 안) — 빌드 중단",
+      "4. 미정의 함수 경고",
+      "5. store 키 미선언 경고",
+      "6. arity 불일치 경고"
+    ],
+    "debug": [
+      "node fl-front-build.js --json | jq .issues  ; 빌드 이슈 JSON",
+      "GET http://localhost:40851/~ai/issues        ; 개발 서버에서 조회",
+      "GET http://localhost:40851/~ai/errors        ; 브라우저 런타임 에러"
+    ]
+  },
+
+  "examples": {
+    "counter":     "pages/examples/06-counter.flx  ; atom + swap! 기본",
+    "todo":        "pages/examples/10-todo.flx     ; atom 배열 CRUD",
+    "form":        "pages/examples/04-form.flx     ; GET/POST 폼",
+    "store_share": "pages/counter.flx              ; defstore + 여러 Island",
+    "fetch_crud":  "pages/notes-island.flx         ; fetch-post! + defstore 완전 예제",
+    "dashboard":   "pages/dashboard/index.flx      ; SVG 차트 + DB",
+    "auth":        "pages/login.flx                ; 세션 쿠키 인증"
+  }
+}

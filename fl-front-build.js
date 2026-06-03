@@ -76,6 +76,7 @@ const BOOTSTRAP = (() => {
   const candidates = [
     process.env.FL_BOOTSTRAP,
     local,
+    '/home/kim/바탕화면/kim/freelang-v11/bootstrap.js',
     '/root/freelang-v11/bootstrap.js',
     '/home/kimjin/freelang-v11/bootstrap.js',
   ].filter(Boolean);

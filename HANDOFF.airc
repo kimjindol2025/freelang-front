@@ -1,15 +1,17 @@
 {
   "project": "fl-front",
   "date": "2026-06-03",
-  "session": "언어 정검 + AI-Native DX 6종 + /~ai/test",
-  "path": "/root/kim/freelang-front",
+  "session": "신규 머신 클론 + 연동 + AIRC 문서화",
+  "path": "/home/kim/바탕화면/kim/freelang-front",
+  "runtime_path": "/home/kim/바탕화면/kim/freelang-v11/bootstrap.js",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
+  "read_order": "1. HANDOFF.airc(이 파일) → 2. SYNTAX.airc(문법) → 3. HELPERS.airc(헬퍼 API + 현재 상태)",
   "last_commit": "205f7b1",
   "ports": {
     "app": 40850,
     "hmr": 40851
   },
-  "start": "cd /root/kim/freelang-front && node dev-server.js",
+  "start": "cd /home/kim/바탕화면/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
   "build_json": "node fl-front-build.js --json",
   "island_test_cli":  "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
@@ -146,10 +148,24 @@
   ],
 
   "env": {
-    "os": "Android PRoot Ubuntu (aarch64)",
-    "node": "v24.15.0",
-    "freelang": "v11 (/root/freelang-v11/bootstrap.js)",
+    "os": "Linux (x86_64)",
+    "node": "v24+",
+    "freelang": "v11 (/home/kim/바탕화면/kim/freelang-v11/bootstrap.js)",
+    "symlink": "freelang-front/runtime/bootstrap.js → freelang-v11/bootstrap.js (심링크 — 항상 최신)",
     "note": "dev-server 기동 전 포트 40851 확인. 기존 프로세스 kill 후 재시작. island-runner.js는 서버 불필요 — 독립 실행."
+  },
+  "session_2026_06_03": {
+    "done": [
+      "freelang-v11 클론 → /home/kim/바탕화면/kim/freelang-v11",
+      "freelang-front 클론 → /home/kim/바탕화면/kim/freelang-front",
+      "runtime/bootstrap.js → freelang-v11/bootstrap.js 심링크 연동",
+      "package.json start 스크립트 경로 수정 (/home/kimjin → runtime/bootstrap.js)",
+      "fl-front-build.js candidates에 현재 경로 추가",
+      "빌드 테스트 통과 (82개 라우트, 이슈 0)",
+      "SYNTAX.airc 신규 생성 (FreeLang 프론트 문법 완전 레퍼런스)",
+      "HANDOFF.airc 경로 업데이트"
+    ],
+    "rule": "앞으로 모든 기능은 FreeLang(.flx)으로 구현. JS는 빌드 도구만."
   },
 
   "auto_errors": [
