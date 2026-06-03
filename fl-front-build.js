@@ -1113,14 +1113,23 @@ function detectDangerousPatterns(routes, helpers) {
 
 // Fix 5: check-parens.py 자동 실행 (파싱 오류 시 file:line:col 표시)
 function checkAllParens(routes, helpers) {
-  const CHECKER = '/home/kimjin/freelang-v11/scripts/check-parens.py';
-  if (!fs.existsSync(CHECKER)) return;
+  // 환경 이전(/root/kim → /root)으로 경로가 바뀔 수 있어 후보를 순서대로 탐색.
+  const CHECKER = [
+    '/root/kim/freelang-v11/scripts/check-parens.py',
+    '/root/freelang-v11/scripts/check-parens.py',
+    '/home/kimjin/freelang-v11/scripts/check-parens.py',
+  ].find(p => fs.existsSync(p));
+  if (!CHECKER) {
+    console.log('  \x1b[33m⚠ check-parens.py 미발견 — 괄호 검사 스킵\x1b[0m');
+    return;
+  }
   const allFiles = [...routes.map(r => r.file), ...helpers];
   const errors = [];
   for (const f of allFiles) {
     const fileName = path.basename(f);
     try {
-      cp.execSync(`python3 ${CHECKER} ${f}`, { stdio: 'pipe' });
+      // 경로 따옴표 필수 — pages/shop/products/[id].flx 의 [id] 가 셸 glob 으로 해석되는 것 방지
+      cp.execSync(`python3 "${CHECKER}" "${f}"`, { stdio: 'pipe' });
     } catch (e) {
       // check-parens.py 실제 출력: "❌ /path/file.flx:line:col — message"
       // 전체 경로 → 파일명만으로 교체
@@ -1181,8 +1190,34 @@ function validateHAttributes(routes, helpers, bindings) {
   }
 }
 
+// island JS 문법 검증 — "빌드 성공 ≠ 동작". 미지원 함수 fallback 등으로 깨진 JS 가
+// 생성돼도 빌드는 통과하지만 브라우저에서 SyntaxError 로 island 이 안 뜬다.
+// compileFileIslands → new Function 으로 실제 문법을 확인해 조기 차단한다.
+function validateIslandJs(routes) {
+  const errors = [];
+  for (const r of routes) {
+    let src;
+    try { src = fs.readFileSync(r.file, 'utf8'); } catch { continue; }
+    const islands = islandCompiler.extractIslands(src);
+    if (!islands.length) continue;
+    try {
+      const { scripts } = islandCompiler.compileFileIslands(islands.map(i => i.block).join('\n'));
+      new Function(scripts.join('\n')); // 실행하지 않고 문법만 검증
+    } catch (e) {
+      errors.push({ file: path.basename(r.file), msg: e.message.split('\n')[0] });
+    }
+  }
+  if (errors.length) {
+    console.log('\n\x1b[31m❌ Island JS 오류 — 브라우저에서 깨짐, 빌드 중단\x1b[0m');
+    for (const { file, msg } of errors) console.log(`  \x1b[31m✗\x1b[0m ${file} — ${msg}`);
+    process.exit(1);
+  }
+  console.log('  \x1b[32m✅ Island JS 문법 정상\x1b[0m');
+}
+
 checkAllParens(routes, helpers);
 detectDangerousPatterns(routes, helpers);
+validateIslandJs(routes);
 
 const { content: appContent, sourceMap } = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
