@@ -1184,6 +1184,10 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
 const BUILD_START = Date.now();
 const cache   = loadCache();
 const routes  = scanPages(PAGES_DIR);
+// 라우트 매칭 우선순위: 정적(":" 없음) > 동적(":" 포함).
+// 등록 순서대로 매칭하므로, 동적 [id] 라우트가 정적 /x/api 를 가로채지 않도록 정적을 먼저 등록.
+// (stable sort — 같은 그룹 내 스캔 순서 유지)
+routes.sort((a, b) => (a.route.includes(':') ? 1 : 0) - (b.route.includes(':') ? 1 : 0));
 const helpers = scanHelpers(PAGES_DIR);
 console.log('FL-Front 빌드...');
 routes.forEach(r => console.log(`  ${r.route.padEnd(22)} → ${r.file}`));

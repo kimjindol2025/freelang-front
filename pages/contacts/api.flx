@@ -16,15 +16,16 @@
         action (or (get body "action") "")]
     (cond
       (= action "add")
-        (let [name  (or (get body "name") "")
-              phone (or (get body "phone") "")
-              email (or (get body "email") "")
-              memo  (or (get body "memo") "")
-              group (or (get body "group") "일반")]
+        (let [name    (or (get body "name") "")
+              phone   (or (get body "phone") "")
+              email   (or (get body "email") "")
+              company (or (get body "company") "")
+              memo    (or (get body "memo") "")
+              group   (or (get body "group") "일반")]
           (if (= (str-trim name) "")
             (server-json {"ok" false "error" "이름 필요"} 400)
             (do
-              (contacts-add name phone email memo group)
+              (contacts-add name phone email company memo group)
               (server-json {"ok" true "contacts" (contacts-all)}))))
 
       (= action "delete")

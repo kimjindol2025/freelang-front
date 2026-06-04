@@ -10,6 +10,7 @@
         iname    (atom "")
         phone    (atom "")
         email    (atom "")
+        company  (atom "")
         memo     (atom "")
         group    (atom "일반")
         err      (atom "")
@@ -18,7 +19,7 @@
                  (reset! contacts (get res "contacts"))
                  (reset! form false)
                  (reset! iname "") (reset! phone "") (reset! email "")
-                 (reset! memo "") (reset! err ""))
+                 (reset! company "") (reset! memo "") (reset! err ""))
 
         search (fn []
                  (let [url (if (= (str-trim @q) "")
@@ -31,7 +32,7 @@
                 (reset! err "이름을 입력하세요")
                 (fetch-post! "/contacts/api"
                   {"action" "add" "name" @iname "phone" @phone
-                   "email" @email "memo" @memo "group" @group}
+                   "email" @email "company" @company "memo" @memo "group" @group}
                   reload)))
 
         del (fn [id]
@@ -86,22 +87,28 @@
                 (str
                   (h "div" {}
                     (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "회사")
+                      (h! "input" {:type "text" :value @company :placeholder "회사/소속"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! company (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
                       (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이메일")
                       (h! "input" {:type "email" :value @email :placeholder "hong@email.com"
                                    :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
-                                   :on-input (fn [e] (reset! email (.-value (.-target e))))})))
-                  (h "div" {}
+                                   :on-input (fn [e] (reset! email (.-value (.-target e))))})))))
+              (h "div" {:style "margin-bottom:12px"}
+                (str
+                  (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "그룹")
+                  (h "select"
+                    {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                     :on-change (fn [e] (reset! group (.-value (.-target e))))}
                     (str
-                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "그룹")
-                      (h "select"
-                        {:style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
-                         :on-change (fn [e] (reset! group (.-value (.-target e))))}
-                        (str
-                          (h "option" {:value "일반"} "일반")
-                          (h "option" {:value "가족"} "가족")
-                          (h "option" {:value "친구"} "친구")
-                          (h "option" {:value "직장"} "직장")
-                          (h "option" {:value "비즈니스"} "비즈니스")))))))
+                      (h "option" {:value "일반"} "일반")
+                      (h "option" {:value "가족"} "가족")
+                      (h "option" {:value "친구"} "친구")
+                      (h "option" {:value "직장"} "직장")
+                      (h "option" {:value "비즈니스"} "비즈니스")))))
               (h "div" {:style "margin-bottom:16px"}
                 (str
                   (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "메모")
@@ -145,7 +152,9 @@
                             (if (not (= (get c "phone") "")) (str (get c "phone") "  ") "")
                             (if (not (= (get c "email") "")) (get c "email") "")))
                         (h "div" {:style "font-size:.72rem;color:#9ca3af;margin-top:2px"}
-                          (get c "group_name"))))
+                          (if (not (= (get c "company") ""))
+                            (str (get c "company") " · " (get c "group_name"))
+                            (get c "group_name")))))
                     (h "div" {:style "display:flex;gap:6px;flex-shrink:0"}
                       (str
                         (h "a"
