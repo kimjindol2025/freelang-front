@@ -1,40 +1,80 @@
-; pages/contacts/_db.flx — 연락처 DB
+; pages/contacts/_db.flx — 연락처 DB (독립 CRM)
+; 완전 독립: Android/iOS/Google Contacts 등 외부 주소록 연동 없음. 자체 contacts.db 만 사용.
+; 활동기록(activities)도 자동수집 없이 사용자 직접 입력(통화 로그/SMS 읽기 X).
 (ns contacts)
 
 (define CONTACTS-DB {:type "sqlite" :path "data/contacts.db"})
 
 (defn init []
-  (db-exec CONTACTS-DB
-    "CREATE TABLE IF NOT EXISTS contacts (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      phone TEXT DEFAULT '',
-      email TEXT DEFAULT '',
-      memo TEXT DEFAULT '',
-      group_name TEXT DEFAULT '일반',
-      created_at TEXT DEFAULT (datetime('now','localtime'))
-    )" []))
+  (do
+    (db-exec CONTACTS-DB
+      "CREATE TABLE IF NOT EXISTS contacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT DEFAULT '',
+        email TEXT DEFAULT '',
+        company TEXT DEFAULT '',
+        memo TEXT DEFAULT '',
+        group_name TEXT DEFAULT '일반',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])
+    ; 기존 DB 마이그레이션: company 컬럼이 없으면 추가 (실패 무시)
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN company TEXT DEFAULT ''" [])
+         (catch e nil))
+    (db-exec CONTACTS-DB
+      "CREATE TABLE IF NOT EXISTS activities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contact_id INTEGER NOT NULL,
+        log_date TEXT DEFAULT (date('now','localtime')),
+        content TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])))
 
+; ── 연락처 ─────────────────────────────────────────────────────
 (defn all []
   (db-query CONTACTS-DB "SELECT * FROM contacts ORDER BY name ASC" []))
 
 (defn search [q]
   (db-query CONTACTS-DB
-    "SELECT * FROM contacts WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? ORDER BY name ASC"
-    [(str "%" q "%") (str "%" q "%") (str "%" q "%")]))
+    "SELECT * FROM contacts WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? OR company LIKE ? ORDER BY name ASC"
+    [(str "%" q "%") (str "%" q "%") (str "%" q "%") (str "%" q "%")]))
 
 (defn by-id [id]
-  (db-one CONTACTS-DB "SELECT * FROM contacts WHERE id=?" [(str-to-num id)]))
+  ; db-one 미존재 → db-query 후 첫 행
+  (let [rows (db-query CONTACTS-DB "SELECT * FROM contacts WHERE id=?" [(str-to-num id)])]
+    (if (> (length rows) 0)
+      (get rows 0)
+      nil)))
 
-(defn add [name phone email memo group-name]
+(defn add [name phone email company memo group-name]
   (db-exec CONTACTS-DB
-    "INSERT INTO contacts (name,phone,email,memo,group_name) VALUES (?,?,?,?,?)"
-    [name phone email memo group-name]))
+    "INSERT INTO contacts (name,phone,email,company,memo,group_name) VALUES (?,?,?,?,?,?)"
+    [name phone email company memo group-name]))
 
-(defn update [id name phone email memo group-name]
+(defn update [id name phone email company memo group-name]
   (db-exec CONTACTS-DB
-    "UPDATE contacts SET name=?,phone=?,email=?,memo=?,group_name=? WHERE id=?"
-    [name phone email memo group-name (str-to-num id)]))
+    "UPDATE contacts SET name=?,phone=?,email=?,company=?,memo=?,group_name=? WHERE id=?"
+    [name phone email company memo group-name (str-to-num id)]))
 
 (defn delete [id]
-  (db-exec CONTACTS-DB "DELETE FROM contacts WHERE id=?" [(str-to-num id)]))
+  (do
+    (db-exec CONTACTS-DB "DELETE FROM activities WHERE contact_id=?" [(str-to-num id)])
+    (db-exec CONTACTS-DB "DELETE FROM contacts WHERE id=?" [(str-to-num id)])))
+
+; ── 활동 기록 (직접 입력) ───────────────────────────────────────
+(defn activities-by-contact [contact-id]
+  (db-query CONTACTS-DB
+    "SELECT * FROM activities WHERE contact_id=? ORDER BY log_date DESC, id DESC"
+    [(str-to-num contact-id)]))
+
+(defn add-activity [contact-id log-date content]
+  (if (= (str-trim log-date) "")
+    (db-exec CONTACTS-DB
+      "INSERT INTO activities (contact_id,content) VALUES (?,?)"
+      [(str-to-num contact-id) content])
+    (db-exec CONTACTS-DB
+      "INSERT INTO activities (contact_id,log_date,content) VALUES (?,?,?)"
+      [(str-to-num contact-id) log-date content])))
+
+(defn delete-activity [id]
+  (db-exec CONTACTS-DB "DELETE FROM activities WHERE id=?" [(str-to-num id)]))

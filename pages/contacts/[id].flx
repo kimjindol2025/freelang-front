@@ -1,87 +1,151 @@
-; pages/contacts/[id].flx — 연락처 상세/편집
+; pages/contacts/[id].flx — 연락처 상세/편집 + 활동 기록
 ; GET  /contacts/:id
-; POST /contacts/:id
+; POST /contacts/:id  (action: update | add-activity | del-activity)
+; 활동 기록은 자동 수집 없음 — 사용자가 날짜+내용을 직접 입력.
 
 (load "pages/contacts/_db.flx")
 (contacts-init)
+
+; ── 활동 한 줄 렌더 (괄호 단순화 위해 분리) ─────────────────────
+(defn activity-row [arow]
+  (h "div" {:style "display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-bottom:1px solid #f1f5f9"}
+    (str
+      (h "div" {:style "font-size:.78rem;color:#0891b2;font-weight:600;white-space:nowrap;min-width:90px"}
+        (get arow "log_date"))
+      (h "div" {:style "flex:1;font-size:.88rem;color:#374151;white-space:pre-wrap"}
+        (html-escape (get arow "content")))
+      (h "form" {:method "POST" :style "margin:0"}
+        (str
+          (h! "input" {:type "hidden" :name "action" :value "del-activity"})
+          (h! "input" {:type "hidden" :name "activity_id" :value (str (get arow "id"))})
+          (h "button" {:type "submit" :title "삭제"
+                       :style "background:none;border:none;color:#cbd5e1;cursor:pointer;font-size:1rem;line-height:1"}
+            "×"))))))
 
 (defn render [req]
   (let [id (server-req-param req "id")
         c  (contacts-by-id id)]
     (if (= c nil)
       (server-redirect "/contacts")
-      (layout-html "연락처 편집"
-        (h "div" {:style "max-width:560px;margin:0 auto;padding:32px 24px"}
-          (str
-            (h "div" {:style "display:flex;align-items:center;gap:16px;margin-bottom:28px"}
-              (str
-                (h "a" {:href "/contacts" :style "color:#6366f1;text-decoration:none;font-size:.9rem"} "← 목록")
-                (h "h1" {:style "font-size:1.4rem;font-weight:800;margin:0"} "연락처 편집")))
-            (h "div" {:style "background:white;border-radius:16px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
-              (str
-                (h "div" {:style "text-align:center;margin-bottom:24px"}
-                  (h "div" {:style "width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.6rem;margin:0 auto 8px"}
-                    (str-slice (get c "name") 0 1)))
-                (h "form" {:method "POST" :style "display:flex;flex-direction:column;gap:14px"}
-                  (str
-                    (h "div" {}
-                      (str
-                        (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이름 *")
-                        (h! "input" {:type "text" :name "name" :value (get c "name") :required "true"
-                                     :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))
-                    (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px"}
-                      (str
-                        (h "div" {}
-                          (str
-                            (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "전화번호")
-                            (h! "input" {:type "tel" :name "phone" :value (get c "phone")
-                                         :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))
-                        (h "div" {}
-                          (str
-                            (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이메일")
-                            (h! "input" {:type "email" :name "email" :value (get c "email")
-                                         :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))))
-                    (h "div" {}
-                      (str
-                        (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "그룹")
-                        (h "select" {:name "group_name"
-                                     :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"}
-                          (arr-join
-                            (map
-                              (fn [g]
-                                (if (= g (get c "group_name"))
-                                  (str "<option value='" g "' selected>" g "</option>")
-                                  (str "<option value='" g "'>" g "</option>")))
-                              ["일반" "가족" "친구" "직장" "비즈니스"])
-                            ""))))
-                    (h "div" {}
-                      (str
-                        (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "메모")
-                        (h "textarea" {:name "memo" :rows "3"
-                                       :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem;resize:none"}
-                          (get c "memo"))))
-                    (h "div" {:style "display:flex;gap:8px;margin-top:4px"}
-                      (str
-                        (h "button" {:type "submit"
-                                     :style "flex:1;background:#6366f1;color:white;border:none;border-radius:8px;padding:12px;font-weight:700;cursor:pointer"}
-                          "저장")
-                        (h "a" {:href "/contacts"
-                                :style "padding:12px 20px;border:1px solid #d1d5db;border-radius:8px;text-decoration:none;color:#374151;text-align:center"}
-                          "취소")))))))))
-        req))))
+      (let [acts (contacts-activities-by-contact id)]
+        (layout-html "연락처 편집"
+          (h "div" {:style "max-width:560px;margin:0 auto;padding:32px 24px"}
+            (str
+              (h "div" {:style "display:flex;align-items:center;gap:16px;margin-bottom:28px"}
+                (str
+                  (h "a" {:href "/contacts" :style "color:#6366f1;text-decoration:none;font-size:.9rem"} "← 목록")
+                  (h "h1" {:style "font-size:1.4rem;font-weight:800;margin:0"} "연락처 편집")))
+
+              ; ── 편집 카드 ──
+              (h "div" {:style "background:white;border-radius:16px;padding:28px;box-shadow:0 2px 8px rgba(0,0,0,.08);margin-bottom:20px"}
+                (str
+                  (h "div" {:style "text-align:center;margin-bottom:24px"}
+                    (h "div" {:style "width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.6rem;margin:0 auto 8px"}
+                      (str-slice (get c "name") 0 1)))
+                  (h "form" {:method "POST" :style "display:flex;flex-direction:column;gap:14px"}
+                    (str
+                      (h! "input" {:type "hidden" :name "action" :value "update"})
+                      (h "div" {}
+                        (str
+                          (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이름 *")
+                          (h! "input" {:type "text" :name "name" :value (get c "name") :required "true"
+                                       :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))
+                      (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px"}
+                        (str
+                          (h "div" {}
+                            (str
+                              (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "전화번호")
+                              (h! "input" {:type "tel" :name "phone" :value (get c "phone")
+                                           :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))
+                          (h "div" {}
+                            (str
+                              (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "이메일")
+                              (h! "input" {:type "email" :name "email" :value (get c "email")
+                                           :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))))
+                      (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px"}
+                        (str
+                          (h "div" {}
+                            (str
+                              (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "회사")
+                              (h! "input" {:type "text" :name "company" :value (get c "company")
+                                           :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"})))
+                          (h "div" {}
+                            (str
+                              (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "그룹")
+                              (h "select" {:name "group_name"
+                                           :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem"}
+                                (arr-join
+                                  (map
+                                    (fn [g]
+                                      (if (= g (get c "group_name"))
+                                        (str "<option value='" g "' selected>" g "</option>")
+                                        (str "<option value='" g "'>" g "</option>")))
+                                    ["일반" "가족" "친구" "직장" "비즈니스"])
+                                  ""))))))
+                      (h "div" {}
+                        (str
+                          (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "메모")
+                          (h "textarea" {:name "memo" :rows "3"
+                                         :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:.95rem;resize:none"}
+                            (get c "memo"))))
+                      (h "div" {:style "display:flex;gap:8px;margin-top:4px"}
+                        (str
+                          (h "button" {:type "submit"
+                                       :style "flex:1;background:#6366f1;color:white;border:none;border-radius:8px;padding:12px;font-weight:700;cursor:pointer"}
+                            "저장")
+                          (h "a" {:href "/contacts"
+                                  :style "padding:12px 20px;border:1px solid #d1d5db;border-radius:8px;text-decoration:none;color:#374151;text-align:center"}
+                            "취소")))))))
+
+              ; ── 활동 기록 카드 ──
+              (h "div" {:style "background:white;border-radius:16px;padding:24px 28px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+                (str
+                  (h "h2" {:style "font-size:1rem;font-weight:700;margin:0 0 4px"} "활동 기록")
+                  (h "p" {:style "font-size:.78rem;color:#9ca3af;margin:0 0 16px"}
+                    "통화·미팅 등을 직접 기록하세요. 외부 통화/메시지 자동 수집은 하지 않습니다.")
+                  (h "form" {:method "POST" :style "display:flex;gap:8px;margin-bottom:16px"}
+                    (str
+                      (h! "input" {:type "hidden" :name "action" :value "add-activity"})
+                      (h! "input" {:type "date" :name "log_date"
+                                   :style "padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.85rem"})
+                      (h! "input" {:type "text" :name "content" :placeholder "예: 견적 문의 전화" :required "true"
+                                   :style "flex:1;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;min-width:0"})
+                      (h "button" {:type "submit"
+                                   :style "background:#0891b2;color:white;border:none;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;white-space:nowrap"}
+                        "기록")))
+                  (if (= (length acts) 0)
+                    (h "div" {:style "text-align:center;padding:24px;color:#cbd5e1;font-size:.85rem"} "기록된 활동이 없습니다")
+                    (h "div" {} (arr-join (map activity-row acts) "")))))))
+          req)))))
 
 (defn render_post [req]
-  (let [id         (server-req-param req "id")
-        c          (contacts-by-id id)]
+  (let [id     (server-req-param req "id")
+        c      (contacts-by-id id)
+        action (form-get req "action")]
     (if (= c nil)
       (server-redirect "/contacts")
-      (let [name  (form-get req "name")
-            phone (form-get req "phone")
-            email (form-get req "email")
-            memo  (form-get req "memo")
-            group (form-get req "group_name")]
-        (if (= (str-trim name) "")
-          (server-redirect (str "/contacts/" id "?error=이름을 입력하세요"))
+      (cond
+        (= action "add-activity")
+          (let [d  (form-get req "log_date")
+                ct (form-get req "content")]
+            (when (not (= (str-trim ct) ""))
+              (contacts-add-activity id d ct))
+            (server-redirect (str "/contacts/" id)))
+
+        (= action "del-activity")
           (do
-            (contacts-update id name phone email memo group)
-            (server-redirect "/contacts")))))))
+            (contacts-delete-activity (form-get req "activity_id"))
+            (server-redirect (str "/contacts/" id)))
+
+        true ; update
+          (let [name    (form-get req "name")
+                phone   (form-get req "phone")
+                email   (form-get req "email")
+                company (form-get req "company")
+                memo    (form-get req "memo")
+                group   (form-get req "group_name")]
+            (if (= (str-trim name) "")
+              (server-redirect (str "/contacts/" id "?error=이름을 입력하세요"))
+              (do
+                (contacts-update id name phone email company memo group)
+                (server-redirect "/contacts"))))))))
