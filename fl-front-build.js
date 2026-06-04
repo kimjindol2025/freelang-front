@@ -601,7 +601,8 @@ function routeToFnName(rel) {
     .replace(/\\/g, '/')
     .replace(/[\[\]]/g, '')
     .replace(/\//g, '_')
-    .replace(/-/g, '_');
+    .replace(/-/g, '_')
+    .replace(/\./g, '_');
 }
 
 // ── 개발 모드 HMR 클라이언트 스크립트 ──

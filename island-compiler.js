@@ -265,7 +265,7 @@ function emitH(args, ctx) {
 }
 
 function emitStr(args, ctx) {
-  return `[${args.map(a => emit(a, ctx)).join(', ')}].map(String).join('')`;
+  return `_fl_str(${args.map(a => emit(a, ctx)).join(', ')})`;
 }
 
 // ── Island 런타임 (~900B) ────────────────────────────────────
@@ -304,11 +304,13 @@ const _fl={
       else if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);
       else if(v!==null&&v!==undefined&&v!=='')el.setAttribute(k,String(v));
     }
-    ch.flat().forEach(c=>{
+    function app(c){
       if(c==null)return;
+      if(Array.isArray(c)){c.forEach(app);return;}
       if(c instanceof Node)el.appendChild(c);
-      else el.appendChild(document.createTextNode(String(c)));
-    });
+      else{const s=String(c);if(s)el.appendChild(document.createTextNode(s));}
+    }
+    ch.forEach(app);
     return el;
   },
   // ── fetch! — Island 내부 API 호출 (GET, JSON 자동 파싱) ──
@@ -333,15 +335,19 @@ const _fl={
       .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-delete!',e,'callback'); } })
       .catch(err=>{ _fl._err('fetch-delete!',new Error('DELETE '+url+' → '+err),'request'); });
   },
-  // ── Island 에러 리포터 → /~errors ──
+  // ── Island 에러 리포터 → /~errors (dev 전용) ──
   _err:(islandId,err,phase)=>{
-    const EV='http://'+location.hostname+':40851/~errors';
-    const msg=err&&err.message?err.message:String(err);
-    const stack=err&&err.stack?err.stack:'';
-    fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'island',message:'['+islandId+'] '+msg,source:phase,line:0,col:0,stack:stack,url:location.href})
-    }).catch(function(){});
     console.error('[Island:'+islandId+']',err);
+    try{
+      if(location.hostname==='localhost'||location.port==='40850'||location.port==='40851'){
+        const EV='http://'+location.hostname+':40851/~errors';
+        const msg=err&&err.message?err.message:String(err);
+        const stack=err&&err.stack?err.stack:'';
+        fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:'island',message:'['+islandId+'] '+msg,source:phase,line:0,col:0,stack:stack,url:location.href})
+        }).catch(function(){});
+      }
+    }catch(e){}
   },
   // ── Island 마운트 (store watch 통합) ──
   mount:(id,renderFn)=>{
@@ -369,8 +375,22 @@ const _fl={
     });
   },
 };
-const _fl_str=(...xs)=>xs.map(String).join('');
+// 스마트 str: 순수 문자열이면 join, DOM 노드 포함이면 배열 반환
+function _fl_str(...xs){
+  const flat=[];
+  function col(v){if(v==null)return;if(v instanceof Node){flat.push(v);return;}if(Array.isArray(v)){v.forEach(col);return;}flat.push(v);}
+  xs.forEach(col);
+  return flat.some(x=>x instanceof Node)?flat:flat.map(String).join('');
+}
 window._fl=_fl;
+// ── Island 전역 헬퍼 (arr-join, concat, str-* 등) ──
+const arr_join=(arr,sep)=>{const a=arr||[];return a.some(x=>x instanceof Node)?a:a.join(sep??'');};
+const concat=(a,b)=>[...(a||[]),...(b||[])];
+const str_contains=(s,sub)=>String(s??'').includes(String(sub??''));
+const str_blank_q=(s)=>!s||String(s).trim()==='';
+const str_slice=(s,start,end)=>String(s??'').slice(start,end);
+const js_prompt=(msg,def)=>window.prompt(msg,def??'');
+const js_confirm=(msg)=>window.confirm(msg);
 </script>`;
 
 // ── .flx 파일에서 (island ...) 블록 추출 ────────────────────
