@@ -1,1 +1,1 @@
-/home/kim/바탕화면/kim/freelang-v11/bootstrap.js
+/root/freelang-v11/bootstrap.js
