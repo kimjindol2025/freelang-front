@@ -384,7 +384,9 @@ function scanHelperFunctions(helpers) {
         fns.push({ name, params, comment });
       }
       if (fns.length) sections.push({ file: path.basename(helperPath), fns });
-    } catch {}
+    } catch (e) {
+      console.warn(`  [경고] 헬퍼 스캔 실패: ${path.basename(helperPath)} — ${e.message}`);
+    }
   }
   return sections;
 }

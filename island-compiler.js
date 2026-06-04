@@ -380,12 +380,13 @@ const _fl={
     });
   },
 };
-// 스마트 str: 순수 문자열이면 join, DOM 노드 포함이면 배열 반환
+// str: Node 포함 시 children 컨텍스트용 배열 반환, 순수 문자열이면 join
+// 주의: 속성값에 Node를 섞어 쓰는 패턴은 지원하지 않음 (String([node]) → 깨짐)
 function _fl_str(...xs){
   const flat=[];
-  function col(v){if(v==null)return;if(v instanceof Node){flat.push(v);return;}if(Array.isArray(v)){v.forEach(col);return;}flat.push(v);}
+  function col(v){if(v==null)return;if(v instanceof Node){flat.push(v);return;}if(Array.isArray(v)){v.forEach(col);return;}flat.push(String(v));}
   xs.forEach(col);
-  return flat.some(x=>x instanceof Node)?flat:flat.map(String).join('');
+  return flat.some(x=>x instanceof Node)?flat:flat.join('');
 }
 window._fl=_fl;
 // ── Island 전역 헬퍼 (arr-join, concat, str-* 등) ──
