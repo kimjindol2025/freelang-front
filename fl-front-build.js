@@ -368,6 +368,27 @@ function scanTypeAnnotations(routes, helpers) {
   return types;
 }
 
+function scanHelperFunctions(helpers) {
+  const sections = [];
+  for (const helperPath of helpers) {
+    try {
+      const src = fs.readFileSync(helperPath, 'utf8');
+      const lines = src.split('\n');
+      const fns = [];
+      for (let i = 0; i < lines.length; i++) {
+        const m = lines[i].match(/^\(defn\s+([\w-]+)\s+\[([^\]]*)\]/);
+        if (!m) continue;
+        const name = m[1], params = m[2].trim();
+        // 바로 위 줄 주석 추출
+        const comment = (lines[i - 1] || '').match(/^;\s*(.+)/)?.[1] ?? '';
+        fns.push({ name, params, comment });
+      }
+      if (fns.length) sections.push({ file: path.basename(helperPath), fns });
+    } catch {}
+  }
+  return sections;
+}
+
 function generateAgentsMd(routes, helpers = []) {
   const routeList = routes.map(r =>
     `| \`${r.route}\` | ${r.file} |`
@@ -377,6 +398,16 @@ function generateAgentsMd(routes, helpers = []) {
   const typeSection = typeAnnotations.length > 0
     ? `\n## @type 주석 (파일에서 자동 추출)\n\n` +
       typeAnnotations.map(t => `- \`${t.file}\` — \`${t.annotation}\``).join('\n') + '\n'
+    : '';
+
+  const helperFns = scanHelperFunctions(helpers);
+  const helperSection = helperFns.length > 0
+    ? `\n## 헬퍼 파일 함수 목록 (자동 추출)\n\n` +
+      helperFns.map(({ file, fns }) =>
+        `### \`${file}\`\n\n` +
+        `| 함수 | 파라미터 | 설명 |\n|------|----------|------|\n` +
+        fns.map(f => `| \`${f.name}\` | \`[${f.params}]\` | ${f.comment} |`).join('\n')
+      ).join('\n\n') + '\n'
     : '';
 
   return `# FL-Front AI Context (자동 생성 — 직접 수정 금지)
@@ -532,7 +563,19 @@ ${routeList}
 ; @type req.params.id: string
 ; @type items: [{id: int, title: string, done: bool}]
 \`\`\`
-${typeSection}
+${typeSection}${helperSection}
+## FreeLang v11 stdlib 함수 탐색
+
+\`\`\`bash
+# 전체 함수 목록 (482개)
+node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js ls-fns
+
+# 키워드 필터
+node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js ls-fns str
+node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js ls-fns db
+node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js ls-fns http
+\`\`\`
+
 ## AI 디버그 API
 
 \`\`\`bash
