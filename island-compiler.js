@@ -2,11 +2,13 @@
 // island-compiler.js — (island Name [] body) → vanilla JS emit
 
 // ── S식 파서 ─────────────────────────────────────────────────
-function parse(src) {
-  let i = 0;
+function parse(src, baseLineOffset = 0) {
+  let i = 0, line = 1 + baseLineOffset;
   function skipWs() {
-    while (i < src.length && /[\s,]/.test(src[i])) i++;
-    // 라인 주석
+    while (i < src.length && /[\s,]/.test(src[i])) {
+      if (src[i] === '\n') line++;
+      i++;
+    }
     if (src[i] === ';') { while (i < src.length && src[i] !== '\n') i++; skipWs(); }
   }
   function readAtom() {
@@ -22,6 +24,7 @@ function parse(src) {
     i++; // skip "
     let s = '';
     while (i < src.length && src[i] !== '"') {
+      if (src[i] === '\n') line++;
       if (src[i] === '\\') { i++; s += src[i++]; } else s += src[i++];
     }
     i++; // skip "
@@ -29,21 +32,22 @@ function parse(src) {
   }
   function readList(close) {
     i++; // skip open
+    const startLine = line;
     const items = [];
     skipWs();
     while (i < src.length && src[i] !== close) {
       const before = i;
       items.push(read());
       skipWs();
-      // 무진행 가드: read()가 i를 전진시키지 못하면(예: 잘못 짝지어진 닫는 괄호)
-      // 무한 루프 → 배열 무한 증식 → OOM 이 되므로 명확한 에러로 중단.
       if (i === before) {
         const ctx = src.slice(Math.max(0, i - 40), i + 5);
-        throw new Error(`island 파싱 오류: '${close}'를 기대했으나 예상치 못한 '${src[i]}' (offset ${i}) — 괄호 짝을 확인하세요.\n  …${ctx}`);
+        throw new Error(`island 파싱 오류 (line ${line}): '${close}'를 기대했으나 예상치 못한 '${src[i]}' — 괄호 짝을 확인하세요.\n  …${ctx}`);
       }
     }
     i++; // skip close
-    return items;
+    const result = items;
+    result._line = startLine;
+    return result;
   }
   function read() {
     skipWs();
@@ -56,7 +60,6 @@ function parse(src) {
       const obj = {};
       for (let j = 0; j < pairs.length; j += 2) {
         const k = pairs[j];
-        // :keyword → "keyword", symbol → sym, string → string
         obj[typeof k === 'string' ? k : k?.kw ?? k?.sym ?? String(k)] = pairs[j + 1];
       }
       return { map: obj };
@@ -337,14 +340,16 @@ const _fl={
   },
   // ── Island 에러 리포터 → /~errors (dev 전용) ──
   _err:(islandId,err,phase)=>{
-    console.error('[Island:'+islandId+']',err);
+    const msg=err&&err.message?err.message:String(err);
+    const stack=err&&err.stack?err.stack:'';
+    console.error('[Island:'+islandId+']['+phase+'] '+msg+'\n'+stack);
     try{
       if(location.hostname==='localhost'||location.port==='40850'||location.port==='40851'){
         const EV='http://'+location.hostname+':40851/~errors';
-        const msg=err&&err.message?err.message:String(err);
-        const stack=err&&err.stack?err.stack:'';
+        const lineMatch=stack.match(/:(\d+):\d+\)?$/m);
+        const lineNo=lineMatch?parseInt(lineMatch[1]):0;
         fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({type:'island',message:'['+islandId+'] '+msg,source:phase,line:0,col:0,stack:stack,url:location.href})
+          body:JSON.stringify({type:'island',message:'['+islandId+']['+phase+'] '+msg,source:'island-'+islandId+'.flx',line:lineNo,col:0,stack:stack,url:location.href})
         }).catch(function(){});
       }
     }catch(e){}
@@ -400,6 +405,7 @@ function extractIslands(content) {
   while (i < content.length) {
     const idx = content.indexOf('(island ', i);
     if (idx === -1) break;
+    const startLine = content.slice(0, idx).split('\n').length;
     let depth = 0, j = idx;
     while (j < content.length) {
       if (content[j] === '(') depth++;
@@ -407,7 +413,7 @@ function extractIslands(content) {
       j++;
     }
     const block = content.slice(idx, j);
-    islands.push({ block, start: idx, end: j });
+    islands.push({ block, start: idx, end: j, startLine });
     i = j;
   }
   return islands;
@@ -423,8 +429,8 @@ function compileFileIslands(flxContent) {
   let modified  = flxContent;
   let offset    = 0;
 
-  found.forEach(({ block, start, end }, idx) => {
-    const ast  = parse(block);
+  found.forEach(({ block, start, end, startLine = 1 }, idx) => {
+    const ast  = parse(block, startLine - 1);
     const name = ast[1]?.sym ?? `Island${idx}`;
     const id   = `island-${name.toLowerCase()}-${idx}`;
     // 두 번째 인자가 배열이면 옵션 맵으로 해석 ([:watch "key1" ...])
@@ -436,9 +442,10 @@ function compileFileIslands(flxContent) {
         }, [])
       : [];
     const renderFn = emitIsland(ast.slice(1), {});
-    const js = watchKeys.length
+    const mountCall = watchKeys.length
       ? `_fl.mount_reactive(${JSON.stringify(id)}, ${renderFn}, ${JSON.stringify(watchKeys)});`
       : `_fl.mount(${JSON.stringify(id)}, ${renderFn});`;
+    const js = `${mountCall}\n//# sourceURL=island-${name.toLowerCase()}.flx`;
     scripts.push(js);
     // island 블록 → <div id="..."></div> 플레이스홀더로 교체
     const placeholder = `"<div id='${id}'></div>"`;
