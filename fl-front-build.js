@@ -147,6 +147,7 @@ const FL_FRONT_HELPERS = new Set([
   'server-response','server_response',
   'export-to-csv','export_to_csv','export-to-json','export_to_json',
   'type','type-of','type_of',
+  'html-escape','html_escape',
   // ── MariaDB 런타임 ───────────────────────────────────────
   'mariadb_pool_connect','mariadb-pool-connect',
   'mariadb_pool_query','mariadb-pool-query',
