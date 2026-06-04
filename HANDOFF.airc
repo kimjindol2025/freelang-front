@@ -14,10 +14,9 @@
   "start": "cd /home/kim/바탕화면/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
   "build_json": "node fl-front-build.js --json",
-  "island_test_cli":  "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
+  "island_test_cli": "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
   "island_test_http": "GET http://localhost:40851/~ai/test?file=<path>[&island][&click][&store]",
   "ai_context": "GET http://localhost:40851/~ai",
-
   "done": [
     "언어 정검: 예제 01~30 코드 전수 리뷰 + 서버 동작 확인 (30/30 GET, POST, 쿼리)",
     "fix(24-pagination): pages = (floor (/ (+ total per-1) per)). e7ee433→4496c4b",
@@ -33,7 +32,6 @@
     "feat(/~ai/test): Island headless HTTP API. 205f7b1",
     "blog: ID=975(언어정검), ID=977(AI-Native DX) 게시"
   ],
-
   "bugs_found": [
     {
       "file": "pages/examples/24-pagination.flx",
@@ -62,7 +60,6 @@
       "fix": "emitList 상단에 head?.sym 없으면 벡터 리터럴로 처리"
     }
   ],
-
   "mistakes": [
     {
       "what": "ceil → floor 2번 수정",
@@ -81,20 +78,19 @@
       "lesson": "VirtualDOM 노드는 toString()=_serialize() 구현 필수."
     }
   ],
-
   "ai_native_dx": {
     "build_json": {
       "cmd": "node fl-front-build.js --json | jq '.issues'",
       "output": "{ ok, time, elapsed, routes[], helpers[], store_keys[], issues[], sourceMap }"
     },
     "ai_endpoints": {
-      "summary":  "GET :40851/~ai",
-      "routes":   "GET :40851/~ai/routes",
-      "fns":      "GET :40851/~ai/fns  (defn 시그니처 205개)",
-      "store":    "GET :40851/~ai/store",
-      "issues":   "GET :40851/~ai/issues",
-      "errors":   "GET :40851/~ai/errors",
-      "test":     "GET :40851/~ai/test?file=<path>[&island=Name][&click=sel][&store={...}]"
+      "summary": "GET :40851/~ai",
+      "routes": "GET :40851/~ai/routes",
+      "fns": "GET :40851/~ai/fns  (defn 시그니처 205개)",
+      "store": "GET :40851/~ai/store",
+      "issues": "GET :40851/~ai/issues",
+      "errors": "GET :40851/~ai/errors",
+      "test": "GET :40851/~ai/test?file=<path>[&island=Name][&click=sel][&store={...}]"
     },
     "island_runner": {
       "cmd": "node island-runner.js <file.flx> [--island=Name] [--click=selector] [--dispatch=key:val] [--store={...}]",
@@ -102,13 +98,11 @@
       "coverage": "22/22 예제 Island PASS"
     }
   },
-
   "what_claude_cant_verify": [
     "다크모드 전환 시각적 동작",
     "SPA 라우터 뷰 트랜지션 애니메이션",
     "Island CSS 시각적 렌더링 결과"
   ],
-
   "what_claude_can_now_verify": [
     "Island atom 상태 변화 (GET /~ai/test?click=selector)",
     "Island dispatch/store 동기화 (GET /~ai/test?store={...}&click=button)",
@@ -117,7 +111,6 @@
     "서버 함수 목록 (GET /~ai/fns)",
     "미정의 함수 여부 (GET /~ai/issues)"
   ],
-
   "build_checks": {
     "order": [
       "괄호 균형",
@@ -127,9 +120,15 @@
       "store 키 레지스트리 (defstore 선언 여부)",
       "arity 불일치"
     ],
-    "store_keys_registered": ["count", "likes", "logs", "log_filter", "log_running", "notes"]
+    "store_keys_registered": [
+      "count",
+      "likes",
+      "logs",
+      "log_filter",
+      "log_running",
+      "notes"
+    ]
   },
-
   "next": [
     {
       "id": "P0",
@@ -139,14 +138,12 @@
       "verified": "단순 ${name}, 표현식 ${(+ count 10)}, 중첩 ${joined} 전수 통과"
     }
   ],
-
   "insights": [
     "'인간용 아님 AI 전용으로 가자' 한 마디로 에디터 플러그인 대신 headless 실행기를 만들었다. 방향 결정이 기술보다 중요했다.",
     "Island headless 실행기를 만들다가 island-compiler 벡터 파싱 버그를 발견했다. 새 도구가 기존 버그를 드러낸다.",
     "arity 파서는 3번 고쳐야 했다. FL 소스 파싱은 ;를 주석으로 단순 처리할 수 없다.",
     "what_claude_cant_verify 목록이 CSS 시각적 결과 하나만 남았다. 나머지는 전부 headless·JSON으로 검증 가능."
   ],
-
   "env": {
     "os": "Linux (x86_64)",
     "node": "v24+",
@@ -167,8 +164,13 @@
     ],
     "rule": "앞으로 모든 기능은 FreeLang(.flx)으로 구현. JS는 빌드 도구만."
   },
-
   "auto_errors": [
+    {
+      "time": "2026-06-04T14:34:36.789Z",
+      "message": "'html-escape' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-06-04T14:39:18.951Z"
+    },
     {
       "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-delete-errors' 정의 없음",
