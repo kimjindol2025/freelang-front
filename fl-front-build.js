@@ -1643,6 +1643,18 @@ function validateIslandBoundary(routes) {
   }
 }
 
+// ── FL Trap Checker 상수 (오케스트레이션보다 먼저 초기화돼야 함) ──
+const FL_RESERVED = new Set(['act']);              // 식별자로 쓰면 파싱 실패
+const BUILTIN_ARITY = new Map([                    // 인자 수 고정 + 오용 흔한 builtin만
+  ['range', 2],   // (range start end) — (range n) 은 빈 배열
+  ['nth',   2],   // (nth coll idx)
+]);
+const BUILTIN_ARITY_HINT = {
+  range: '(range start end) — (range n) 은 빈 배열',
+  nth:   '(nth coll idx)',
+};
+const lineAtIdx = (src, idx) => src.slice(0, idx).split('\n').length;
+
 checkAllParens(routes, helpers);
 detectDangerousPatterns(routes, helpers);
 validateIslandJs(routes);
@@ -1663,6 +1675,14 @@ validateArity(routes, helpers);
 
 // H. 함수명 충돌 감지
 detectNameCollisions(routes, helpers);
+
+// ── FL Trap Checker (고신뢰 컴파일 타임 가드) ──
+console.log('\n\x1b[1m🛡  FL Trap Checker\x1b[0m');
+checkBuiltinArity(routes, helpers);   // #3 range 등 builtin 인자 수
+checkCommentedDefn(routes, helpers);  // #4 주석 속 (defn ...)
+checkSingleCharShadow(routes, helpers); // #5 1글자 전역 가림
+checkRouteShadow(routes);             // #6 동적 라우트 가로채기
+checkReservedWords(routes, helpers);  // #1 예약어 — 마지막(에러 시 exit)
 
 // G. Island 회귀 테스트 (async — 마지막에 실행)
 runIslandTests().catch(e => console.error('테스트 실행 오류:', e.message));
@@ -1710,6 +1730,199 @@ function detectNameCollisions(routes, helpers) {
     console.log('\n\x1b[33m⚠️  [namespace] 함수명 충돌 — (ns name) 선언으로 격리 필요\x1b[0m');
     for (const [name, files] of collisions)
       console.log(`  \x1b[33m⚠\x1b[0m (${name}) — ${files.join(', ')}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FL Trap Checker — 고신뢰 컴파일 타임 가드 (2026-06-05)
+// FL 함정을 빌드 시점에 차단. 기존 체커 패턴(issue + console)을 그대로 따른다.
+//   #1 act 등 예약어를 식별자로 사용          (error — 파서가 깨짐)
+//   #2 존재하지 않는 builtin → validateFunctions 가 이미 담당 (중복 구현 안 함)
+//   #3 핵심 builtin 인자 수 오류 (range 등)    (warn)
+//   #4 주석 속 (defn ...) — 스캔/rename 오탐 유발 (warn)
+//   #5 1글자 파라미터가 전역 헬퍼를 가림 ($h vs h) (warn)
+//   #6 동적 라우트가 정적 형제를 가로챌 여지     (warn)
+// ══════════════════════════════════════════════════════════════
+
+// (FL Trap Checker 상수 FL_RESERVED / BUILTIN_ARITY / lineAtIdx 는
+//  오케스트레이션보다 먼저 초기화되도록 파일 상단에서 선언한다.)
+
+// 호출 (name ...) 의 최상위 인자 수를 센다 — validateArity 와 동일 규칙.
+function countTopLevelArgs(code, i) {
+  let depth = 0, argc = 0, inArg = false;
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch === '(' || ch === '[' || ch === '{') { if (depth === 0) { argc++; inArg = true; } depth++; }
+    else if (ch === ')' || ch === ']' || ch === '}') { if (depth === 0) return { argc, end: i }; depth--; if (depth === 0) inArg = false; }
+    else if (ch === '"') { i++; while (i < code.length && code[i] !== '"') { if (code[i] === '\\') i++; i++; } if (depth === 0 && !inArg) { argc++; inArg = true; } }
+    else if (/\S/.test(ch) && depth === 0) { if (!inArg) { argc++; inArg = true; } }
+    else if (/\s/.test(ch) && depth === 0) { inArg = false; }
+    i++;
+  }
+  return { argc, end: i };
+}
+
+// #1 예약어를 식별자로 사용 — defn/define/fn 이름·파라미터·let 바인딩
+function checkReservedWords(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(/\((?:defn|define)\s+([\w$-]+)/g))
+      if (FL_RESERVED.has(m[1])) hits.push({ base, word: m[1], line: lineAtIdx(code, m.index), where: '함수 이름' });
+    for (const m of code.matchAll(/\((?:defn\s+[\w$-]+|fn)\s+\[([^\]]*)\]/g))
+      for (const p of m[1].split(/\s+/).filter(Boolean)) {
+        const bare = p.replace(/^\$/, '');
+        if (FL_RESERVED.has(bare)) hits.push({ base, word: bare, line: lineAtIdx(code, m.index), where: '파라미터' });
+      }
+    for (const m of code.matchAll(/\(let\s+\[([^\]]*)\]/g)) {
+      const toks = m[1].split(/\s+/).filter(Boolean);
+      for (let k = 0; k < toks.length; k += 2) {
+        const bare = toks[k].replace(/^\$/, '');
+        if (FL_RESERVED.has(bare)) hits.push({ base, word: bare, line: lineAtIdx(code, m.index), where: 'let 바인딩' });
+      }
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 예약어 충돌 없음\x1b[0m'); return; }
+  console.log('\n\x1b[31m❌ [예약어] FL 예약어를 식별자로 사용 — 파싱 실패\x1b[0m');
+  const seen = new Set();
+  for (const h of hits) {
+    const k = `${h.base}:${h.word}:${h.line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[31m✗\x1b[0m ${h.base}:${h.line} — '${h.word}'은(는) 예약어 (${h.where}). 다른 이름 사용`);
+    issue('error', 'reserved-word', h.base, h.line, `'${h.word}'은(는) FL 예약어 — ${h.where}에 사용 불가`);
+  }
+  if (!JSON_MODE) process.exit(1);
+}
+
+// #3 핵심 builtin 인자 수 오류 (range 2-arg 등)
+function checkBuiltinArity(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    let i = 0;
+    while (i < code.length) {
+      if (code[i] !== '(') { i++; continue; }
+      i++;
+      const nameStart = i;
+      while (i < code.length && !/[\s()[\]{}]/.test(code[i])) i++;
+      const name = code.slice(nameStart, i);
+      if (!BUILTIN_ARITY.has(name)) continue;
+      const expected = BUILTIN_ARITY.get(name);
+      const { argc, end } = countTopLevelArgs(code, i);
+      if (argc !== expected) issues.push({ base, name, expected, got: argc, line: lineAtIdx(code, nameStart) });
+      i = end;
+    }
+  }
+  if (issues.length === 0) { console.log('  \x1b[32m✅ builtin 인자 수 정상\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [builtin-arity] 핵심 builtin 인자 수 오류\x1b[0m');
+  const seen = new Set();
+  for (const { base, name, expected, got, line } of issues) {
+    const k = `${base}:${name}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    const hint = BUILTIN_ARITY_HINT[name] || '';
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${name}) ${expected}개 필요, ${got}개. ${hint}`);
+    issue('warn', 'builtin-arity', base, line, `(${name}) 인자 ${expected}개 필요, ${got}개 — ${hint}`);
+  }
+}
+
+// #4 주석 안의 (defn ...) — 함수 스캐너/rename 이 오인할 수 있음
+function checkCommentedDefn(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const base = path.basename(f);
+    let i = 0, line = 1;
+    while (i < src.length) {
+      const c = src[i];
+      if (c === '\n') { line++; i++; continue; }
+      if (c === '"') {
+        if (src[i+1] === '"' && src[i+2] === '"') {
+          i += 3;
+          while (i < src.length && !(src[i] === '"' && src[i+1] === '"' && src[i+2] === '"')) { if (src[i] === '\n') line++; i++; }
+          i += 3;
+        } else {
+          i++;
+          while (i < src.length && src[i] !== '"') { if (src[i] === '\\') { i++; } if (src[i] === '\n') line++; i++; }
+          i++;
+        }
+        continue;
+      }
+      if (c === ';') {
+        const start = i;
+        while (i < src.length && src[i] !== '\n') i++;
+        if (/\((?:defn|define|server-fn)\b/.test(src.slice(start, i))) hits.push({ base, line });
+        continue;
+      }
+      i++;
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 주석 속 정의 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [comment-defn] 주석 안의 (defn ...) — 스캔/rename 오탐 유발\x1b[0m');
+  const seen = new Set();
+  for (const { base, line } of hits) {
+    const k = `${base}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — 주석에 (defn/define) 텍스트. 스캐너가 실제 정의로 오인 가능`);
+    issue('warn', 'comment-defn', base, line, `주석 속 (defn ...) — 스캔/rename 오탐 유발 가능`);
+  }
+}
+
+// #5 1글자 파라미터가 전역 헬퍼를 가림 ($h vs 전역 h)
+function checkSingleCharShadow(routes, helpers) {
+  const oneCharGlobals = new Set([...KNOWN_STDLIB].filter(n => /^[a-z]$/i.test(n)));
+  if (oneCharGlobals.size === 0) { console.log('  \x1b[32m✅ 1글자 전역 가림 없음\x1b[0m'); return; }
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(/\((?:defn\s+[\w$-]+|fn)\s+\[([^\]]*)\]/g))
+      for (const p of m[1].split(/\s+/).filter(Boolean)) {
+        const bare = p.replace(/^\$/, '');
+        if (oneCharGlobals.has(bare)) hits.push({ base, name: bare, raw: p, line: lineAtIdx(code, m.index) });
+      }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 1글자 전역 가림 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [shadow] 1글자 파라미터가 전역 헬퍼를 가림\x1b[0m');
+  const seen = new Set();
+  for (const { base, name, raw, line } of hits) {
+    const k = `${base}:${name}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — 파라미터 '${raw}' 가 전역 '${name}' 를 가림. 긴 이름 사용`);
+    issue('warn', 'global-shadow', base, line, `파라미터 '${raw}' 가 전역 헬퍼 '${name}' 를 가림 — 1글자 변수명 금지`);
+  }
+}
+
+// #6 동적 라우트가 정적 형제를 가로챌 여지 (정적 우선 등록 필요)
+function checkRouteShadow(routes) {
+  const seg = r => r.route.split('/').filter(Boolean);
+  const dynamics = routes.filter(r => r.route.includes(':'));
+  const statics  = routes.filter(r => !r.route.includes(':'));
+  const hits = [];
+  for (const d of dynamics) {
+    const ds = seg(d);
+    for (const s of statics) {
+      const ss = seg(s);
+      if (ss.length !== ds.length) continue;
+      let shadow = true;
+      for (let k = 0; k < ds.length; k++) {
+        if (ds[k].startsWith(':')) continue;       // 동적 위치 — 무엇이든 매치
+        if (ds[k] !== ss[k]) { shadow = false; break; }
+      }
+      if (shadow) hits.push({ dyn: d.route, stat: s.route, file: path.basename(d.file) });
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 라우트 가로채기 위험 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [route-shadow] 동적 라우트가 정적 라우트를 가로챌 여지 (정적 우선 등록 필요)\x1b[0m');
+  const seen = new Set();
+  for (const { dyn, stat, file } of hits) {
+    const k = `${dyn}|${stat}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${dyn}  ⊃  ${stat}  (정적 '${stat}' 가 먼저 등록돼야 안전)`);
+    issue('warn', 'route-shadow', file, 0, `동적 '${dyn}' 가 정적 '${stat}' 를 가로챌 수 있음 — 정적 우선 등록 확인`);
   }
 }
 
