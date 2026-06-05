@@ -9,6 +9,7 @@
 - POST 처리: `(defn render_post [req])` 추가하면 자동 등록
 - 헬퍼 파일: `pages/_*.flx` — 라우트 미등록, 공통 함수용
 - 빌드: `node fl-front-build.js` → `_app.fl` 생성
+- **FL 함수/빌트인을 추측 금지** — 모르면 `node fl-manifest.js` 로 조회(482 builtins·시그니처·카테고리). 매니페스트에 없는 이름은 존재하지 않으니 호출 금지(`db-one` 류 환각 방지). `db-query`·`range` 등 인자 순서/개수도 거기서 확인.
 
 ## 주입된 헬퍼 (모든 .flx에서 바로 사용 가능)
 
