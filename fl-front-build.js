@@ -1682,6 +1682,12 @@ checkBuiltinArity(routes, helpers);   // #3 range 등 builtin 인자 수
 checkCommentedDefn(routes, helpers);  // #4 주석 속 (defn ...)
 checkSingleCharShadow(routes, helpers); // #5 1글자 전역 가림
 checkRouteShadow(routes);             // #6 동적 라우트 가로채기
+
+// ── 휴리스틱 검사 (오탐 가능 — 항상 warn, 빌드 차단 안 함) ──
+console.log('\n\x1b[1m🔬 휴리스틱 검사\x1b[0m');
+checkDbRowMutation(routes, helpers);  // H1 db-query row(JS객체)에 obj-merge/assoc
+console.log('  \x1b[90m· 보류: nil vs null(req 헬퍼 사용처마다 오탐) · 큰 문자열 GC(컴파일 타임에 크기 미상) — 별도 단계\x1b[0m');
+
 checkReservedWords(routes, helpers);  // #1 예약어 — 마지막(에러 시 exit)
 
 // G. Island 회귀 테스트 (async — 마지막에 실행)
@@ -1923,6 +1929,97 @@ function checkRouteShadow(routes) {
     const k = `${dyn}|${stat}`; if (seen.has(k)) continue; seen.add(k);
     console.log(`  \x1b[33m⚠\x1b[0m ${dyn}  ⊃  ${stat}  (정적 '${stat}' 가 먼저 등록돼야 안전)`);
     issue('warn', 'route-shadow', file, 0, `동적 '${dyn}' 가 정적 '${stat}' 를 가로챌 수 있음 — 정적 우선 등록 확인`);
+  }
+}
+
+// 문자열을 최상위 토큰(심볼 / 괄호·대괄호·중괄호 그룹 / 문자열)으로 분리.
+function splitTopTokens(s) {
+  const out = []; let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (/\s/.test(ch)) { i++; continue; }
+    if (ch === '(' || ch === '[' || ch === '{') {
+      let depth = 0, start = i;
+      while (i < s.length) {
+        const c = s[i];
+        if (c === '"') { i++; while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; } i++; continue; }
+        if (c === '(' || c === '[' || c === '{') depth++;
+        else if (c === ')' || c === ']' || c === '}') { depth--; if (depth === 0) { i++; break; } }
+        i++;
+      }
+      out.push(s.slice(start, i));
+    } else if (ch === '"') {
+      const start = i; i++; while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; } i++;
+      out.push(s.slice(start, i));
+    } else {
+      const start = i; while (i < s.length && !/[\s()[\]{}]/.test(s[i])) i++;
+      if (i === start) { i++; continue; }   // stray 닫는 괄호 등 — 건너뜀(무한 루프 방지)
+      out.push(s.slice(start, i));
+    }
+  }
+  return out;
+}
+
+// 휴리스틱 H1: db-query 결과(JS 네이티브 객체)에 맵 변형 함수 적용 → 무동작 위험.
+// db-row 는 obj-merge/obj-omit/assoc 등이 동작하지 않고 get 만 가능. 오탐 가능 → 항상 warn.
+// (let [name (db-query ...)] ...) 로 db 파생 변수만 추적해 FP 를 억제한다.
+function checkDbRowMutation(routes, helpers) {
+  const dbCallRe   = /\((?:db[-_]query|db[-_]one|db[-_]all|mariadb[-_]query|mariadb[-_]pool[-_]query)\b/;
+  const dbHeadRe   = /^(?:db[-_]query|db[-_]one|db[-_]all|mariadb[-_]query|mariadb[-_]pool[-_]query)$/;
+  const ACCESSOR   = new Set(['get','first','last','nth','get-at','get_at','get-in','get_in']);
+  const MUTATORS   = ['obj-merge','obj_merge','obj-omit','obj_omit','assoc','assoc-in','assoc_in','update-in','update_in','dissoc','merge'];
+  const mutatorRe  = new RegExp('\\((' + MUTATORS.map(m => m.replace(/-/g, '[-_]')).join('|') + ')\\s+(\\$?[\\w-]+)', 'g');
+  const headSym = (text) => {
+    let i = 0; while (i < text.length && /[\s(]/.test(text[i])) i++;
+    let j = i; while (j < text.length && !/[\s()[\]{}]/.test(text[j])) j++;
+    return text.slice(i, j);
+  };
+
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+
+    // 1) db 파생 변수 수집 — (let [name <db-source ...> ...]) 의 name
+    const dbRows = new Set();
+    const letRe = /\(let\s+\[/g; let lm;
+    while ((lm = letRe.exec(code))) {
+      let i = lm.index + lm[0].length, depth = 1; const start = i;
+      while (i < code.length && depth > 0) {
+        const ch = code[i];
+        if (ch === '"') { i++; while (i < code.length && code[i] !== '"') { if (code[i] === '\\') i++; i++; } }
+        else if (ch === '[') depth++;
+        else if (ch === ']') depth--;
+        if (depth > 0) i++;
+      }
+      const toks = splitTopTokens(code.slice(start, i));
+      for (let k = 0; k + 1 < toks.length; k += 2) {
+        const name = toks[k], value = toks[k + 1];
+        if (!/^\$?[\w-]+$/.test(name)) continue;
+        const head = headSym(value);
+        const isDb = dbHeadRe.test(head) || (ACCESSOR.has(head) && dbCallRe.test(value));
+        if (isDb) dbRows.add(name.replace(/^\$/, ''));
+      }
+    }
+    if (dbRows.size === 0) continue;
+
+    // 2) db 파생 변수에 맵 변형 함수 적용 감지
+    mutatorRe.lastIndex = 0; let mm;
+    while ((mm = mutatorRe.exec(code))) {
+      const fn = mm[1], target = mm[2].replace(/^\$/, '');
+      if (dbRows.has(target)) issues.push({ base, fn, target, line: lineAtIdx(code, mm.index) });
+    }
+  }
+
+  if (issues.length === 0) { console.log('  \x1b[32m✅ db-row 맵 변형 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [db-row] db-query 결과(JS 객체)에 맵 변형 함수 — 무동작 위험\x1b[0m');
+  const seen = new Set();
+  for (const { base, fn, target, line } of issues) {
+    const k = `${base}:${target}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${fn} ${target} …): db row 는 JS 객체라 무동작. get 만 가능 / 명시적 맵 재구성`);
+    issue('warn', 'db-row-mutation', base, line, `(${fn} ${target}): db-query 결과(JS 객체)에 맵 변형 — get 만 동작, 명시적 맵 구성 필요`);
   }
 }
 
