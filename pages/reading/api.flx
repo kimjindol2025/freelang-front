@@ -1,6 +1,6 @@
 ; pages/reading/api.flx — 독서 JSON API
 ; GET  /reading/api → {books}
-; POST /reading/api → action: add|delete|update-progress|update-review
+; POST /reading/api → action: add|delete|update-progress|update-review|update-meta
 
 (load "pages/reading/_db.flx")
 (reading-init)
@@ -13,15 +13,19 @@
         action (or (get body "action") "")]
     (cond
       (= action "add")
-        (let [title  (or (get body "title") "")
-              author (or (get body "author") "")
-              status (or (get body "status") "wish")
-              pages  (or (get body "pages_total") "0")
-              color  (or (get body "cover_color") "#6366f1")]
+        (let [title     (or (get body "title") "")
+              author    (or (get body "author") "")
+              status    (or (get body "status") "wish")
+              pages     (or (get body "pages_total") "0")
+              color     (or (get body "cover_color") "#7c3aed")
+              publisher (or (get body "publisher") "")
+              isbn      (or (get body "isbn") "")
+              pub-year  (or (get body "pub_year") "0")
+              genre     (or (get body "genre") "")]
           (if (= (str-trim title) "")
             (server-json {"ok" false "error" "제목 필요"} 400)
             (do
-              (reading-add title author status pages color)
+              (reading-add title author status pages color publisher isbn pub-year genre)
               (server-json {"ok" true "books" (reading-all)}))))
 
       (= action "delete")
@@ -33,10 +37,10 @@
               (server-json {"ok" true "books" (reading-all)}))))
 
       (= action "update-progress")
-        (let [id      (get body "id")
-              pages   (or (get body "pages_read") "0")
-              status  (or (get body "status") "reading")
-              started (or (get body "started_at") "")
+        (let [id       (get body "id")
+              pages    (or (get body "pages_read") "0")
+              status   (or (get body "status") "reading")
+              started  (or (get body "started_at") "")
               finished (or (get body "finished_at") "")]
           (reading-update-progress id pages status started finished)
           (server-json {"ok" true "books" (reading-all)}))
@@ -46,6 +50,15 @@
               rating (or (get body "rating") "0")
               review (or (get body "review") "")]
           (reading-update-review id rating review)
+          (server-json {"ok" true}))
+
+      (= action "update-meta")
+        (let [id        (get body "id")
+              publisher (or (get body "publisher") "")
+              isbn      (or (get body "isbn") "")
+              pub-year  (or (get body "pub_year") "0")
+              genre     (or (get body "genre") "")]
+          (reading-update-meta id publisher isbn pub-year genre)
           (server-json {"ok" true}))
 
       true

@@ -1643,6 +1643,18 @@ function validateIslandBoundary(routes) {
   }
 }
 
+// ── FL Trap Checker 상수 (오케스트레이션보다 먼저 초기화돼야 함) ──
+const FL_RESERVED = new Set(['act']);              // 식별자로 쓰면 파싱 실패
+const BUILTIN_ARITY = new Map([                    // 인자 수 고정 + 오용 흔한 builtin만
+  ['range', 2],   // (range start end) — (range n) 은 빈 배열
+  ['nth',   2],   // (nth coll idx)
+]);
+const BUILTIN_ARITY_HINT = {
+  range: '(range start end) — (range n) 은 빈 배열',
+  nth:   '(nth coll idx)',
+};
+const lineAtIdx = (src, idx) => src.slice(0, idx).split('\n').length;
+
 checkAllParens(routes, helpers);
 detectDangerousPatterns(routes, helpers);
 validateIslandJs(routes);
@@ -1663,6 +1675,22 @@ validateArity(routes, helpers);
 
 // H. 함수명 충돌 감지
 detectNameCollisions(routes, helpers);
+
+// ── FL Trap Checker (고신뢰 컴파일 타임 가드) ──
+console.log('\n\x1b[1m🛡  FL Trap Checker\x1b[0m');
+checkBuiltinArity(routes, helpers);   // #3 range 등 builtin 인자 수
+checkCommentedDefn(routes, helpers);  // #4 주석 속 (defn ...)
+checkSingleCharShadow(routes, helpers); // #5 1글자 전역 가림
+checkRouteShadow(routes);             // #6 동적 라우트 가로채기
+
+// ── 휴리스틱 검사 (오탐 가능 — 항상 warn, 빌드 차단 안 함) ──
+console.log('\n\x1b[1m🔬 휴리스틱 검사\x1b[0m');
+checkDbRowMutation(routes, helpers);       // H1 db-query row(JS객체)에 obj-merge/assoc
+checkNullableConsumption(routes, helpers); // H2 null 반환 req 헬퍼를 가드 없이 문자열 함수에 직접
+checkLoopStrConcat(routes, helpers);       // H3 reduce/loop 내 (str …) 누적 — O(n²) GC
+console.log('  \x1b[90m· H2·H3 은 best-effort 휴리스틱 — 직접중첩/누적 패턴만 잡음(간접·가드된 경우 미검출)\x1b[0m');
+
+checkReservedWords(routes, helpers);  // #1 예약어 — 마지막(에러 시 exit)
 
 // G. Island 회귀 테스트 (async — 마지막에 실행)
 runIslandTests().catch(e => console.error('테스트 실행 오류:', e.message));
@@ -1710,6 +1738,372 @@ function detectNameCollisions(routes, helpers) {
     console.log('\n\x1b[33m⚠️  [namespace] 함수명 충돌 — (ns name) 선언으로 격리 필요\x1b[0m');
     for (const [name, files] of collisions)
       console.log(`  \x1b[33m⚠\x1b[0m (${name}) — ${files.join(', ')}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// FL Trap Checker — 고신뢰 컴파일 타임 가드 (2026-06-05)
+// FL 함정을 빌드 시점에 차단. 기존 체커 패턴(issue + console)을 그대로 따른다.
+//   #1 act 등 예약어를 식별자로 사용          (error — 파서가 깨짐)
+//   #2 존재하지 않는 builtin → validateFunctions 가 이미 담당 (중복 구현 안 함)
+//   #3 핵심 builtin 인자 수 오류 (range 등)    (warn)
+//   #4 주석 속 (defn ...) — 스캔/rename 오탐 유발 (warn)
+//   #5 1글자 파라미터가 전역 헬퍼를 가림 ($h vs h) (warn)
+//   #6 동적 라우트가 정적 형제를 가로챌 여지     (warn)
+// ══════════════════════════════════════════════════════════════
+
+// (FL Trap Checker 상수 FL_RESERVED / BUILTIN_ARITY / lineAtIdx 는
+//  오케스트레이션보다 먼저 초기화되도록 파일 상단에서 선언한다.)
+
+// 호출 (name ...) 의 최상위 인자 수를 센다 — validateArity 와 동일 규칙.
+function countTopLevelArgs(code, i) {
+  let depth = 0, argc = 0, inArg = false;
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch === '(' || ch === '[' || ch === '{') { if (depth === 0) { argc++; inArg = true; } depth++; }
+    else if (ch === ')' || ch === ']' || ch === '}') { if (depth === 0) return { argc, end: i }; depth--; if (depth === 0) inArg = false; }
+    else if (ch === '"') { i++; while (i < code.length && code[i] !== '"') { if (code[i] === '\\') i++; i++; } if (depth === 0 && !inArg) { argc++; inArg = true; } }
+    else if (/\S/.test(ch) && depth === 0) { if (!inArg) { argc++; inArg = true; } }
+    else if (/\s/.test(ch) && depth === 0) { inArg = false; }
+    i++;
+  }
+  return { argc, end: i };
+}
+
+// #1 예약어를 식별자로 사용 — defn/define/fn 이름·파라미터·let 바인딩
+function checkReservedWords(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(/\((?:defn|define)\s+([\w$-]+)/g))
+      if (FL_RESERVED.has(m[1])) hits.push({ base, word: m[1], line: lineAtIdx(code, m.index), where: '함수 이름' });
+    for (const m of code.matchAll(/\((?:defn\s+[\w$-]+|fn)\s+\[([^\]]*)\]/g))
+      for (const p of m[1].split(/\s+/).filter(Boolean)) {
+        const bare = p.replace(/^\$/, '');
+        if (FL_RESERVED.has(bare)) hits.push({ base, word: bare, line: lineAtIdx(code, m.index), where: '파라미터' });
+      }
+    for (const m of code.matchAll(/\(let\s+\[([^\]]*)\]/g)) {
+      const toks = m[1].split(/\s+/).filter(Boolean);
+      for (let k = 0; k < toks.length; k += 2) {
+        const bare = toks[k].replace(/^\$/, '');
+        if (FL_RESERVED.has(bare)) hits.push({ base, word: bare, line: lineAtIdx(code, m.index), where: 'let 바인딩' });
+      }
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 예약어 충돌 없음\x1b[0m'); return; }
+  console.log('\n\x1b[31m❌ [예약어] FL 예약어를 식별자로 사용 — 파싱 실패\x1b[0m');
+  const seen = new Set();
+  for (const h of hits) {
+    const k = `${h.base}:${h.word}:${h.line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[31m✗\x1b[0m ${h.base}:${h.line} — '${h.word}'은(는) 예약어 (${h.where}). 다른 이름 사용`);
+    issue('error', 'reserved-word', h.base, h.line, `'${h.word}'은(는) FL 예약어 — ${h.where}에 사용 불가`);
+  }
+  if (!JSON_MODE) process.exit(1);
+}
+
+// #3 핵심 builtin 인자 수 오류 (range 2-arg 등)
+function checkBuiltinArity(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    let i = 0;
+    while (i < code.length) {
+      if (code[i] !== '(') { i++; continue; }
+      i++;
+      const nameStart = i;
+      while (i < code.length && !/[\s()[\]{}]/.test(code[i])) i++;
+      const name = code.slice(nameStart, i);
+      if (!BUILTIN_ARITY.has(name)) continue;
+      const expected = BUILTIN_ARITY.get(name);
+      const { argc, end } = countTopLevelArgs(code, i);
+      if (argc !== expected) issues.push({ base, name, expected, got: argc, line: lineAtIdx(code, nameStart) });
+      i = end;
+    }
+  }
+  if (issues.length === 0) { console.log('  \x1b[32m✅ builtin 인자 수 정상\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [builtin-arity] 핵심 builtin 인자 수 오류\x1b[0m');
+  const seen = new Set();
+  for (const { base, name, expected, got, line } of issues) {
+    const k = `${base}:${name}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    const hint = BUILTIN_ARITY_HINT[name] || '';
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${name}) ${expected}개 필요, ${got}개. ${hint}`);
+    issue('warn', 'builtin-arity', base, line, `(${name}) 인자 ${expected}개 필요, ${got}개 — ${hint}`);
+  }
+}
+
+// #4 주석 안의 (defn ...) — 함수 스캐너/rename 이 오인할 수 있음
+function checkCommentedDefn(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const base = path.basename(f);
+    let i = 0, line = 1;
+    while (i < src.length) {
+      const c = src[i];
+      if (c === '\n') { line++; i++; continue; }
+      if (c === '"') {
+        if (src[i+1] === '"' && src[i+2] === '"') {
+          i += 3;
+          while (i < src.length && !(src[i] === '"' && src[i+1] === '"' && src[i+2] === '"')) { if (src[i] === '\n') line++; i++; }
+          i += 3;
+        } else {
+          i++;
+          while (i < src.length && src[i] !== '"') { if (src[i] === '\\') { i++; } if (src[i] === '\n') line++; i++; }
+          i++;
+        }
+        continue;
+      }
+      if (c === ';') {
+        const start = i;
+        while (i < src.length && src[i] !== '\n') i++;
+        if (/\((?:defn|define|server-fn)\b/.test(src.slice(start, i))) hits.push({ base, line });
+        continue;
+      }
+      i++;
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 주석 속 정의 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [comment-defn] 주석 안의 (defn ...) — 스캔/rename 오탐 유발\x1b[0m');
+  const seen = new Set();
+  for (const { base, line } of hits) {
+    const k = `${base}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — 주석에 (defn/define) 텍스트. 스캐너가 실제 정의로 오인 가능`);
+    issue('warn', 'comment-defn', base, line, `주석 속 (defn ...) — 스캔/rename 오탐 유발 가능`);
+  }
+}
+
+// #5 1글자 파라미터가 전역 헬퍼를 가림 ($h vs 전역 h)
+function checkSingleCharShadow(routes, helpers) {
+  const oneCharGlobals = new Set([...KNOWN_STDLIB].filter(n => /^[a-z]$/i.test(n)));
+  if (oneCharGlobals.size === 0) { console.log('  \x1b[32m✅ 1글자 전역 가림 없음\x1b[0m'); return; }
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(/\((?:defn\s+[\w$-]+|fn)\s+\[([^\]]*)\]/g))
+      for (const p of m[1].split(/\s+/).filter(Boolean)) {
+        const bare = p.replace(/^\$/, '');
+        if (oneCharGlobals.has(bare)) hits.push({ base, name: bare, raw: p, line: lineAtIdx(code, m.index) });
+      }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 1글자 전역 가림 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [shadow] 1글자 파라미터가 전역 헬퍼를 가림\x1b[0m');
+  const seen = new Set();
+  for (const { base, name, raw, line } of hits) {
+    const k = `${base}:${name}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — 파라미터 '${raw}' 가 전역 '${name}' 를 가림. 긴 이름 사용`);
+    issue('warn', 'global-shadow', base, line, `파라미터 '${raw}' 가 전역 헬퍼 '${name}' 를 가림 — 1글자 변수명 금지`);
+  }
+}
+
+// #6 동적 라우트가 정적 형제를 가로챌 여지 (정적 우선 등록 필요)
+function checkRouteShadow(routes) {
+  const seg = r => r.route.split('/').filter(Boolean);
+  const dynamics = routes.filter(r => r.route.includes(':'));
+  const statics  = routes.filter(r => !r.route.includes(':'));
+  const hits = [];
+  for (const d of dynamics) {
+    const ds = seg(d);
+    for (const s of statics) {
+      const ss = seg(s);
+      if (ss.length !== ds.length) continue;
+      let shadow = true;
+      for (let k = 0; k < ds.length; k++) {
+        if (ds[k].startsWith(':')) continue;       // 동적 위치 — 무엇이든 매치
+        if (ds[k] !== ss[k]) { shadow = false; break; }
+      }
+      if (shadow) hits.push({ dyn: d.route, stat: s.route, file: path.basename(d.file) });
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 라우트 가로채기 위험 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [route-shadow] 동적 라우트가 정적 라우트를 가로챌 여지 (정적 우선 등록 필요)\x1b[0m');
+  const seen = new Set();
+  for (const { dyn, stat, file } of hits) {
+    const k = `${dyn}|${stat}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${dyn}  ⊃  ${stat}  (정적 '${stat}' 가 먼저 등록돼야 안전)`);
+    issue('warn', 'route-shadow', file, 0, `동적 '${dyn}' 가 정적 '${stat}' 를 가로챌 수 있음 — 정적 우선 등록 확인`);
+  }
+}
+
+// 문자열을 최상위 토큰(심볼 / 괄호·대괄호·중괄호 그룹 / 문자열)으로 분리.
+function splitTopTokens(s) {
+  const out = []; let i = 0;
+  while (i < s.length) {
+    const ch = s[i];
+    if (/\s/.test(ch)) { i++; continue; }
+    if (ch === '(' || ch === '[' || ch === '{') {
+      let depth = 0, start = i;
+      while (i < s.length) {
+        const c = s[i];
+        if (c === '"') { i++; while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; } i++; continue; }
+        if (c === '(' || c === '[' || c === '{') depth++;
+        else if (c === ')' || c === ']' || c === '}') { depth--; if (depth === 0) { i++; break; } }
+        i++;
+      }
+      out.push(s.slice(start, i));
+    } else if (ch === '"') {
+      const start = i; i++; while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; } i++;
+      out.push(s.slice(start, i));
+    } else {
+      const start = i; while (i < s.length && !/[\s()[\]{}]/.test(s[i])) i++;
+      if (i === start) { i++; continue; }   // stray 닫는 괄호 등 — 건너뜀(무한 루프 방지)
+      out.push(s.slice(start, i));
+    }
+  }
+  return out;
+}
+
+// 휴리스틱 H1: db-query 결과(JS 네이티브 객체)에 맵 변형 함수 적용 → 무동작 위험.
+// db-row 는 obj-merge/obj-omit/assoc 등이 동작하지 않고 get 만 가능. 오탐 가능 → 항상 warn.
+// (let [name (db-query ...)] ...) 로 db 파생 변수만 추적해 FP 를 억제한다.
+function checkDbRowMutation(routes, helpers) {
+  const dbCallRe   = /\((?:db[-_]query|db[-_]one|db[-_]all|mariadb[-_]query|mariadb[-_]pool[-_]query)\b/;
+  const dbHeadRe   = /^(?:db[-_]query|db[-_]one|db[-_]all|mariadb[-_]query|mariadb[-_]pool[-_]query)$/;
+  const ACCESSOR   = new Set(['get','first','last','nth','get-at','get_at','get-in','get_in']);
+  const MUTATORS   = ['obj-merge','obj_merge','obj-omit','obj_omit','assoc','assoc-in','assoc_in','update-in','update_in','dissoc','merge'];
+  const mutatorRe  = new RegExp('\\((' + MUTATORS.map(m => m.replace(/-/g, '[-_]')).join('|') + ')\\s+(\\$?[\\w-]+)', 'g');
+  const headSym = (text) => {
+    let i = 0; while (i < text.length && /[\s(]/.test(text[i])) i++;
+    let j = i; while (j < text.length && !/[\s()[\]{}]/.test(text[j])) j++;
+    return text.slice(i, j);
+  };
+
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+
+    // 1) db 파생 변수 수집 — (let [name <db-source ...> ...]) 의 name
+    const dbRows = new Set();
+    const letRe = /\(let\s+\[/g; let lm;
+    while ((lm = letRe.exec(code))) {
+      let i = lm.index + lm[0].length, depth = 1; const start = i;
+      while (i < code.length && depth > 0) {
+        const ch = code[i];
+        if (ch === '"') { i++; while (i < code.length && code[i] !== '"') { if (code[i] === '\\') i++; i++; } }
+        else if (ch === '[') depth++;
+        else if (ch === ']') depth--;
+        if (depth > 0) i++;
+      }
+      const toks = splitTopTokens(code.slice(start, i));
+      for (let k = 0; k + 1 < toks.length; k += 2) {
+        const name = toks[k], value = toks[k + 1];
+        if (!/^\$?[\w-]+$/.test(name)) continue;
+        const head = headSym(value);
+        const isDb = dbHeadRe.test(head) || (ACCESSOR.has(head) && dbCallRe.test(value));
+        if (isDb) dbRows.add(name.replace(/^\$/, ''));
+      }
+    }
+    if (dbRows.size === 0) continue;
+
+    // 2) db 파생 변수에 맵 변형 함수 적용 감지
+    mutatorRe.lastIndex = 0; let mm;
+    while ((mm = mutatorRe.exec(code))) {
+      const fn = mm[1], target = mm[2].replace(/^\$/, '');
+      if (dbRows.has(target)) issues.push({ base, fn, target, line: lineAtIdx(code, mm.index) });
+    }
+  }
+
+  if (issues.length === 0) { console.log('  \x1b[32m✅ db-row 맵 변형 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [db-row] db-query 결과(JS 객체)에 맵 변형 함수 — 무동작 위험\x1b[0m');
+  const seen = new Set();
+  for (const { base, fn, target, line } of issues) {
+    const k = `${base}:${target}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${fn} ${target} …): db row 는 JS 객체라 무동작. get 만 가능 / 명시적 맵 재구성`);
+    issue('warn', 'db-row-mutation', base, line, `(${fn} ${target}): db-query 결과(JS 객체)에 맵 변형 — get 만 동작, 명시적 맵 구성 필요`);
+  }
+}
+
+// 괄호 호출을 순회하며 각 (head ...) 에 대해 head·조상 목록·지연 인자수를 넘긴다.
+// code 는 stripComments 된 소스(문자열은 보존). [ ] { } 안의 ( ) 도 스택에 정상 반영.
+function walkCalls(code, visit) {
+  const stack = [];
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch === '"') {
+      if (code[i+1] === '"' && code[i+2] === '"') {
+        i += 3; while (i < code.length && !(code[i] === '"' && code[i+1] === '"' && code[i+2] === '"')) i++; i += 3;
+      } else {
+        i++; while (i < code.length && code[i] !== '"') { if (code[i] === '\\') i++; i++; } i++;
+      }
+      continue;
+    }
+    if (ch === '(') {
+      let j = i + 1; while (j < code.length && /\s/.test(code[j])) j++;
+      let k = j; while (k < code.length && !/[\s()[\]{}"]/.test(code[k])) k++;
+      const head = code.slice(j, k);
+      visit({ head, idx: i, ancestors: stack.slice(), getArgc: () => countTopLevelArgs(code, k).argc });
+      stack.push(head); i++; continue;
+    }
+    if (ch === ')') { stack.pop(); i++; continue; }
+    i++;
+  }
+}
+
+// 휴리스틱 H2: null 반환 가능 req 헬퍼를 가드 없이 문자열/숫자 함수에 직접 중첩.
+// (str-includes (server-req-query ...) ...) 처럼 직접 인자면 가드 없음 → null 위험. warn.
+function checkNullableConsumption(routes, helpers) {
+  const NULLABLE = new Set(['server-req-query','server_req_query','server-req-param','server_req_param',
+    'server-req-header','server_req_header','server-req-cookie','server_req_cookie']);
+  const CONSUMERS = new Set(['str-includes','str_includes','str-split','str_split','str-replace','str_replace',
+    'str-slice','str_slice','str-to-num','str_to_num','str-to-upper','str_to_upper','str-to-lower','str_to_lower',
+    'str-trim','str_trim','str-starts-with','str_starts_with','str-ends-with','str_ends_with',
+    'str-contains','str_contains','parse-int','parse_int','parse-float','parse_float','str-pad','str_pad']);
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src); const base = path.basename(f);
+    walkCalls(code, ({ head, ancestors, idx }) => {
+      const parent = ancestors[ancestors.length - 1];
+      if (NULLABLE.has(head) && parent && CONSUMERS.has(parent))
+        issues.push({ base, head, parent, line: lineAtIdx(code, idx) });
+    });
+  }
+  if (issues.length === 0) { console.log('  \x1b[32m✅ null 미가드 소비 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [nullable] null 반환 가능 req 헬퍼를 가드 없이 직접 소비\x1b[0m');
+  const seen = new Set();
+  for (const { base, head, parent, line } of issues) {
+    const k = `${base}:${head}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${parent} (${head} …)): null 가능. (or x 기본값) 또는 req-query-default 로 가드`);
+    issue('warn', 'nullable-consume', base, line, `(${parent} (${head} …)): null 반환 가능 — (or x 기본값)/req-query-default 로 가드 필요`);
+  }
+}
+
+// 휴리스틱 H3: reduce/loop 안에서 (str ...) 다중 인자 누적 → O(n²) 문자열 복사 GC 위험.
+// 크기는 컴파일 타임에 알 수 없으나 누적 패턴 자체가 신호. 배열 누적 후 str-join 권장. warn.
+function checkLoopStrConcat(routes, helpers) {
+  const ACCUM = new Set(['reduce','loop','recur']);
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src); const base = path.basename(f);
+    walkCalls(code, ({ head, ancestors, idx, getArgc }) => {
+      if (head !== 'str') return;
+      const inLoop = ancestors.find(a => ACCUM.has(a));
+      if (inLoop && getArgc() >= 2) issues.push({ base, loop: inLoop, line: lineAtIdx(code, idx) });
+    });
+  }
+  if (issues.length === 0) { console.log('  \x1b[32m✅ 루프 내 문자열 누적 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [str-gc] reduce/loop 내 (str …) 누적 — O(n²) GC 위험\x1b[0m');
+  const seen = new Set();
+  for (const { base, loop, line } of issues) {
+    const k = `${base}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — ${loop} 안 (str …) 누적. 배열에 push 후 str-join 한 번 권장`);
+    issue('warn', 'str-loop-concat', base, line, `${loop} 내 (str …) 누적 — O(n²) GC 위험, 배열 누적 후 str-join 권장`);
   }
 }
 
