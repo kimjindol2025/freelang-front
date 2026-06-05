@@ -1685,8 +1685,10 @@ checkRouteShadow(routes);             // #6 동적 라우트 가로채기
 
 // ── 휴리스틱 검사 (오탐 가능 — 항상 warn, 빌드 차단 안 함) ──
 console.log('\n\x1b[1m🔬 휴리스틱 검사\x1b[0m');
-checkDbRowMutation(routes, helpers);  // H1 db-query row(JS객체)에 obj-merge/assoc
-console.log('  \x1b[90m· 보류: nil vs null(req 헬퍼 사용처마다 오탐) · 큰 문자열 GC(컴파일 타임에 크기 미상) — 별도 단계\x1b[0m');
+checkDbRowMutation(routes, helpers);       // H1 db-query row(JS객체)에 obj-merge/assoc
+checkNullableConsumption(routes, helpers); // H2 null 반환 req 헬퍼를 가드 없이 문자열 함수에 직접
+checkLoopStrConcat(routes, helpers);       // H3 reduce/loop 내 (str …) 누적 — O(n²) GC
+console.log('  \x1b[90m· H2·H3 은 best-effort 휴리스틱 — 직접중첩/누적 패턴만 잡음(간접·가드된 경우 미검출)\x1b[0m');
 
 checkReservedWords(routes, helpers);  // #1 예약어 — 마지막(에러 시 exit)
 
@@ -2020,6 +2022,88 @@ function checkDbRowMutation(routes, helpers) {
     const k = `${base}:${target}:${line}`; if (seen.has(k)) continue; seen.add(k);
     console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${fn} ${target} …): db row 는 JS 객체라 무동작. get 만 가능 / 명시적 맵 재구성`);
     issue('warn', 'db-row-mutation', base, line, `(${fn} ${target}): db-query 결과(JS 객체)에 맵 변형 — get 만 동작, 명시적 맵 구성 필요`);
+  }
+}
+
+// 괄호 호출을 순회하며 각 (head ...) 에 대해 head·조상 목록·지연 인자수를 넘긴다.
+// code 는 stripComments 된 소스(문자열은 보존). [ ] { } 안의 ( ) 도 스택에 정상 반영.
+function walkCalls(code, visit) {
+  const stack = [];
+  let i = 0;
+  while (i < code.length) {
+    const ch = code[i];
+    if (ch === '"') {
+      if (code[i+1] === '"' && code[i+2] === '"') {
+        i += 3; while (i < code.length && !(code[i] === '"' && code[i+1] === '"' && code[i+2] === '"')) i++; i += 3;
+      } else {
+        i++; while (i < code.length && code[i] !== '"') { if (code[i] === '\\') i++; i++; } i++;
+      }
+      continue;
+    }
+    if (ch === '(') {
+      let j = i + 1; while (j < code.length && /\s/.test(code[j])) j++;
+      let k = j; while (k < code.length && !/[\s()[\]{}"]/.test(code[k])) k++;
+      const head = code.slice(j, k);
+      visit({ head, idx: i, ancestors: stack.slice(), getArgc: () => countTopLevelArgs(code, k).argc });
+      stack.push(head); i++; continue;
+    }
+    if (ch === ')') { stack.pop(); i++; continue; }
+    i++;
+  }
+}
+
+// 휴리스틱 H2: null 반환 가능 req 헬퍼를 가드 없이 문자열/숫자 함수에 직접 중첩.
+// (str-includes (server-req-query ...) ...) 처럼 직접 인자면 가드 없음 → null 위험. warn.
+function checkNullableConsumption(routes, helpers) {
+  const NULLABLE = new Set(['server-req-query','server_req_query','server-req-param','server_req_param',
+    'server-req-header','server_req_header','server-req-cookie','server_req_cookie']);
+  const CONSUMERS = new Set(['str-includes','str_includes','str-split','str_split','str-replace','str_replace',
+    'str-slice','str_slice','str-to-num','str_to_num','str-to-upper','str_to_upper','str-to-lower','str_to_lower',
+    'str-trim','str_trim','str-starts-with','str_starts_with','str-ends-with','str_ends_with',
+    'str-contains','str_contains','parse-int','parse_int','parse-float','parse_float','str-pad','str_pad']);
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src); const base = path.basename(f);
+    walkCalls(code, ({ head, ancestors, idx }) => {
+      const parent = ancestors[ancestors.length - 1];
+      if (NULLABLE.has(head) && parent && CONSUMERS.has(parent))
+        issues.push({ base, head, parent, line: lineAtIdx(code, idx) });
+    });
+  }
+  if (issues.length === 0) { console.log('  \x1b[32m✅ null 미가드 소비 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [nullable] null 반환 가능 req 헬퍼를 가드 없이 직접 소비\x1b[0m');
+  const seen = new Set();
+  for (const { base, head, parent, line } of issues) {
+    const k = `${base}:${head}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (${parent} (${head} …)): null 가능. (or x 기본값) 또는 req-query-default 로 가드`);
+    issue('warn', 'nullable-consume', base, line, `(${parent} (${head} …)): null 반환 가능 — (or x 기본값)/req-query-default 로 가드 필요`);
+  }
+}
+
+// 휴리스틱 H3: reduce/loop 안에서 (str ...) 다중 인자 누적 → O(n²) 문자열 복사 GC 위험.
+// 크기는 컴파일 타임에 알 수 없으나 누적 패턴 자체가 신호. 배열 누적 후 str-join 권장. warn.
+function checkLoopStrConcat(routes, helpers) {
+  const ACCUM = new Set(['reduce','loop','recur']);
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const issues = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src); const base = path.basename(f);
+    walkCalls(code, ({ head, ancestors, idx, getArgc }) => {
+      if (head !== 'str') return;
+      const inLoop = ancestors.find(a => ACCUM.has(a));
+      if (inLoop && getArgc() >= 2) issues.push({ base, loop: inLoop, line: lineAtIdx(code, idx) });
+    });
+  }
+  if (issues.length === 0) { console.log('  \x1b[32m✅ 루프 내 문자열 누적 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [str-gc] reduce/loop 내 (str …) 누적 — O(n²) GC 위험\x1b[0m');
+  const seen = new Set();
+  for (const { base, loop, line } of issues) {
+    const k = `${base}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — ${loop} 안 (str …) 누적. 배열에 push 후 str-join 한 번 권장`);
+    issue('warn', 'str-loop-concat', base, line, `${loop} 내 (str …) 누적 — O(n²) GC 위험, 배열 누적 후 str-join 권장`);
   }
 }
 
