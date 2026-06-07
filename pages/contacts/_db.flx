@@ -18,8 +18,20 @@
         group_name TEXT DEFAULT '일반',
         created_at TEXT DEFAULT (datetime('now','localtime'))
       )" [])
-    ; 기존 DB 마이그레이션: company 컬럼이 없으면 추가 (실패 무시)
+    ; 마이그레이션: 누락 컬럼 추가 (이미 있으면 오류 무시)
     (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN company TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN job_title TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN tags TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN met_at TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN remind_days INTEGER DEFAULT 0" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN last_contact_at TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN linked_url TEXT DEFAULT ''" [])
          (catch e nil))
     (db-exec CONTACTS-DB
       "CREATE TABLE IF NOT EXISTS activities (
@@ -46,15 +58,17 @@
       (get rows 0)
       nil)))
 
-(defn add [name phone email company memo group-name]
+(defn add [name phone email company memo group-name job-title tags met-at remind-days linked-url]
   (db-exec CONTACTS-DB
-    "INSERT INTO contacts (name,phone,email,company,memo,group_name) VALUES (?,?,?,?,?,?)"
-    [name phone email company memo group-name]))
+    "INSERT INTO contacts (name,phone,email,company,memo,group_name,job_title,tags,met_at,remind_days,linked_url)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+    [name phone email company memo group-name job-title tags met-at (str-to-num remind-days) linked-url]))
 
-(defn update [id name phone email company memo group-name]
+(defn update [id name phone email company memo group-name job-title tags met-at remind-days linked-url]
   (db-exec CONTACTS-DB
-    "UPDATE contacts SET name=?,phone=?,email=?,company=?,memo=?,group_name=? WHERE id=?"
-    [name phone email company memo group-name (str-to-num id)]))
+    "UPDATE contacts SET name=?,phone=?,email=?,company=?,memo=?,group_name=?,
+     job_title=?,tags=?,met_at=?,remind_days=?,linked_url=? WHERE id=?"
+    [name phone email company memo group-name job-title tags met-at (str-to-num remind-days) linked-url (str-to-num id)]))
 
 (defn delete [id]
   (do
@@ -67,14 +81,40 @@
     "SELECT * FROM activities WHERE contact_id=? ORDER BY log_date DESC, id DESC"
     [(str-to-num contact-id)]))
 
+(defn update-last-contact [contact-id]
+  (db-exec CONTACTS-DB
+    "UPDATE contacts SET last_contact_at=date('now','localtime') WHERE id=?"
+    [(str-to-num contact-id)]))
+
+(defn save-remind [contact-id remind-days]
+  (db-exec CONTACTS-DB
+    "UPDATE contacts SET remind_days=? WHERE id=?"
+    [(str-to-num remind-days) (str-to-num contact-id)]))
+
+(defn overdue []
+  (db-query CONTACTS-DB
+    "SELECT *,
+       CASE
+         WHEN last_contact_at='' THEN 9999
+         ELSE CAST(julianday('now','localtime') - julianday(last_contact_at) AS INTEGER)
+       END AS days_since
+     FROM contacts
+     WHERE remind_days > 0
+       AND (last_contact_at='' OR
+            CAST(julianday('now','localtime') - julianday(last_contact_at) AS INTEGER) >= remind_days)
+     ORDER BY days_since DESC"
+    []))
+
 (defn add-activity [contact-id log-date content]
-  (if (= (str-trim log-date) "")
-    (db-exec CONTACTS-DB
-      "INSERT INTO activities (contact_id,content) VALUES (?,?)"
-      [(str-to-num contact-id) content])
-    (db-exec CONTACTS-DB
-      "INSERT INTO activities (contact_id,log_date,content) VALUES (?,?,?)"
-      [(str-to-num contact-id) log-date content])))
+  (do
+    (if (= (str-trim log-date) "")
+      (db-exec CONTACTS-DB
+        "INSERT INTO activities (contact_id,content) VALUES (?,?)"
+        [(str-to-num contact-id) content])
+      (db-exec CONTACTS-DB
+        "INSERT INTO activities (contact_id,log_date,content) VALUES (?,?,?)"
+        [(str-to-num contact-id) log-date content]))
+    (update-last-contact contact-id)))
 
 (defn delete-activity [id]
   (db-exec CONTACTS-DB "DELETE FROM activities WHERE id=?" [(str-to-num id)]))

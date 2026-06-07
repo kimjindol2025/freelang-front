@@ -138,14 +138,19 @@
             (server-redirect (str "/contacts/" id)))
 
         true ; update
-          (let [name    (form-get req "name")
-                phone   (form-get req "phone")
-                email   (form-get req "email")
-                company (form-get req "company")
-                memo    (form-get req "memo")
-                group   (form-get req "group_name")]
+          (let [name        (form-get req "name")
+                phone       (form-get req "phone")
+                email       (form-get req "email")
+                company     (form-get req "company")
+                memo        (form-get req "memo")
+                group       (form-get req "group_name")
+                job-title   (or (form-get req "job_title") "")
+                tags        (or (form-get req "tags") "")
+                met-at      (or (form-get req "met_at") "")
+                remind-days (or (form-get req "remind_days") "0")
+                linked-url  (or (form-get req "linked_url") "")]
             (if (= (str-trim name) "")
               (server-redirect (str "/contacts/" id "?error=이름을 입력하세요"))
               (do
-                (contacts-update id name phone email company memo group)
+                (contacts-update id name phone email company memo group job-title tags met-at remind-days linked-url)
                 (server-redirect "/contacts"))))))))
