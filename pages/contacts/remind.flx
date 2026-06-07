@@ -1,0 +1,101 @@
+; pages/contacts/remind.flx — 연락주기 대시보드
+; GET  /contacts/remind   → 오버듀 연락처 목록
+; POST /contacts/remind   → action: quick-log (오늘 연락했음)
+
+(load "pages/contacts/_db.flx")
+(contacts-init)
+
+(defn render [req]
+  (let [overdues (contacts-overdue)]
+    (layout-html "⚠️ 리마인더"
+      (h "div" {:style "max-width:640px;margin:0 auto;padding:32px 24px"}
+        (str
+          ; 헤더
+          (h "div" {:style "display:flex;align-items:center;gap:12px;margin-bottom:24px"}
+            (str
+              (h "a" {:href "/contacts" :style "color:#6366f1;text-decoration:none;font-size:.9rem"} "← 연락처")
+              (h "span" {:style "color:#d1d5db"} "/")
+              (h "span" {:style "font-size:.9rem;font-weight:600;color:#374151"} "리마인더")))
+
+          (h "div" {:style "background:linear-gradient(135deg,#ea580c,#f97316);color:white;border-radius:16px;padding:24px;margin-bottom:24px;text-align:center"}
+            (str
+              (h "div" {:style "font-size:2rem;margin-bottom:6px"} "⚠️")
+              (h "h1" {:style "font-size:1.4rem;font-weight:800;margin:0 0 4px"}
+                (if (= (length overdues) 0)
+                  "모두 연락했어요!"
+                  (str (length overdues) "명과 연락이 끊겼습니다")))
+              (h "p" {:style "opacity:.85;margin:0;font-size:.85rem"}
+                (if (= (length overdues) 0)
+                  "연락 주기가 설정된 모든 분과 최근에 연락했습니다."
+                  "아래 목록에서 오늘 연락했음 버튼으로 빠르게 기록하세요."))))
+
+          ; 오버듀 목록
+          (if (= (length overdues) 0)
+            (h "div" {:style "text-align:center;padding:48px;color:#9ca3af;background:white;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.06)"}
+              (str
+                (h "div" {:style "font-size:3rem;margin-bottom:12px"} "🎉")
+                (h "p" {:style "margin:0;font-size:.95rem;font-weight:600"} "연락 주기를 모두 지켰습니다!")
+                (h "a" {:href "/contacts" :style "display:inline-block;margin-top:16px;padding:8px 20px;background:#6366f1;color:white;border-radius:8px;text-decoration:none;font-size:.85rem"}
+                  "연락처 목록으로")))
+            (h "div" {:style "display:flex;flex-direction:column;gap:10px"}
+              (map
+                (fn [cc]
+                  (let [days-since (get cc "days_since")
+                        remind-val (get cc "remind_days")
+                        name-val   (get cc "name")
+                        job-val    (or (get cc "job_title") "")
+                        company-val (or (get cc "company") "")
+                        last-c     (or (get cc "last_contact_at") "")
+                        over-days  (if (= days-since 9999) 0 (- days-since remind-val))
+                        urgency    (cond
+                                     (> over-days 30) "high"
+                                     (> over-days 7)  "mid"
+                                     true             "low")]
+                    (h "div" {:style "background:white;border-radius:14px;padding:16px 20px;box-shadow:0 2px 6px rgba(0,0,0,.06)"}
+                      (str
+                        (h "div" {:style "display:flex;align-items:center;gap:12px"}
+                          (str
+                            (h "div" {:style "width:46px;height:46px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:1.1rem;flex-shrink:0"}
+                              (str-slice name-val 0 1))
+                            (h "div" {:style "flex:1;min-width:0"}
+                              (str
+                                (h "div" {:style "font-weight:700;font-size:.95rem"} name-val)
+                                (h "div" {:style "font-size:.8rem;color:#6b7280;margin-top:1px"}
+                                  (str
+                                    (if (not (= job-val "")) (str job-val "  ·  ") "")
+                                    (if (not (= company-val "")) company-val "")))
+                                (h "div" {:style (str "font-size:.8rem;font-weight:600;margin-top:4px;color:"
+                                                      (cond (= urgency "high") "#dc2626"
+                                                            (= urgency "mid")  "#d97706"
+                                                            true               "#059669"))}
+                                  (str
+                                    (if (= days-since 9999)
+                                      "한 번도 연락하지 않음"
+                                      (str days-since "일 전 마지막 연락"))
+                                    "  (주기: " remind-val "일)"))))
+                            (h "div" {:style "display:flex;flex-direction:column;gap:6px;flex-shrink:0"}
+                              (str
+                                (h "form" {:method "POST"}
+                                  (str
+                                    (h! "input" {:type "hidden" :name "action" :value "quick-log"})
+                                    (h! "input" {:type "hidden" :name "contact_id" :value (str (get cc "id"))})
+                                    (h "button" {:type "submit"
+                                                 :style "padding:7px 14px;background:#0891b2;color:white;border:none;border-radius:8px;font-size:.8rem;font-weight:600;cursor:pointer;white-space:nowrap"}
+                                      "✓ 오늘 연락")))
+                                (h "a" {:href (str "/contacts/" (get cc "id"))
+                                        :style "padding:7px 14px;border:1px solid #e5e7eb;border-radius:8px;font-size:.8rem;color:#374151;text-decoration:none;text-align:center"}
+                                  "상세")))))))))
+                overdues)))))
+      req)))
+
+(defn render_post [req]
+  (let [action (form-get req "action")]
+    (cond
+      (= action "quick-log")
+        (let [cid (form-get req "contact_id")]
+          (when (not (= cid nil))
+            (contacts-add-activity cid "" "연락함"))
+          (server-redirect "/contacts/remind"))
+
+      true
+        (server-redirect "/contacts/remind"))))
