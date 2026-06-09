@@ -1,0 +1,514 @@
+; pages/research.flx — 연구 노트 (주제 → 증거 → 반례 → 결론)
+; 핵심: "주장 ≠ 증명" 을 구조적으로 강제한다.
+;   - 각 증거/반례는 자체 검증 상태(검증됨/추정/미검증)를 가진다.
+;   - 결론의 *주장 상태* 는 사용자가 설정하고,
+;     *실제 증명 상태* 는 증거/반례로부터 자동 계산한다.
+;   - 둘이 어긋나면 "⚠ 주장 ≠ 증명" 경고를 띄운다.
+; GET  /research → 노트 목록 (증거/반례/결론 인라인)
+; POST /research → action 필드로 add-note/del-note/add-item/del-item/set-item-status/set-status 분기
+
+; ── DB (독립 파일) ──
+(define RDB {:type "sqlite" :path "data/research.db"})
+
+(db-exec RDB "CREATE TABLE IF NOT EXISTS rnotes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  topic TEXT NOT NULL,
+  conclusion TEXT DEFAULT '',
+  conclusion_status TEXT DEFAULT 'unverified',
+  stage TEXT DEFAULT 'question',
+  analysis TEXT DEFAULT '',
+  created_at TEXT DEFAULT (datetime('now','localtime')),
+  updated_at TEXT DEFAULT (datetime('now','localtime'))
+)" [])
+
+; Phase 3 — 기존 DB 마이그레이션 (컬럼 이미 있으면 throw → catch)
+(try (db-exec RDB "ALTER TABLE rnotes ADD COLUMN stage TEXT DEFAULT 'question'" []) (catch $e nil))
+(try (db-exec RDB "ALTER TABLE rnotes ADD COLUMN analysis TEXT DEFAULT ''" []) (catch $e nil))
+
+(db-exec RDB "CREATE TABLE IF NOT EXISTS ritems (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  note_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  body TEXT NOT NULL,
+  status TEXT DEFAULT 'unverified',
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+)" [])
+
+; Phase 2 — 출처(Source): 증거/반례 1개 ↔ 출처 N개. "왜 그렇게 판단했나" 역추적.
+(db-exec RDB "CREATE TABLE IF NOT EXISTS rsources (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  created_at TEXT DEFAULT (datetime('now','localtime'))
+)" [])
+
+; ── DB 헬퍼 ──
+(defn r-notes []
+  (db-query RDB "SELECT * FROM rnotes ORDER BY id DESC" []))
+
+(defn r-items [note-id kind]
+  (db-query RDB "SELECT * FROM ritems WHERE note_id=? AND kind=? ORDER BY id" [note-id kind]))
+
+(defn r-sources [item-id]
+  (db-query RDB "SELECT * FROM rsources WHERE item_id=? ORDER BY id" [item-id]))
+
+(defn r-note [note-id]
+  (first (db-query RDB "SELECT * FROM rnotes WHERE id=?" [note-id])))
+
+(defn count-sources [note-id]
+  (get (first (db-query RDB "SELECT count(*) AS c FROM rsources WHERE item_id IN (SELECT id FROM ritems WHERE note_id=?)" [note-id])) "c"))
+
+(defn count-items [note-id]
+  (get (first (db-query RDB "SELECT count(*) AS c FROM ritems WHERE note_id=?" [note-id])) "c"))
+
+; ── 상태 표시 헬퍼 ──
+; 아이템 상태(검증됨/추정/미검증) → 한글 라벨
+(defn status-ko [s]
+  (if (= s "verified") "검증됨"
+    (if (= s "presumed") "추정" "미검증")))
+
+; <option> — 현재값이면 selected
+(defn opt [val label cur]
+  (if (= val cur)
+    (h "option" {:value val :selected "selected"} label)
+    (h "option" {:value val} label)))
+
+; 결론의 실제 증명 상태 계산 (주장과 독립)
+;   refuted  = 검증된 반례가 하나라도 있음 → 반증됨
+;   none     = 증거 0개 → 근거 없음
+;   verified = 증거가 있고 전부 검증됨
+;   presumed = 증거는 있으나 일부 미검증/추정
+(defn derive-status [evs counters]
+  (let [evc (length evs)
+        evv (length (filter (fn [e] (= (get e "status") "verified")) evs))
+        cv  (length (filter (fn [c] (= (get c "status") "verified")) counters))]
+    (if (> cv 0) "refuted"
+      (if (= evc 0) "none"
+        (if (= evc evv) "verified" "presumed")))))
+
+(defn derived-ko [d]
+  (if (= d "verified") "검증됨"
+    (if (= d "presumed") "추정"
+      (if (= d "refuted") "반증됨" "근거 없음"))))
+
+(defn derived-badge [d]
+  (let [c (if (= d "verified") "#16a34a;background:#dcfce7"
+            (if (= d "presumed") "#d97706;background:#fef3c7"
+              (if (= d "refuted") "#dc2626;background:#fee2e2"
+                "#6b7280;background:#f3f4f6")))]
+    (h "span" {:style (str "padding:3px 10px;border-radius:99px;font-size:.78rem;font-weight:700;color:" c)}
+      (derived-ko d))))
+
+; 주장=검증됨 인데 실제 증명≠검증됨 이면 갭
+(defn proof-gap [claimed derived]
+  (if (= claimed "verified")
+    (not (= derived "verified"))
+    false))
+
+; ── Phase 3: 연구 단계(stage) ──
+; question → research → evidence → analysis → decision → done
+; 전진 = Hard Gate(조건 충족 시만), 후퇴 = Free. done = 연구 종료 선언.
+(define STAGES ["question" "research" "evidence" "analysis" "decision" "done"])
+
+(defn stage-ko [st]
+  (if (= st "question") "질문"
+    (if (= st "research") "연구"
+      (if (= st "evidence") "증거"
+        (if (= st "analysis") "분석"
+          (if (= st "decision") "결정" "완료"))))))
+
+(defn stage-rank [st]
+  (if (= st "question") 0
+    (if (= st "research") 1
+      (if (= st "evidence") 2
+        (if (= st "analysis") 3
+          (if (= st "decision") 4 5))))))
+
+(defn stage-next [st]
+  (if (= st "question") "research"
+    (if (= st "research") "evidence"
+      (if (= st "evidence") "analysis"
+        (if (= st "analysis") "decision"
+          "done")))))
+
+(defn stage-prev [st]
+  (if (= st "done") "decision"
+    (if (= st "decision") "analysis"
+      (if (= st "analysis") "evidence"
+        (if (= st "evidence") "research"
+          "question")))))
+
+; 현재 stage에서 전진 가능한가 — 막혔으면 사유 문자열, 가능하면 ""
+(defn advance-block-reason [note-id stage analysis concl]
+  (if (= stage "question") ""
+    (if (= stage "research")
+      (if (> (count-sources note-id) 0) "" "출처가 0개입니다. 증거/반례에 출처를 1개 이상 추가하세요.")
+      (if (= stage "evidence")
+        (if (> (count-items note-id) 0) "" "증거 또는 반례가 없습니다. 최소 1개 추가하세요.")
+        (if (= stage "analysis")
+          (if (not (= (str analysis) "")) "" "분석이 비어 있습니다. 분석을 작성하세요.")
+          (if (= stage "decision")
+            (if (not (= (str concl) "")) "" "결론이 비어 있습니다. 결론을 작성하세요.")
+            "이미 완료 단계입니다."))))))
+
+; 단계 진행 표시줄
+(defn stage-chip [st current]
+  (let [r-st  (stage-rank st)
+        r-cur (stage-rank current)
+        sty   (if (= st current) "background:#6366f1;color:#fff"
+                (if (< r-st r-cur) "background:#dcfce7;color:#16a34a"
+                  "background:#f3f4f6;color:#9ca3af"))
+        mark  (if (< r-st r-cur) "✓ " "")]
+    (h "span" {:style (str "padding:3px 10px;border-radius:99px;font-size:.74rem;font-weight:600;" sty)}
+      (str mark (stage-ko st)))))
+
+(defn stage-stepper [current]
+  (h "div" {:style "display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px"}
+    (arr-join (map (fn [st] (stage-chip st current)) STAGES) "")))
+
+(defn stage-nav [note-id stage analysis concl]
+  (let [reason   (advance-block-reason note-id stage analysis concl)
+        can      (= reason "")
+        is-first (= stage "question")
+        is-done  (= stage "done")]
+    (h "div" {:style "display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px"}
+      (str
+        (if is-first
+          (h "span" {:style "color:#d1d5db;font-size:.85rem"} "◀ 이전")
+          (h "form" {:method "POST" :action "/research" :style "margin:0;max-width:none"}
+            (str
+              (h! "input" {:type "hidden" :name "action" :value "stage-retreat"})
+              (h! "input" {:type "hidden" :name "note_id" :value note-id})
+              (h "button" {:type "submit"
+                           :style "width:auto;background:#f3f4f6;color:#374151;padding:6px 12px;font-size:.85rem"} "◀ 이전"))))
+        (if is-done
+          (h "span" {:style "color:#16a34a;font-size:.88rem;font-weight:700"} "✓ 연구 종료 선언됨")
+          (if can
+            (h "form" {:method "POST" :action "/research" :style "margin:0;max-width:none"}
+              (str
+                (h! "input" {:type "hidden" :name "action" :value "stage-advance"})
+                (h! "input" {:type "hidden" :name "note_id" :value note-id})
+                (h "button" {:type "submit" :style "width:auto;padding:6px 12px;font-size:.85rem"}
+                  (str "다음 ▶ " (stage-ko (stage-next stage))))))
+            (h "div" {:style "display:flex;flex-direction:column;gap:1px"}
+              (str
+                (h "span" {:style "color:#9ca3af;font-size:.85rem;font-weight:600"} "다음 단계로 이동 불가")
+                (h "span" {:style "color:#b91c1c;font-size:.78rem"} (str "사유: " reason))))))))))
+
+(defn analysis-section [note-id analysis]
+  (h "div" {:style "margin-top:16px"}
+    (str
+      (h "div" {:style "font-size:.8rem;font-weight:700;color:#6b7280;margin-bottom:6px"} "분석")
+      (h "form" {:method "POST" :action "/research" :style "max-width:none;gap:6px"}
+        (str
+          (h! "input" {:type "hidden" :name "action" :value "set-analysis"})
+          (h! "input" {:type "hidden" :name "note_id" :value note-id})
+          (h "textarea" {:name "analysis"
+                         :placeholder "증거와 반례를 종합한 분석. 무엇이 증명됐고 무엇이 미결인가."
+                         :style "font-size:.9rem;min-height:70px"} (str analysis))
+          (h "button" {:type "submit" :style "width:auto;padding:6px 14px;font-size:.85rem"} "분석 저장"))))))
+
+; ── 아이템(증거/반례) 렌더 ──
+(defn item-status-form [item]
+  (let [id  (str (get item "id"))
+        cur (get item "status")]
+    (h "form" {:method "POST" :action "/research" :style "display:inline;margin:0"}
+      (str
+        (h! "input" {:type "hidden" :name "action" :value "set-item-status"})
+        (h! "input" {:type "hidden" :name "item_id" :value id})
+        (h "select" {:name "status" :onchange "this.form.submit()"
+                     :style "width:auto;font-size:.72rem;padding:2px 4px;display:inline"}
+          (str
+            (opt "unverified" "미검증" cur)
+            (opt "presumed" "추정" cur)
+            (opt "verified" "검증됨" cur)))))))
+
+; ── 출처(Source) 렌더 ──
+(defn source-icon [kind]
+  (if (= kind "url") "🔗"
+    (if (= kind "commit") "🔧"
+      (if (= kind "file") "📄" "📑"))))
+
+(defn source-chip [src]
+  (let [id    (str (get src "id"))
+        kind  (get src "kind")
+        ref   (get src "ref")
+        icon  (source-icon kind)
+        inner (if (= kind "url")
+                (h "a" {:href ref :target "_blank" :rel "noopener"
+                        :style "color:#4f46e5;text-decoration:none"} (str icon " " ref))
+                (h "span" {:style "font-family:ui-monospace,SFMono-Regular,monospace"} (str icon " " ref)))]
+    (h "span" {:style "display:inline-flex;align-items:center;gap:4px;background:#f3f4f6;border:1px solid #e5e7eb;border-radius:6px;padding:2px 6px;font-size:.72rem;margin:2px 4px 2px 0;max-width:100%"}
+      (str
+        inner
+        (h "form" {:method "POST" :action "/research" :style "display:inline;margin:0;max-width:none"}
+          (str
+            (h! "input" {:type "hidden" :name "action" :value "del-source"})
+            (h! "input" {:type "hidden" :name "source_id" :value id})
+            (h "button" {:type "submit" :title "출처 삭제"
+                         :style "width:auto;background:none;border:none;color:#9ca3af;cursor:pointer;padding:0 0 0 2px;font-size:.8rem;line-height:1"} "×")))))))
+
+(defn add-source-form [item-id]
+  (h "details" {:style "margin-top:4px"}
+    (str
+      (h "summary" {:style "font-size:.72rem;color:#6366f1;cursor:pointer;display:inline-block"} "+ 출처")
+      (h "form" {:method "POST" :action "/research" :style "display:flex;gap:4px;max-width:none;margin-top:4px"}
+        (str
+          (h! "input" {:type "hidden" :name "action" :value "add-source"})
+          (h! "input" {:type "hidden" :name "item_id" :value (str item-id)})
+          (h "select" {:name "kind" :style "width:auto;font-size:.72rem;padding:4px"}
+            (str
+              (h "option" {:value "url"} "URL")
+              (h "option" {:value "commit"} "커밋")
+              (h "option" {:value "file"} "파일")
+              (h "option" {:value "doc"} "문서")))
+          (h! "input" {:type "text" :name "ref" :required "true"
+                       :placeholder "출처 (URL / 커밋해시 / 파일경로 / 문서명)"
+                       :style "flex:1;font-size:.72rem;padding:4px 8px"})
+          (h "button" {:type "submit" :style "width:auto;padding:4px 10px;font-size:.72rem"} "추가"))))))
+
+(defn item-row [item]
+  (let [id      (str (get item "id"))
+        body    (get item "body")
+        sources (r-sources id)]
+    (h "div" {:style "padding:8px 10px;border:1px solid #eee;border-radius:8px;margin-bottom:6px;background:#fff"}
+      (str
+        (h "div" {:style "display:flex;align-items:flex-start;gap:8px"}
+          (str
+            (h "div" {:style "flex:1;font-size:.9rem;line-height:1.5;white-space:pre-wrap"} body)
+            (h "div" {:style "display:flex;align-items:center;gap:4px;flex-shrink:0"}
+              (str
+                (item-status-form item)
+                (h "form" {:method "POST" :action "/research" :style "display:inline;margin:0;max-width:none"}
+                  (str
+                    (h! "input" {:type "hidden" :name "action" :value "del-item"})
+                    (h! "input" {:type "hidden" :name "item_id" :value id})
+                    (h "button" {:type "submit" :title "삭제"
+                                 :style "width:auto;background:none;border:none;color:#ef4444;cursor:pointer;padding:2px"} "🗑")))))))
+        ; 출처 칩 + 추가 폼
+        (h "div" {:style "margin-top:6px;display:flex;flex-wrap:wrap;align-items:center"}
+          (str
+            (if (= (length sources) 0) "" (arr-join (map source-chip sources) ""))
+            (add-source-form id)))))))
+
+(defn add-item-form [note-id kind placeholder]
+  (h "form" {:method "POST" :action "/research" :style "display:flex;gap:6px;max-width:none;margin-top:6px"}
+    (str
+      (h! "input" {:type "hidden" :name "action" :value "add-item"})
+      (h! "input" {:type "hidden" :name "note_id" :value (str note-id)})
+      (h! "input" {:type "hidden" :name "kind" :value kind})
+      (h! "input" {:type "text" :name "body" :placeholder placeholder :required "true"
+                   :style "flex:1;font-size:.85rem;padding:6px 10px"})
+      (h "select" {:name "status" :style "width:auto;font-size:.8rem;padding:6px"}
+        (str
+          (h "option" {:value "unverified"} "미검증")
+          (h "option" {:value "presumed"} "추정")
+          (h "option" {:value "verified"} "검증됨")))
+      (h "button" {:type "submit" :style "width:auto;padding:6px 14px;font-size:.85rem"} "+"))))
+
+(defn item-section [note-id kind title empty-text]
+  (let [items (r-items note-id kind)]
+    (h "div" {:style "margin-top:14px"}
+      (str
+        (h "div" {:style "font-size:.8rem;font-weight:700;color:#6b7280;margin-bottom:6px"}
+          (str title " (" (str (length items)) ")"))
+        (if (= (length items) 0)
+          (h "div" {:style "font-size:.82rem;color:#9ca3af;padding:4px 0"} empty-text)
+          (arr-join (map item-row items) ""))
+        (add-item-form note-id kind (str title " 추가..."))))))
+
+; ── 노트 카드 ──
+(defn r-note-card [note]
+  (let [id       (str (get note "id"))
+        topic    (get note "topic")
+        concl    (get note "conclusion")
+        claimed  (get note "conclusion_status")
+        stage    (get note "stage")
+        analysis (get note "analysis")
+        evs      (r-items id "evidence")
+        counters (r-items id "counter")
+        derived  (derive-status evs counters)
+        gap      (proof-gap claimed derived)]
+    (h "div" {:class "card" :style "max-width:none"}
+      (str
+        ; 헤더: 주제 + 삭제
+        (h "div" {:style "display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:4px"}
+          (str
+            (h "h3" {:style "margin:0;font-size:1.15rem"} (str "주제 · " topic))
+            (h "form" {:method "POST" :action "/research" :style "margin:0"}
+              (str
+                (h! "input" {:type "hidden" :name "action" :value "del-note"})
+                (h! "input" {:type "hidden" :name "note_id" :value id})
+                (h "button" {:type "submit" :title "노트 삭제"
+                             :style "width:auto;background:none;border:1px solid #e5e7eb;color:#9ca3af;padding:4px 10px;font-size:.8rem;font-weight:500"} "삭제")))))
+        ; 연구 단계 진행 + 이동 (전진 Hard / 후퇴 Free)
+        (h "div" {:style "padding:10px 0;border-bottom:1px solid #f3f4f6;margin-bottom:6px"}
+          (str
+            (stage-stepper stage)
+            (stage-nav id stage analysis concl)))
+        ; 주장 ≠ 증명 경고
+        (if gap
+          (h "div" {:style "background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;padding:10px 14px;border-radius:8px;margin:10px 0;font-size:.85rem;font-weight:600"}
+            (str "⚠ 주장 ≠ 증명 — 결론을 '검증됨'으로 주장했으나 실제 증명 상태는 '" (derived-ko derived) "'입니다."))
+          "")
+        ; 증거 / 반례
+        (item-section id "evidence" "증거" "아직 증거 없음")
+        (item-section id "counter" "반례" "반례 없음")
+        ; 분석
+        (analysis-section id analysis)
+        ; 결론
+        (h "div" {:style "margin-top:16px;padding-top:14px;border-top:2px solid #f3f4f6"}
+          (str
+            (h "div" {:style "font-size:.8rem;font-weight:700;color:#6b7280;margin-bottom:6px"} "결론")
+            (h "form" {:method "POST" :action "/research" :style "max-width:none;gap:6px;margin-bottom:10px"}
+              (str
+                (h! "input" {:type "hidden" :name "action" :value "set-conclusion"})
+                (h! "input" {:type "hidden" :name "note_id" :value id})
+                (h "textarea" {:name "conclusion" :placeholder "최종 결론. 분석에 근거한 판단."
+                               :style "font-size:.95rem;min-height:60px"} (str concl))
+                (h "button" {:type "submit" :style "width:auto;padding:6px 14px;font-size:.85rem"} "결론 저장")))
+            (h "div" {:style "display:flex;align-items:center;gap:16px;flex-wrap:wrap"}
+              (str
+                ; 주장 상태(편집 가능)
+                (h "form" {:method "POST" :action "/research" :style "display:flex;align-items:center;gap:6px;margin:0;max-width:none"}
+                  (str
+                    (h! "input" {:type "hidden" :name "action" :value "set-status"})
+                    (h! "input" {:type "hidden" :name "note_id" :value id})
+                    (h "span" {:style "font-size:.78rem;color:#9ca3af"} "주장 상태:")
+                    (h "select" {:name "conclusion_status" :onchange "this.form.submit()"
+                                 :style "width:auto;font-size:.8rem;padding:3px 6px"}
+                      (str
+                        (opt "unverified" "미검증" claimed)
+                        (opt "presumed" "추정" claimed)
+                        (opt "verified" "검증됨" claimed)))))
+                ; 실제 증명 상태(읽기 전용)
+                (h "div" {:style "display:flex;align-items:center;gap:6px"}
+                  (str
+                    (h "span" {:style "font-size:.78rem;color:#9ca3af"} "실제 증명:")
+                    (derived-badge derived)))))))))))
+
+; ── GET 핸들러 ──
+(defn render [req]
+  (let [notes (r-notes)
+        count (length notes)]
+    (layout-html "연구 노트"
+      (str
+        (h "div" {:style "margin-bottom:20px"}
+          (str
+            (h "h2" {:style "margin:0 0 4px"} "🔬 연구 노트")
+            (h "p" {:style "margin:0;color:#6b7280;font-size:.9rem"}
+              "주제 → 증거 → 반례 → 결론. 주장과 증명을 분리해 추적합니다.")))
+        ; 새 노트 폼
+        (h "div" {:class "card" :style "max-width:none"}
+          (h "form" {:method "POST" :action "/research" :style "max-width:none;gap:10px"}
+            (str
+              (h! "input" {:type "hidden" :name "action" :value "add-note"})
+              (h "div" {:class "field"}
+                (str (h "label" {} "주제 / 검증할 주장")
+                     (h! "input" {:type "text" :name "topic" :required "true"
+                                  :placeholder "예: FL 람다는 arity를 검증할 수 있다"})))
+              (h "div" {:class "field"}
+                (str (h "label" {} "결론 (가설)")
+                     (h "textarea" {:name "conclusion"
+                                    :placeholder "현재까지의 결론. 증거 없이도 적어두고, 증명은 따로 추적합니다."} "")))
+              (h "div" {:class "field" :style "max-width:200px"}
+                (str (h "label" {} "주장 상태")
+                     (h "select" {:name "conclusion_status"}
+                       (str
+                         (h "option" {:value "unverified"} "미검증")
+                         (h "option" {:value "presumed"} "추정")
+                         (h "option" {:value "verified"} "검증됨")))))
+              (h "button" {:type "submit"} "노트 추가"))))
+        ; 목록
+        (if (= count 0)
+          (h "div" {:style "text-align:center;padding:48px;color:#9ca3af"} "아직 연구 노트가 없습니다.")
+          (arr-join (map r-note-card notes) "")))
+      req)))
+
+; ── POST 핸들러 ──
+(defn render_post [req]
+  (let [p      (get req "body")
+        action (get p "action")]
+    (if (= action "add-note")
+      (do
+        (let [topic (str (get p "topic"))]
+          (if (= topic "")
+            nil
+            (db-exec RDB "INSERT INTO rnotes (topic, conclusion, conclusion_status) VALUES (?, ?, ?)"
+              [topic (str (get p "conclusion")) (str (get p "conclusion_status"))])))
+        (server-redirect "/research"))
+    (if (= action "del-note")
+      (do
+        (let [nid (str (get p "note_id"))]
+          (db-exec RDB "DELETE FROM rsources WHERE item_id IN (SELECT id FROM ritems WHERE note_id=?)" [nid])
+          (db-exec RDB "DELETE FROM ritems WHERE note_id=?" [nid])
+          (db-exec RDB "DELETE FROM rnotes WHERE id=?" [nid]))
+        (server-redirect "/research"))
+    (if (= action "add-item")
+      (do
+        (let [body (str (get p "body"))]
+          (if (= body "")
+            nil
+            (db-exec RDB "INSERT INTO ritems (note_id, kind, body, status) VALUES (?, ?, ?, ?)"
+              [(str (get p "note_id")) (str (get p "kind")) body (str (get p "status"))])))
+        (server-redirect "/research"))
+    (if (= action "del-item")
+      (do
+        (let [iid (str (get p "item_id"))]
+          (db-exec RDB "DELETE FROM rsources WHERE item_id=?" [iid])
+          (db-exec RDB "DELETE FROM ritems WHERE id=?" [iid]))
+        (server-redirect "/research"))
+    (if (= action "set-item-status")
+      (do
+        (db-exec RDB "UPDATE ritems SET status=? WHERE id=?"
+          [(str (get p "status")) (str (get p "item_id"))])
+        (server-redirect "/research"))
+    (if (= action "set-status")
+      (do
+        (db-exec RDB "UPDATE rnotes SET conclusion_status=?, updated_at=datetime('now','localtime') WHERE id=?"
+          [(str (get p "conclusion_status")) (str (get p "note_id"))])
+        (server-redirect "/research"))
+    (if (= action "add-source")
+      (do
+        (let [ref (str (get p "ref"))]
+          (if (= ref "")
+            nil
+            (db-exec RDB "INSERT INTO rsources (item_id, kind, ref) VALUES (?, ?, ?)"
+              [(str (get p "item_id")) (str (get p "kind")) ref])))
+        (server-redirect "/research"))
+    (if (= action "del-source")
+      (do
+        (db-exec RDB "DELETE FROM rsources WHERE id=?" [(str (get p "source_id"))])
+        (server-redirect "/research"))
+    (if (= action "stage-advance")
+      (do
+        (let [note (r-note (str (get p "note_id")))]
+          (if (nil? note)
+            nil
+            (let [nid    (str (get note "id"))
+                  stg    (get note "stage")
+                  reason (advance-block-reason nid stg (get note "analysis") (get note "conclusion"))]
+              (if (= reason "")
+                (db-exec RDB "UPDATE rnotes SET stage=?, updated_at=datetime('now','localtime') WHERE id=?" [(stage-next stg) nid])
+                nil))))
+        (server-redirect "/research"))
+    (if (= action "stage-retreat")
+      (do
+        (let [note (r-note (str (get p "note_id")))]
+          (if (nil? note)
+            nil
+            (db-exec RDB "UPDATE rnotes SET stage=?, updated_at=datetime('now','localtime') WHERE id=?"
+              [(stage-prev (get note "stage")) (str (get note "id"))])))
+        (server-redirect "/research"))
+    (if (= action "set-analysis")
+      (do
+        (db-exec RDB "UPDATE rnotes SET analysis=?, updated_at=datetime('now','localtime') WHERE id=?"
+          [(str (get p "analysis")) (str (get p "note_id"))])
+        (server-redirect "/research"))
+    (if (= action "set-conclusion")
+      (do
+        (db-exec RDB "UPDATE rnotes SET conclusion=?, updated_at=datetime('now','localtime') WHERE id=?"
+          [(str (get p "conclusion")) (str (get p "note_id"))])
+        (server-redirect "/research"))
+      (server-redirect "/research")))))))))))))))
