@@ -1,11 +1,10 @@
 ; error-api.fl — 클라이언트 에러 수집 및 저장
 ; v0.2.1 에러 리포팅 시스템
 
-(load "freelang-stdlib-extensions.fl")
 
 ; ── 에러 저장소 (atom-based, 최근 100개) ──
-(def error-log (atom []))
-(def MAX-ERRORS 100)
+(define error-log (atom []))
+(define MAX-ERRORS 100)
 
 ; ── 에러 추가 함수 ──
 (defn add-error [$entry]

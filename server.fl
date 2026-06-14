@@ -3,8 +3,8 @@
 
 (define PORT 40850)
 
-; 빌드 결과물 로드 (라우트 등록 + (route routes) 포함)
-(load "_routes.fl")
+; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
+(load "_app.fl")
 
 ; 서버 시작
 (println (str "FL-Front v0.1 — http://localhost:" PORT))

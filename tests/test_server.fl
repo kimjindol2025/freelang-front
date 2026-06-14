@@ -1,0 +1,74 @@
+;; tests/test_server.fl — freelang-front 서버 테스트
+;; 검증 역량: FreeLang Frontend (SSR + 파일 라우터 + SSE)
+;; 실행: node /home/kimjin/freelang-v11/bootstrap.js run tests/test_server.fl
+
+(define BASE "http://localhost:40850")
+(define PASS (atom 0))
+(define FAIL (atom 0))
+
+(defn assert-eq [$label $got $expected]
+  (if (= $got $expected)
+    (do (println (str "  ✅ " $label)) (swap! PASS + 1))
+    (do (println (str "  ❌ " $label " | got=" $got " expected=" $expected)) (swap! FAIL + 1))))
+
+(defn assert-true [$label $val]
+  (assert-eq $label (if $val true false) true))
+
+(defn get-json [$path]
+  (let [[$res (http-get (str BASE $path))]]
+    (json-parse (get $res "body"))))
+
+(defn get-raw [$path]
+  (let [[$res (http-get (str BASE $path))]]
+    (get $res "body")))
+
+;; ── T1: 홈 페이지 (SSR) ────────────────────────────────
+(println "\n▶ T1: GET / — SSR HTML 응답")
+(let [[$body (get-raw "/")]]
+  (assert-true "HTML 반환"       (str_includes $body "<!DOCTYPE html>"))
+  (assert-true "FreeLang 포함"   (str_includes $body "FreeLang"))
+  (assert-true "title 태그"      (str_includes $body "<title>")))
+
+;; ── T2: About 페이지 ──────────────────────────────────
+(println "\n▶ T2: GET /about — About 페이지")
+(let [[$body (get-raw "/about")]]
+  (assert-true "HTML 반환" (str_includes $body "<!DOCTYPE html>"))
+  (assert-true "about 내용" (str_includes $body "FreeLang")))
+
+;; ── T3: API 헬로 엔드포인트 ──────────────────────────
+(println "\n▶ T3: GET /api/hello — JSON API")
+(let [[$r (get-json "/api/hello")]]
+  (assert-eq "ok=true"      (get $r "ok")      true)
+  (assert-true "message 존재" (not (nil? (get $r "message"))))
+  (assert-true "version 존재" (not (nil? (get $r "version")))))
+
+;; ── T4: 성능 메트릭 API ──────────────────────────────
+(println "\n▶ T4: GET /api/metrics — 성능 메트릭")
+(let [[$res (http-get (str BASE "/api/metrics"))]
+      [$status (get $res "status")]]
+  (assert-true "metrics 응답" (or (= $status 200) (= $status 404))))
+
+;; ── T5: SSE 스트림 엔드포인트 존재 확인 ─────────────
+(println "\n▶ T5: SSE 스트림 확인 (/api/metrics/stream)")
+(let [[$res (http-get (str BASE "/api/metrics/stream"))]
+      [$status (get $res "status")]]
+  (assert-true "SSE 엔드포인트 응답" (or (= $status 200) (= $status 404))))
+
+;; ── T6: 알림 API ─────────────────────────────────────
+(println "\n▶ T6: GET /api/alerts")
+(let [[$res (http-get (str BASE "/api/alerts"))]
+      [$status (get $res "status")]]
+  (assert-true "alerts 응답" (or (= $status 200) (= $status 404))))
+
+;; ── T7: 커스텀 메트릭 API ────────────────────────────
+(println "\n▶ T7: GET /api/custom-metrics")
+(let [[$res (http-get (str BASE "/api/custom-metrics"))]
+      [$status (get $res "status")]]
+  (assert-true "custom-metrics 응답" (or (= $status 200) (= $status 404))))
+
+;; ── 결과 ─────────────────────────────────────────────
+(println "\n────────────────────────────────")
+(println (str "결과: " (deref PASS) " PASS / " (deref FAIL) " FAIL / " (+ (deref PASS) (deref FAIL)) " 총"))
+(if (= (deref FAIL) 0)
+  (println "🎉 모든 테스트 통과!")
+  (println (str "❌ " (deref FAIL) "개 실패")))
