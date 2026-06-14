@@ -1,0 +1,31 @@
+; pages/examples/06-counter.flx
+; 예제 06 — 카운터: Island + atom 으로 클라이언트 상태 관리
+; 배우는 것: (island ...), atom, @, swap!, :on-click
+
+(island Counter []
+  (let [n (atom 0)]
+    (h "div" {:style "text-align:center"}
+      (str
+        (h "div" {:style "font-size:3.5rem;font-weight:800;color:#6366f1;margin:8px 0"} (str @n))
+        (h "div" {:style "display:flex;gap:8px;justify-content:center"}
+          (str
+            (h "button" {:style "font-size:1.3rem;padding:8px 20px;border:2px solid #6366f1;border-radius:8px;background:white;color:#6366f1;cursor:pointer"
+                         :on-click (fn [] (swap! n (fn [v] (- v 1))))} "−")
+            (h "button" {:style "font-size:1.3rem;padding:8px 20px;border:2px solid #6366f1;border-radius:8px;background:white;color:#6366f1;cursor:pointer"
+                         :on-click (fn [] (reset! n 0))} "0")
+            (h "button" {:style "font-size:1.3rem;padding:8px 20px;border:2px solid #6366f1;border-radius:8px;background:white;color:#6366f1;cursor:pointer"
+                         :on-click (fn [] (swap! n (fn [v] (+ v 1))))} "+")))))))
+
+(defn render [req]
+  (layout-html "06 · 카운터"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "카운터")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "Island 안의 atom 으로 상태를 들고 버튼으로 갱신합니다.")
+          (h "div" {:style "background:white;border-radius:12px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+            "ISLAND_PLACEHOLDER")
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

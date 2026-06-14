@@ -1,0 +1,37 @@
+; pages/examples/22-temp-convert.flx
+; 예제 22 — 온도 변환기: 섭씨 입력 → 화씨/켈빈 동시 계산
+; 배우는 것: atom + 산술 표현식, 파생 값 실시간 계산
+
+(island TempConvert []
+  (let [c (atom 25)
+        f (/ (round (* (+ (* @c (/ 9 5)) 32) 10)) 10)
+        k (/ (round (* (+ @c 273.15) 10)) 10)]
+    (h "div" {}
+      (str
+        (h "label" {:style "display:block;font-size:.85rem;color:#6b7280;margin-bottom:6px"} "섭씨 (°C)")
+        (h "input" {:type "number" :value (str @c)
+                    :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1.1rem;margin-bottom:18px"
+                    :on-input (fn [e] (reset! c (.-valueAsNumber (.-target e))))})
+        (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px"}
+          (str
+            (h "div" {:style "background:#fef3c7;border-radius:10px;padding:16px;text-align:center"}
+              (str
+                (h "div" {:style "font-size:1.6rem;font-weight:800;color:#b45309"} (str f))
+                (h "div" {:style "font-size:.8rem;color:#92400e"} "화씨 °F")))
+            (h "div" {:style "background:#dbeafe;border-radius:10px;padding:16px;text-align:center"}
+              (str
+                (h "div" {:style "font-size:1.6rem;font-weight:800;color:#1d4ed8"} (str k))
+                (h "div" {:style "font-size:.8rem;color:#1e40af"} "켈빈 K")))))))))
+
+(defn render [req]
+  (layout-html "22 · 온도 변환기"
+    (str
+      (h "div" {:style "max-width:440px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "온도 변환기")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "섭씨 atom 하나에서 화씨·켈빈을 산술로 파생해 실시간 표시합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

@@ -1,0 +1,119 @@
+; pages/files/index.flx — 파일 드라이브
+
+(load "pages/files/_db.flx")
+(files-init)
+
+(defn mime-icon [mime]
+  (cond
+    (str-starts-with mime "image/")       "🖼️"
+    (str-starts-with mime "video/")       "🎬"
+    (str-starts-with mime "audio/")       "🎵"
+    (= mime "application/pdf")            "📄"
+    (str-starts-with mime "text/")        "📝"
+    (str-starts-with mime "application/") "📦"
+    true "📎"))
+
+(defn fmt-size [bytes]
+  (cond
+    (> bytes 1048576) (str (floor (/ bytes 104857.6)) "." "0 MB")
+    (> bytes 1024) (str (floor (/ bytes 1024)) " KB")
+    true (str bytes " B")))
+
+(island FilesApp []
+  (let [files    (atom nil)
+        dragging (atom false)
+        err      (atom "")
+
+        reload (fn [res]
+                 (reset! files (get res "files"))
+                 (reset! err ""))
+
+        upload (fn [file-input]
+                 (let [f (.-files file-input)]
+                   (when (> (.-length f) 0)
+                     (let [form-data (js-new "FormData")]
+                       (.append form-data "file" (aget f 0))
+                       (fetch! {:url "/files/api" :method "POST" :body form-data}
+                         (fn [res]
+                           (if (get res "ok")
+                             (reload res)
+                             (reset! err (get res "error")))))))))
+
+        del (fn [id name]
+              (when (js-confirm (str "'" name "' 파일을 삭제하시겠습니까?"))
+                (fetch-post! "/files/api" {"action" "delete" "id" id} reload)))]
+
+    (fetch! "/files/api" (fn [res] (reset! files (get res "files"))))
+
+    (if (= @files nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:800px;margin:0 auto;padding:24px"}
+
+        ; 업로드 영역
+        (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+          (str
+            (h "label" {:style "display:block;border:2px dashed #d1d5db;border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:border-color .2s"
+                        :onmouseover "this.style.borderColor='#6366f1'"
+                        :onmouseout "this.style.borderColor='#d1d5db'"}
+              (str
+                (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "📁")
+                (h "div" {:style "font-weight:600;color:#374151;margin-bottom:4px"} "파일을 선택하거나 드래그하세요")
+                (h "div" {:style "font-size:.8rem;color:#9ca3af"} "최대 10MB")
+                (h! "input" {:type "file" :style "display:none"
+                             :on-change (fn [e] (upload (.-target e)))})))
+            (when (not (= @err ""))
+              (h "p" {:style "color:#ef4444;margin:8px 0 0;font-size:.85rem;text-align:center"} @err))))
+
+        ; 파일 목록
+        (if (= (length @files) 0)
+          (h "div" {:style "background:white;border-radius:16px;padding:60px;text-align:center;color:#9ca3af"}
+            (str (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "📂")
+                 (h "p" {:style "margin:0"} "파일이 없습니다")))
+          (h "div" {:style "background:white;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+            (str
+              (h "div" {:style "padding:12px 20px;border-bottom:1px solid #f3f4f6;display:flex;font-size:.78rem;color:#9ca3af;font-weight:600"}
+                (str
+                  (h "span" {:style "flex:1"} "파일명")
+                  (h "span" {:style "width:80px;text-align:right"} "크기")
+                  (h "span" {:style "width:120px;text-align:center"} "날짜")
+                  (h "span" {:style "width:60px"} "")))
+              (map
+                (fn [f]
+                  (h "div" {:style "padding:12px 20px;border-bottom:1px solid #fafafa;display:flex;align-items:center;gap:12px;transition:background .1s"
+                             :onmouseover "this.style.background='#fafafa'"
+                             :onmouseout "this.style.background=''"}
+                    (str
+                      (h "span" {:style "font-size:1.2rem"} (mime-icon (get f "mime")))
+                      (h "div" {:style "flex:1;min-width:0"}
+                        (str
+                          (h "a"
+                            {:href (str "/" (get f "path"))
+                             :target "_blank"
+                             :style "font-weight:600;font-size:.9rem;color:#374151;text-decoration:none;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}
+                            (get f "name"))
+                          (h "span" {:style "font-size:.72rem;color:#9ca3af"} (get f "mime"))))
+                      (h "span" {:style "width:80px;text-align:right;font-size:.8rem;color:#6b7280"}
+                        (fmt-size (get f "size")))
+                      (h "span" {:style "width:120px;text-align:center;font-size:.75rem;color:#9ca3af"}
+                        (str-slice (get f "created_at") 0 10))
+                      (h "button"
+                        {:style "width:60px;padding:4px 8px;background:none;border:1px solid #fecaca;border-radius:6px;color:#ef4444;cursor:pointer;font-size:.8rem"
+                         :on-click (fn [] (del (str (get f "id")) (get f "name")))}
+                        "삭제"))))
+                @files))))))))
+
+(defn render [req]
+  (let [all-files (files-all)
+        count     (length all-files)
+        total-size (reduce (fn [acc f] (+ acc (get f "size"))) 0 all-files)]
+    (layout-html "📁 파일 드라이브"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#0891b2,#0284c7);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "📁 파일 드라이브")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str count " 개 파일 · " (floor (/ total-size 1048576)) " MB"))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

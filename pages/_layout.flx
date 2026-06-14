@@ -95,6 +95,113 @@ if(btn){btn.addEventListener('click',function(){
 (define HMR-SCRIPT
   "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>")
 
+; FL DevTools — dev 전용 floating 디버그 패널
+; store 현재값 · Island 마운트 목록 · 최근 에러 표시
+; 단축키: Ctrl+Shift+D
+(define DEBUG-PANEL
+  "<script>(function(){
+var isDev=location.hostname==='localhost'||location.hostname==='127.0.0.1';
+if(!isDev)return;
+var islands={};
+var errors=[];
+var open=false;
+
+function waitFl(cb){if(window._fl){cb();}else{setTimeout(function(){waitFl(cb);},80);}}
+
+waitFl(function(){
+  var omR=_fl.mount_reactive.bind(_fl);
+  var omM=_fl.mount.bind(_fl);
+  var odD=_fl.dispatch.bind(_fl);
+  _fl.mount=function(id,fn){
+    islands[id]={id:id,watch:null};
+    if(open)render();
+    return omM(id,fn);
+  };
+  _fl.mount_reactive=function(id,fn,keys){
+    islands[id]={id:id,watch:keys};
+    if(open)render();
+    return omR(id,fn,keys);
+  };
+  _fl.dispatch=function(k,v){
+    var r=odD(k,v);
+    if(open)render();
+    return r;
+  };
+});
+
+function fetchErrors(){
+  fetch('/api/errors?limit=5')
+    .then(function(r){return r.json();})
+    .then(function(d){errors=(d.data||d||[]).slice(0,5);render();})
+    .catch(function(){});
+}
+
+function esc(s){return String(s).replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function render(){
+  if(!open||!panel)return;
+  var store=window._fl?window._fl._store.v:{};
+  var sk=Object.keys(store);
+  var ik=Object.keys(islands);
+  var sec=function(title,n,body){
+    return '<div style=\"padding:10px 16px;border-top:1px solid #2d3748\">'+
+      '<div style=\"color:#94a3b8;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px\">'+title+' ('+n+')</div>'+
+      body+'</div>';
+  };
+  var storeHtml=sk.length===0?'<div style=\"color:#4a5568\">비어있음</div>':
+    sk.map(function(k){
+      return '<div style=\"display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid #2d3748\">'+
+        '<span style=\"color:#a78bfa\">'+esc(k)+'</span>'+
+        '<span style=\"color:#34d399\">'+esc(JSON.stringify(store[k]).slice(0,28))+'</span></div>';
+    }).join('');
+  var islandHtml=ik.length===0?'<div style=\"color:#4a5568\">없음</div>':
+    ik.map(function(id){
+      var w=islands[id].watch;
+      return '<div style=\"padding:2px 0;border-bottom:1px solid #2d3748\">'+
+        '<span style=\"color:#60a5fa\">'+esc(id)+'</span>'+
+        (w?'<span style=\"color:#94a3b8\"> ↺['+w.join(',')+']</span>':'')+
+        '</div>';
+    }).join('');
+  var errHtml=errors.length===0?'<div style=\"color:#4a5568\">없음 ✓</div>':
+    errors.map(function(e){
+      return '<div style=\"padding:2px 0;border-bottom:1px solid #2d3748;color:#f87171\">'+esc((e.message||'').slice(0,52))+'</div>';
+    }).join('');
+  panel.innerHTML=
+    '<div style=\"padding:10px 16px;display:flex;justify-content:space-between;align-items:center\">'+
+      '<span style=\"font-weight:700;color:#818cf8;font-size:.82rem\">🔧 FL DevTools</span>'+
+      '<button id=\"fl-dp-x\" style=\"background:none;border:none;color:#94a3b8;cursor:pointer;font-size:1.1rem;line-height:1\">×</button>'+
+    '</div>'+
+    sec('Store',sk.length,storeHtml)+
+    sec('Islands',ik.length,islandHtml)+
+    sec('Errors',errors.length,errHtml);
+  document.getElementById('fl-dp-x').onclick=toggle;
+}
+
+var btn=document.createElement('button');
+btn.title='FL DevTools (Ctrl+Shift+D)';
+btn.textContent='🔧';
+btn.style.cssText='position:fixed;bottom:16px;right:16px;z-index:9999;width:36px;height:36px;border-radius:50%;background:#6366f1;color:white;border:none;font-size:1rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.35);transition:background .15s;';
+
+var panel=document.createElement('div');
+panel.style.cssText='display:none;position:fixed;bottom:60px;right:16px;z-index:9998;width:300px;max-height:440px;overflow-y:auto;background:#1e2433;color:#e2e8f0;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);font-family:monospace;font-size:.76rem;';
+
+document.body.appendChild(btn);
+document.body.appendChild(panel);
+
+function toggle(){
+  open=!open;
+  panel.style.display=open?'block':'none';
+  btn.style.background=open?'#4f46e5':'#6366f1';
+  if(open){fetchErrors();render();}
+}
+
+btn.onclick=toggle;
+document.addEventListener('keydown',function(e){
+  if(e.ctrlKey&&e.shiftKey&&e.key==='D'){e.preventDefault();toggle();}
+});
+setInterval(function(){if(open)fetchErrors();},3000);
+})()</script>")
+
 ; 브라우저 에러 수집 (개발: 40851/~errors, 프로덕션: /api/errors)
 ; v0.2.1: 프로덕션 에러 리포팅 추가
 (define ERROR-COLLECTOR
@@ -118,35 +225,81 @@ var _ce=console.error.bind(console);
 console.error=function(){_ce.apply(console,arguments);send('console',Array.from(arguments).join(' '),'',0,0,'');};
 })()</script>")
 
-; 성능 모니터링 스크립트 — 5가지 지표 자동 추적
-; v0.2.3: 페이지 로드, API 응답, 라우트 전환, Long Task, 메모리
+; 성능 모니터링 스크립트 — 서킷 브레이커 탑재 (dec-009)
+; v0.3.0: 서킷 브레이커(timeout 500ms, 3회 실패→OPEN 30초)
 (define PERFORMANCE-MONITOR
   "<script>(function(){
 var perfStart=performance.now();
 var apiCallStart={};
 var routeTransitionStart=null;
 
+// ── 서킷 브레이커 (dec-009) ──────────────────────────────────
+var CB={
+  state:'closed',      // closed | open | half-open
+  failures:0,
+  FAIL_THRESHOLD:3,
+  TIMEOUT_MS:500,
+  RESET_MS:30000,
+  openedAt:null
+};
+
+function cbSend(payload){
+  if(CB.state==='open'){
+    var elapsed=Date.now()-CB.openedAt;
+    if(elapsed>CB.RESET_MS){
+      CB.state='half-open';
+      console.log('[circuit] half-open — 재시도');
+    } else {
+      return; // 차단
+    }
+  }
+  var ctrl=new AbortController();
+  var timer=setTimeout(function(){ctrl.abort();},CB.TIMEOUT_MS);
+  fetch('/api/metrics',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(payload),
+    signal:ctrl.signal
+  }).then(function(){
+    clearTimeout(timer);
+    if(CB.state==='half-open'){
+      CB.state='closed'; CB.failures=0;
+      console.log('[circuit] closed — 복구');
+    }
+  }).catch(function(e){
+    clearTimeout(timer);
+    CB.failures++;
+    if(CB.failures>=CB.FAIL_THRESHOLD&&CB.state!=='open'){
+      CB.state='open'; CB.openedAt=Date.now();
+      console.warn('[circuit] open — 모니터링 일시 중단 (30s)');
+    } else if(CB.state==='half-open'){
+      CB.state='open'; CB.openedAt=Date.now();
+    }
+  });
+}
+// ─────────────────────────────────────────────────────────────
+
 // 1️⃣  페이지 로드 시간
 window.addEventListener('load',function(){
   var loadTime=performance.now()-perfStart;
-  fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'page-load',value:Math.round(loadTime),unit:'ms'})}).catch(function(){});
+  cbSend({metric:'page-load',value:Math.round(loadTime),unit:'ms'});
 });
 
-// 2️⃣  API 응답 시간 추적
+// 2️⃣  API 응답 시간 추적 (모니터링 자신 제외)
 var origFetch=window.fetch;
 window.fetch=function(){
+  var args=Array.from(arguments);
+  var url=String(args[0]||'');
+  if(url.indexOf('/api/metrics')===0) return origFetch.apply(this,args);
   var callId=Math.random().toString(36);
   apiCallStart[callId]=performance.now();
-  var args=Array.from(arguments);
-  var url=args[0];
   return origFetch.apply(this,args).then(function(r){
     var elapsed=Math.round(performance.now()-apiCallStart[callId]);
-    var metric={metric:'api-call',value:elapsed,unit:'ms',endpoint:String(url).split('?')[0]};
-    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(metric)}).catch(function(){});
+    cbSend({metric:'api-call',value:elapsed,unit:'ms',endpoint:url.split('?')[0]});
     return r;
   }).catch(function(e){
     var elapsed=Math.round(performance.now()-apiCallStart[callId]);
-    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'api-error',value:elapsed,unit:'ms',error:String(e)})}).catch(function(){});
+    cbSend({metric:'api-error',value:elapsed,unit:'ms',error:String(e)});
     throw e;
   });
 };
@@ -156,7 +309,7 @@ var origPushState=history.pushState;
 history.pushState=function(){
   if(routeTransitionStart!==null){
     var elapsed=Math.round(performance.now()-routeTransitionStart);
-    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'route-transition',value:elapsed,unit:'ms',href:location.pathname})}).catch(function(){});
+    cbSend({metric:'route-transition',value:elapsed,unit:'ms',href:location.pathname});
     routeTransitionStart=null;
   }
   return origPushState.apply(this,arguments);
@@ -174,7 +327,7 @@ if(window.PerformanceObserver){
     var longTaskObs=new PerformanceObserver(function(list){
       list.getEntries().forEach(function(entry){
         if(entry.duration>50){
-          fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'long-task',value:Math.round(entry.duration),unit:'ms'})}).catch(function(){});
+          cbSend({metric:'long-task',value:Math.round(entry.duration),unit:'ms'});
         }
       });
     });
@@ -186,7 +339,7 @@ if(window.PerformanceObserver){
 if(performance.memory){
   setInterval(function(){
     var used=Math.round(performance.memory.usedJSHeapSize/1048576);
-    fetch('/api/metrics',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({metric:'memory',value:used,unit:'MB'})}).catch(function(){});
+    cbSend({metric:'memory',value:used,unit:'MB'});
   },5000);
 }
 })()</script>")
@@ -285,7 +438,8 @@ window.addEventListener('popstate',function(e){
               PERFORMANCE-MONITOR
               SPA-ROUTER
               DARK-MODE-SCRIPT
-              HMR-SCRIPT)))))))
+              HMR-SCRIPT
+              DEBUG-PANEL)))))))
 
 ; layout — 기존 호환 유지
 (defn layout [title content req]

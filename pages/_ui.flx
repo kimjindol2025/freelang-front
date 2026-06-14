@@ -181,7 +181,7 @@
 
 (defn ui-table [headers rows]
   (let [header-html (h "thead" {}
-    (h "tr" {} (arr-join (map (fn [h] (h "th" {:style "padding:10px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:1px solid var(--c-border);text-align:left;"} h)) headers) "")))
+    (h "tr" {} (arr-join (map (fn [col] (h "th" {:style "padding:10px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:1px solid var(--c-border);text-align:left;"} col)) headers) "")))
     row-html (arr-join
       (map (fn [row]
         (h "tr" {:style "border-bottom:1px solid #f1f3f6;"}

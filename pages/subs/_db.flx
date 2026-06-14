@@ -1,0 +1,35 @@
+; pages/subs/_db.flx — 구독 관리 DB
+(ns subs)
+
+(define SUBS-DB {:type "sqlite" :path "data/subs.db"})
+
+(defn init []
+  (db-exec SUBS-DB
+    "CREATE TABLE IF NOT EXISTS subs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL DEFAULT 0,
+      cycle TEXT NOT NULL DEFAULT 'monthly',
+      next_billing TEXT DEFAULT '',
+      category TEXT DEFAULT '기타',
+      color TEXT DEFAULT '#6366f1',
+      active INTEGER DEFAULT 1,
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query SUBS-DB "SELECT * FROM subs ORDER BY active DESC, name ASC" []))
+
+(defn add [name amount cycle category color next-billing note]
+  (db-exec SUBS-DB
+    "INSERT INTO subs (name,amount,cycle,category,color,next_billing,note) VALUES (?,?,?,?,?,?,?)"
+    [name (str-to-num amount) cycle category color next-billing note]))
+
+(defn delete [id]
+  (db-exec SUBS-DB "DELETE FROM subs WHERE id=?" [(str-to-num id)]))
+
+(defn toggle [id]
+  (db-exec SUBS-DB
+    "UPDATE subs SET active=CASE WHEN active=1 THEN 0 ELSE 1 END WHERE id=?"
+    [(str-to-num id)]))

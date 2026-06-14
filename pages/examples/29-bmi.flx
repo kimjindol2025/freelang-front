@@ -1,0 +1,48 @@
+; pages/examples/29-bmi.flx
+; 예제 29 — BMI 계산기: 키·몸무게 atom 으로 지수 계산 및 분류
+; 배우는 것: atom 2개, 산술(나눗셈/제곱), 비교로 범주 분기
+
+(island Bmi []
+  (let [h-cm (atom 170)
+        w-kg (atom 65)
+        m    (/ @h-cm 100)
+        bmi  (/ @w-kg (* m m))
+        cat  (if (< bmi 18.5) "저체중"
+               (if (< bmi 23) "정상"
+                 (if (< bmi 25) "과체중" "비만")))
+        col  (if (< bmi 18.5) "#3b82f6"
+               (if (< bmi 23) "#10b981"
+                 (if (< bmi 25) "#f59e0b" "#ef4444")))]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px"}
+          (str
+            (h "div" {}
+              (str
+                (h "label" {:style "display:block;font-size:.8rem;color:#6b7280;margin-bottom:4px"} "키 (cm)")
+                (h "input" {:type "number" :value (str @h-cm)
+                            :style "width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem"
+                            :on-input (fn [e] (reset! h-cm (.-valueAsNumber (.-target e))))})))
+            (h "div" {}
+              (str
+                (h "label" {:style "display:block;font-size:.8rem;color:#6b7280;margin-bottom:4px"} "몸무게 (kg)")
+                (h "input" {:type "number" :value (str @w-kg)
+                            :style "width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem"
+                            :on-input (fn [e] (reset! w-kg (.-valueAsNumber (.-target e))))})))))
+        (h "div" {:style (str "border-radius:12px;padding:28px;text-align:center;color:white;background:" col)}
+          (str
+            (h "div" {:style "font-size:2.4rem;font-weight:800"} (str (/ (round (* bmi 10)) 10)))
+            (h "div" {:style "font-size:1rem;font-weight:600;opacity:.9"} cat)))))))
+
+(defn render [req]
+  (layout-html "29 · BMI 계산기"
+    (str
+      (h "div" {:style "max-width:440px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "BMI 계산기")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "키와 몸무게 atom 에서 BMI 를 산술로 계산하고 비교로 분류합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

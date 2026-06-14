@@ -4,157 +4,557 @@
   "routes": [
     {
       "route": "/about",
-      "file": "pages/about.flx",
+      "file": "about.flx",
       "fn": "page_about"
     },
     {
-      "route": "/api/hello",
-      "file": "pages/api/hello.flx",
-      "fn": "page_api_hello"
+      "route": "/api/alerts/stream",
+      "file": "stream.flx",
+      "fn": "page_api_alerts_stream"
     },
     {
-      "route": "/api-alerts",
-      "file": "pages/api-alerts.flx",
+      "route": "/api/alerts",
+      "file": "alerts.flx",
       "fn": "page_api_alerts"
     },
     {
-      "route": "/api-custom-metrics",
-      "file": "pages/api-custom-metrics.flx",
+      "route": "/api/custom-metrics",
+      "file": "custom-metrics.flx",
       "fn": "page_api_custom_metrics"
     },
     {
-      "route": "/api-errors",
-      "file": "pages/api-errors.flx",
+      "route": "/api/errors-stats",
+      "file": "errors-stats.flx",
+      "fn": "page_api_errors_stats"
+    },
+    {
+      "route": "/api/errors",
+      "file": "errors.flx",
       "fn": "page_api_errors"
     },
     {
-      "route": "/api-metrics",
-      "file": "pages/api-metrics.flx",
+      "route": "/api/hello",
+      "file": "hello.flx",
+      "fn": "page_api_hello"
+    },
+    {
+      "route": "/api/logs/recent",
+      "file": "recent.flx",
+      "fn": "page_api_logs_recent"
+    },
+    {
+      "route": "/api/metrics/export",
+      "file": "export.flx",
+      "fn": "page_api_metrics_export"
+    },
+    {
+      "route": "/api/metrics/filter",
+      "file": "filter.flx",
+      "fn": "page_api_metrics_filter"
+    },
+    {
+      "route": "/api/metrics/stream",
+      "file": "stream.flx",
+      "fn": "page_api_metrics_stream"
+    },
+    {
+      "route": "/api/metrics",
+      "file": "metrics.flx",
       "fn": "page_api_metrics"
     },
     {
-      "route": "/api-sla",
-      "file": "pages/api-sla.flx",
+      "route": "/api/notes",
+      "file": "notes.flx",
+      "fn": "page_api_notes"
+    },
+    {
+      "route": "/api/playground/eval",
+      "file": "eval.flx",
+      "fn": "page_api_playground_eval"
+    },
+    {
+      "route": "/api/sla/report",
+      "file": "report.flx",
+      "fn": "page_api_sla_report"
+    },
+    {
+      "route": "/api/sla/status",
+      "file": "status.flx",
+      "fn": "page_api_sla_status"
+    },
+    {
+      "route": "/api/sla",
+      "file": "sla.flx",
       "fn": "page_api_sla"
     },
     {
+      "route": "/app/api-init",
+      "file": "api-init.flx",
+      "fn": "page_app_api_init"
+    },
+    {
+      "route": "/app/api",
+      "file": "api.flx",
+      "fn": "page_app_api"
+    },
+    {
+      "route": "/app",
+      "file": "index.flx",
+      "fn": "page_app_index"
+    },
+    {
       "route": "/contact/thanks",
-      "file": "pages/contact/thanks.flx",
+      "file": "thanks.flx",
       "fn": "page_contact_thanks"
     },
     {
       "route": "/contact",
-      "file": "pages/contact.flx",
+      "file": "contact.flx",
       "fn": "page_contact"
     },
     {
+      "route": "/contacts/api",
+      "file": "api.flx",
+      "fn": "page_contacts_api"
+    },
+    {
+      "route": "/contacts",
+      "file": "index.flx",
+      "fn": "page_contacts_index"
+    },
+    {
       "route": "/counter",
-      "file": "pages/counter.flx",
+      "file": "counter.flx",
       "fn": "page_counter"
     },
     {
       "route": "/dashboard/alerts",
-      "file": "pages/dashboard/alerts.flx",
+      "file": "alerts.flx",
       "fn": "page_dashboard_alerts"
     },
     {
       "route": "/dashboard/charts",
-      "file": "pages/dashboard/charts.flx",
+      "file": "charts.flx",
       "fn": "page_dashboard_charts"
     },
     {
       "route": "/dashboard/custom-metrics",
-      "file": "pages/dashboard/custom-metrics.flx",
+      "file": "custom-metrics.flx",
       "fn": "page_dashboard_custom_metrics"
     },
     {
       "route": "/dashboard",
-      "file": "pages/dashboard/index.flx",
+      "file": "index.flx",
       "fn": "page_dashboard_index"
     },
     {
       "route": "/dashboard/operations",
-      "file": "pages/dashboard/operations.flx",
+      "file": "operations.flx",
       "fn": "page_dashboard_operations"
     },
     {
       "route": "/dashboard/sla",
-      "file": "pages/dashboard/sla.flx",
+      "file": "sla.flx",
       "fn": "page_dashboard_sla"
     },
     {
       "route": "/demo",
-      "file": "pages/demo.flx",
+      "file": "demo.flx",
       "fn": "page_demo"
     },
     {
-      "route": "/errors-stats",
-      "file": "pages/errors-stats.flx",
-      "fn": "page_errors_stats"
+      "route": "/examples/01-hello",
+      "file": "01-hello.flx",
+      "fn": "page_examples_01_hello"
+    },
+    {
+      "route": "/examples/02-card-grid",
+      "file": "02-card-grid.flx",
+      "fn": "page_examples_02_card_grid"
+    },
+    {
+      "route": "/examples/03-list-filter",
+      "file": "03-list-filter.flx",
+      "fn": "page_examples_03_list_filter"
+    },
+    {
+      "route": "/examples/04-form",
+      "file": "04-form.flx",
+      "fn": "page_examples_04_form"
+    },
+    {
+      "route": "/examples/05-form-validate",
+      "file": "05-form-validate.flx",
+      "fn": "page_examples_05_form_validate"
+    },
+    {
+      "route": "/examples/06-counter",
+      "file": "06-counter.flx",
+      "fn": "page_examples_06_counter"
+    },
+    {
+      "route": "/examples/07-toggle",
+      "file": "07-toggle.flx",
+      "fn": "page_examples_07_toggle"
+    },
+    {
+      "route": "/examples/08-tabs",
+      "file": "08-tabs.flx",
+      "fn": "page_examples_08_tabs"
+    },
+    {
+      "route": "/examples/09-accordion",
+      "file": "09-accordion.flx",
+      "fn": "page_examples_09_accordion"
+    },
+    {
+      "route": "/examples/10-todo",
+      "file": "10-todo.flx",
+      "fn": "page_examples_10_todo"
+    },
+    {
+      "route": "/examples/11-live-search",
+      "file": "11-live-search.flx",
+      "fn": "page_examples_11_live_search"
+    },
+    {
+      "route": "/examples/12-star-rating",
+      "file": "12-star-rating.flx",
+      "fn": "page_examples_12_star_rating"
+    },
+    {
+      "route": "/examples/13-char-count",
+      "file": "13-char-count.flx",
+      "fn": "page_examples_13_char_count"
+    },
+    {
+      "route": "/examples/14-toast",
+      "file": "14-toast.flx",
+      "fn": "page_examples_14_toast"
+    },
+    {
+      "route": "/examples/15-modal",
+      "file": "15-modal.flx",
+      "fn": "page_examples_15_modal"
+    },
+    {
+      "route": "/examples/16-dropdown",
+      "file": "16-dropdown.flx",
+      "fn": "page_examples_16_dropdown"
+    },
+    {
+      "route": "/examples/17-wizard",
+      "file": "17-wizard.flx",
+      "fn": "page_examples_17_wizard"
+    },
+    {
+      "route": "/examples/18-slider",
+      "file": "18-slider.flx",
+      "fn": "page_examples_18_slider"
+    },
+    {
+      "route": "/examples/19-color-picker",
+      "file": "19-color-picker.flx",
+      "fn": "page_examples_19_color_picker"
+    },
+    {
+      "route": "/examples/20-password-strength",
+      "file": "20-password-strength.flx",
+      "fn": "page_examples_20_password_strength"
+    },
+    {
+      "route": "/examples/21-cart",
+      "file": "21-cart.flx",
+      "fn": "page_examples_21_cart"
+    },
+    {
+      "route": "/examples/22-temp-convert",
+      "file": "22-temp-convert.flx",
+      "fn": "page_examples_22_temp_convert"
+    },
+    {
+      "route": "/examples/23-like-store",
+      "file": "23-like-store.flx",
+      "fn": "page_examples_23_like_store"
+    },
+    {
+      "route": "/examples/24-pagination",
+      "file": "24-pagination.flx",
+      "fn": "page_examples_24_pagination"
+    },
+    {
+      "route": "/examples/25-i18n",
+      "file": "25-i18n.flx",
+      "fn": "page_examples_25_i18n"
+    },
+    {
+      "route": "/examples/26-json-api",
+      "file": "26-json-api.flx",
+      "fn": "page_examples_26_json_api"
+    },
+    {
+      "route": "/examples/27-fetch",
+      "file": "27-fetch.flx",
+      "fn": "page_examples_27_fetch"
+    },
+    {
+      "route": "/examples/28-poll",
+      "file": "28-poll.flx",
+      "fn": "page_examples_28_poll"
+    },
+    {
+      "route": "/examples/29-bmi",
+      "file": "29-bmi.flx",
+      "fn": "page_examples_29_bmi"
+    },
+    {
+      "route": "/examples/30-lightbox",
+      "file": "30-lightbox.flx",
+      "fn": "page_examples_30_lightbox"
+    },
+    {
+      "route": "/examples",
+      "file": "index.flx",
+      "fn": "page_examples_index"
+    },
+    {
+      "route": "/feed/api",
+      "file": "api.flx",
+      "fn": "page_feed_api"
+    },
+    {
+      "route": "/feed",
+      "file": "index.flx",
+      "fn": "page_feed_index"
     },
     {
       "route": "/fetch-demo",
-      "file": "pages/fetch-demo.flx",
+      "file": "fetch-demo.flx",
       "fn": "page_fetch_demo"
     },
     {
+      "route": "/files/api",
+      "file": "api.flx",
+      "fn": "page_files_api"
+    },
+    {
+      "route": "/files",
+      "file": "index.flx",
+      "fn": "page_files_index"
+    },
+    {
+      "route": "/flash/api",
+      "file": "api.flx",
+      "fn": "page_flash_api"
+    },
+    {
+      "route": "/flash",
+      "file": "index.flx",
+      "fn": "page_flash_index"
+    },
+    {
+      "route": "/flash/study",
+      "file": "study.flx",
+      "fn": "page_flash_study"
+    },
+    {
       "route": "/freelang",
-      "file": "pages/freelang.flx",
+      "file": "freelang.flx",
       "fn": "page_freelang"
     },
     {
+      "route": "/goals/api",
+      "file": "api.flx",
+      "fn": "page_goals_api"
+    },
+    {
+      "route": "/goals",
+      "file": "index.flx",
+      "fn": "page_goals_index"
+    },
+    {
+      "route": "/health/api",
+      "file": "api.flx",
+      "fn": "page_health_api"
+    },
+    {
+      "route": "/health",
+      "file": "index.flx",
+      "fn": "page_health_index"
+    },
+    {
+      "route": "/health/log",
+      "file": "log.flx",
+      "fn": "page_health_log"
+    },
+    {
       "route": "/",
-      "file": "pages/index.flx",
+      "file": "index.flx",
       "fn": "page_index"
     },
     {
       "route": "/intro",
-      "file": "pages/intro.flx",
+      "file": "intro.flx",
       "fn": "page_intro"
     },
     {
       "route": "/login",
-      "file": "pages/login.flx",
+      "file": "login.flx",
       "fn": "page_login"
     },
     {
       "route": "/logout",
-      "file": "pages/logout.flx",
+      "file": "logout.flx",
       "fn": "page_logout"
     },
     {
+      "route": "/logs",
+      "file": "logs.flx",
+      "fn": "page_logs"
+    },
+    {
+      "route": "/notes-island",
+      "file": "notes-island.flx",
+      "fn": "page_notes_island"
+    },
+    {
       "route": "/notes",
-      "file": "pages/notes.flx",
+      "file": "notes.flx",
       "fn": "page_notes"
     },
     {
+      "route": "/photos/api",
+      "file": "api.flx",
+      "fn": "page_photos_api"
+    },
+    {
+      "route": "/photos",
+      "file": "index.flx",
+      "fn": "page_photos_index"
+    },
+    {
+      "route": "/playground",
+      "file": "playground.flx",
+      "fn": "page_playground"
+    },
+    {
+      "route": "/reading/api",
+      "file": "api.flx",
+      "fn": "page_reading_api"
+    },
+    {
+      "route": "/reading",
+      "file": "index.flx",
+      "fn": "page_reading_index"
+    },
+    {
+      "route": "/shop/cart",
+      "file": "cart.flx",
+      "fn": "page_shop_cart"
+    },
+    {
+      "route": "/shop",
+      "file": "index.flx",
+      "fn": "page_shop_index"
+    },
+    {
+      "route": "/shop/orders",
+      "file": "orders.flx",
+      "fn": "page_shop_orders"
+    },
+    {
       "route": "/styled",
-      "file": "pages/styled.flx",
+      "file": "styled.flx",
       "fn": "page_styled"
     },
     {
+      "route": "/subs/api",
+      "file": "api.flx",
+      "fn": "page_subs_api"
+    },
+    {
+      "route": "/subs",
+      "file": "index.flx",
+      "fn": "page_subs_index"
+    },
+    {
       "route": "/tasks",
-      "file": "pages/tasks.flx",
+      "file": "tasks.flx",
       "fn": "page_tasks"
     },
     {
       "route": "/test-helpers",
-      "file": "pages/test-helpers.flx",
+      "file": "test-helpers.flx",
       "fn": "page_test_helpers"
     },
     {
       "route": "/todo",
-      "file": "pages/todo.flx",
+      "file": "todo.flx",
       "fn": "page_todo"
     },
     {
       "route": "/upload",
-      "file": "pages/upload.flx",
+      "file": "upload.flx",
       "fn": "page_upload"
     },
     {
+      "route": "/vault/api",
+      "file": "api.flx",
+      "fn": "page_vault_api"
+    },
+    {
+      "route": "/vault",
+      "file": "index.flx",
+      "fn": "page_vault_index"
+    },
+    {
+      "route": "/api/notes/:id/delete",
+      "file": "delete.flx",
+      "fn": "page_api_notes_id_delete"
+    },
+    {
+      "route": "/api/notes/:id/pin",
+      "file": "pin.flx",
+      "fn": "page_api_notes_id_pin"
+    },
+    {
+      "route": "/contacts/:id",
+      "file": "[id].flx",
+      "fn": "page_contacts_id"
+    },
+    {
+      "route": "/flash/:id",
+      "file": "[id].flx",
+      "fn": "page_flash_id"
+    },
+    {
+      "route": "/goals/:id",
+      "file": "[id].flx",
+      "fn": "page_goals_id"
+    },
+    {
+      "route": "/reading/:id",
+      "file": "[id].flx",
+      "fn": "page_reading_id"
+    },
+    {
+      "route": "/shop/orders/:id",
+      "file": "[id].flx",
+      "fn": "page_shop_orders_id"
+    },
+    {
+      "route": "/shop/products/:id",
+      "file": "[id].flx",
+      "fn": "page_shop_products_id"
+    },
+    {
+      "route": "/shop/users/:id",
+      "file": "[id].flx",
+      "fn": "page_shop_users_id"
+    },
+    {
       "route": "/users/:id",
-      "file": "pages/users/[id].flx",
+      "file": "[id].flx",
       "fn": "page_users_id"
     }
   ],
@@ -171,38 +571,126 @@
     "_styles.flx",
     "_ui.flx"
   ],
+  "store_keys": [
+    "count",
+    "likes",
+    "logs",
+    "log_filter",
+    "log_running",
+    "notes"
+  ],
+  "issues": [],
   "sourceMap": {
-    "1939-1973": "pages/about.flx",
-    "1976-1980": "pages/api/hello.flx",
-    "1983-2031": "pages/api-alerts.flx",
-    "2034-2120": "pages/api-custom-metrics.flx",
-    "2123-2147": "pages/api-errors.flx",
-    "2150-2239": "pages/api-metrics.flx",
-    "2242-2279": "pages/api-sla.flx",
-    "2282-2315": "pages/contact/thanks.flx",
-    "2318-2387": "pages/contact.flx",
-    "2390-2419": "pages/counter.flx",
-    "2422-2429": "pages/dashboard/alerts.flx",
-    "2432-2439": "pages/dashboard/charts.flx",
-    "2442-2449": "pages/dashboard/custom-metrics.flx",
-    "2452-2459": "pages/dashboard/index.flx",
-    "2462-2469": "pages/dashboard/operations.flx",
-    "2472-2479": "pages/dashboard/sla.flx",
-    "2482-2679": "pages/demo.flx",
-    "2682-2748": "pages/errors-stats.flx",
-    "2751-2765": "pages/fetch-demo.flx",
-    "2768-2899": "pages/freelang.flx",
-    "2902-2912": "pages/index.flx",
-    "2915-3399": "pages/intro.flx",
-    "3402-3448": "pages/login.flx",
-    "3451-3456": "pages/logout.flx",
-    "3459-3645": "pages/notes.flx",
-    "3648-3695": "pages/styled.flx",
-    "3698-3719": "pages/tasks.flx",
-    "3722-3831": "pages/test-helpers.flx",
-    "3834-3842": "pages/todo.flx",
-    "3845-3901": "pages/upload.flx",
-    "3904-3960": "pages/users/[id].flx"
-  },
-  "warnings": []
+    "2348-2382": "pages/about.flx",
+    "2385-2389": "pages/api/alerts/stream.flx",
+    "2392-2867": "pages/api/alerts.flx",
+    "2870-2956": "pages/api/custom-metrics.flx",
+    "2959-3219": "pages/api/errors-stats.flx",
+    "3222-3252": "pages/api/errors.flx",
+    "3255-3259": "pages/api/hello.flx",
+    "3262-3287": "pages/api/logs/recent.flx",
+    "3290-3303": "pages/api/metrics/export.flx",
+    "3306-3318": "pages/api/metrics/filter.flx",
+    "3321-3325": "pages/api/metrics/stream.flx",
+    "3328-3421": "pages/api/metrics.flx",
+    "3424-3460": "pages/api/notes.flx",
+    "3463-3488": "pages/api/playground/eval.flx",
+    "3491-3498": "pages/api/sla/report.flx",
+    "3501-3508": "pages/api/sla/status.flx",
+    "3511-3548": "pages/api/sla.flx",
+    "3551-3595": "pages/app/api-init.flx",
+    "3598-3644": "pages/app/api.flx",
+    "3647-3677": "pages/app/index.flx",
+    "3680-3713": "pages/contact/thanks.flx",
+    "3716-3785": "pages/contact.flx",
+    "3788-3914": "pages/contacts/api.flx",
+    "3917-3936": "pages/contacts/index.flx",
+    "3939-3969": "pages/counter.flx",
+    "3972-3979": "pages/dashboard/alerts.flx",
+    "3982-3989": "pages/dashboard/charts.flx",
+    "3992-3999": "pages/dashboard/custom-metrics.flx",
+    "4002-4009": "pages/dashboard/index.flx",
+    "4012-4019": "pages/dashboard/operations.flx",
+    "4022-4029": "pages/dashboard/sla.flx",
+    "4032-4229": "pages/demo.flx",
+    "4232-4248": "pages/examples/01-hello.flx",
+    "4251-4281": "pages/examples/02-card-grid.flx",
+    "4284-4312": "pages/examples/03-list-filter.flx",
+    "4315-4349": "pages/examples/04-form.flx",
+    "4352-4401": "pages/examples/05-form-validate.flx",
+    "4404-4425": "pages/examples/06-counter.flx",
+    "4428-4448": "pages/examples/07-toggle.flx",
+    "4451-4472": "pages/examples/08-tabs.flx",
+    "4475-4495": "pages/examples/09-accordion.flx",
+    "4498-4518": "pages/examples/10-todo.flx",
+    "4521-4541": "pages/examples/11-live-search.flx",
+    "4544-4565": "pages/examples/12-star-rating.flx",
+    "4568-4588": "pages/examples/13-char-count.flx",
+    "4591-4611": "pages/examples/14-toast.flx",
+    "4614-4634": "pages/examples/15-modal.flx",
+    "4637-4657": "pages/examples/16-dropdown.flx",
+    "4660-4680": "pages/examples/17-wizard.flx",
+    "4683-4703": "pages/examples/18-slider.flx",
+    "4706-4726": "pages/examples/19-color-picker.flx",
+    "4729-4749": "pages/examples/20-password-strength.flx",
+    "4752-4773": "pages/examples/21-cart.flx",
+    "4776-4796": "pages/examples/22-temp-convert.flx",
+    "4799-4828": "pages/examples/23-like-store.flx",
+    "4831-4875": "pages/examples/24-pagination.flx",
+    "4878-4911": "pages/examples/25-i18n.flx",
+    "4914-4927": "pages/examples/26-json-api.flx",
+    "4930-4950": "pages/examples/27-fetch.flx",
+    "4953-4974": "pages/examples/28-poll.flx",
+    "4977-4997": "pages/examples/29-bmi.flx",
+    "5000-5020": "pages/examples/30-lightbox.flx",
+    "5023-5085": "pages/examples/index.flx",
+    "5088-5301": "pages/feed/api.flx",
+    "5304-5327": "pages/feed/index.flx",
+    "5330-5344": "pages/fetch-demo.flx",
+    "5347-5430": "pages/files/api.flx",
+    "5433-5472": "pages/files/index.flx",
+    "5475-5631": "pages/flash/api.flx",
+    "5634-5657": "pages/flash/index.flx",
+    "5660-5781": "pages/flash/study.flx",
+    "5784-5915": "pages/freelang.flx",
+    "5918-6062": "pages/goals/api.flx",
+    "6065-6088": "pages/goals/index.flx",
+    "6091-6178": "pages/health/api.flx",
+    "6181-6212": "pages/health/index.flx",
+    "6215-6306": "pages/health/log.flx",
+    "6309-6632": "pages/index.flx",
+    "6635-7119": "pages/intro.flx",
+    "7122-7168": "pages/login.flx",
+    "7171-7176": "pages/logout.flx",
+    "7179-7195": "pages/logs.flx",
+    "7198-7210": "pages/notes-island.flx",
+    "7213-7399": "pages/notes.flx",
+    "7402-7412": "pages/photos/api.flx",
+    "7415-7438": "pages/photos/index.flx",
+    "7441-7450": "pages/playground.flx",
+    "7453-7559": "pages/reading/api.flx",
+    "7562-7585": "pages/reading/index.flx",
+    "7588-7635": "pages/shop/cart.flx",
+    "7638-7748": "pages/shop/index.flx",
+    "7751-7790": "pages/shop/orders.flx",
+    "7793-7840": "pages/styled.flx",
+    "7843-7948": "pages/subs/api.flx",
+    "7951-7970": "pages/subs/index.flx",
+    "7973-7994": "pages/tasks.flx",
+    "7997-8106": "pages/test-helpers.flx",
+    "8109-8117": "pages/todo.flx",
+    "8120-8176": "pages/upload.flx",
+    "8179-8433": "pages/vault/api.flx",
+    "8436-8454": "pages/vault/index.flx",
+    "8457-8465": "pages/api/notes/[id]/delete.flx",
+    "8468-8477": "pages/api/notes/[id]/pin.flx",
+    "8480-8636": "pages/contacts/[id].flx",
+    "8639-8747": "pages/flash/[id].flx",
+    "8750-8863": "pages/goals/[id].flx",
+    "8866-9027": "pages/reading/[id].flx",
+    "9030-9135": "pages/shop/orders/[id].flx",
+    "9138-9219": "pages/shop/products/[id].flx",
+    "9222-9321": "pages/shop/users/[id].flx",
+    "9324-9481": "pages/users/[id].flx"
+  }
 }

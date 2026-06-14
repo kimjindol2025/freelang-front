@@ -1,0 +1,38 @@
+; pages/health/api.flx — 건강 기록 JSON API
+; GET  /health/api?type=weight → {logs, chart_data}
+; POST /health/api → action: add|delete
+
+(load "pages/health/_db.flx")
+(health-init)
+
+(defn render [req]
+  (let [type (or (server-req-query req "type") "weight")]
+    (server-json {
+      "logs"       (health-by-type type)
+      "chart_data" (health-recent-week type)
+      "today"      (health-today-summary)
+    })))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [date  (or (get body "date") (str-trim (shell "date '+%Y-%m-%d'")))
+              type  (or (get body "type") "weight")
+              value (or (get body "value") "0")
+              unit  (or (get body "unit") "")
+              note  (or (get body "note") "")]
+          (health-add date type value unit note)
+          (server-json {"ok" true "today" (health-today-summary)}))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (health-delete id)
+              (server-json {"ok" true}))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))

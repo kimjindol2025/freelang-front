@@ -1,0 +1,42 @@
+; pages/examples/30-lightbox.flx
+; 예제 30 — 라이트박스 갤러리: 썸네일 클릭 시 확대 오버레이
+; 배우는 것: atom 으로 선택 항목, map 그리드, 조건부 오버레이
+
+(island Lightbox []
+  (let [sel  (atom nil)
+        imgs [{"id" 1 "emoji" "🏔" "name" "산"}
+              {"id" 2 "emoji" "🌊" "name" "바다"}
+              {"id" 3 "emoji" "🌲" "name" "숲"}
+              {"id" 4 "emoji" "🏜" "name" "사막"}
+              {"id" 5 "emoji" "🌌" "name" "은하"}
+              {"id" 6 "emoji" "🌋" "name" "화산"}]]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:grid;grid-template-columns:repeat(3,1fr);gap:10px"}
+          (map
+            (fn [im]
+              (h "div" {:style "aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:2.4rem;background:white;border-radius:10px;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)"
+                        :on-click (fn [] (reset! sel im))}
+                (get im "emoji")))
+            imgs))
+        (if (= @sel nil)
+          ""
+          (h "div" {:style "position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;cursor:pointer"
+                    :on-click (fn [] (reset! sel nil))}
+            (str
+              (h "div" {:style "font-size:8rem"} (get @sel "emoji"))
+              (h "div" {:style "color:white;font-size:1.2rem;margin-top:12px"} (get @sel "name"))
+              (h "div" {:style "color:#9ca3af;font-size:.85rem;margin-top:8px"} "아무 곳이나 클릭하면 닫힙니다"))))))))
+
+(defn render [req]
+  (layout-html "30 · 라이트박스"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "라이트박스 갤러리")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "썸네일을 클릭하면 선택 atom 이 채워지고 확대 오버레이가 나타납니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

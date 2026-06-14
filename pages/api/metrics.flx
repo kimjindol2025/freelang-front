@@ -6,20 +6,20 @@
 ; GET /api/metrics/export — CSV/JSON 내보내기 (v0.3.0)
 ; GET /api/metrics/stream — EventSource 실시간 스트림 (v0.3.0)
 
-(load "../performance-monitor.fl")
+(load "performance-monitor.fl")
 
 (defn render [$req]
   (let [$method (get $req "method")
         $path (get $req "path")]
     (cond
       ; 경로 기반 라우팅 (v0.3.0)
-      (and (= $method "GET") (str-includes? $path "/filter"))
+      (and (= $method "GET") (str-includes $path "/filter"))
         (handle-filter-metrics $req)
 
-      (and (= $method "GET") (str-includes? $path "/export"))
+      (and (= $method "GET") (str-includes $path "/export"))
         (handle-export-metrics $req)
 
-      (and (= $method "GET") (str-includes? $path "/stream"))
+      (and (= $method "GET") (str-includes $path "/stream"))
         (handle-stream-metrics $req)
 
       (= $method "POST")
@@ -75,13 +75,14 @@
       (log-error (str "Error exporting metrics: " $e))
       (server-json {"error" "Export failed"} 500))))
 
-; ── 실시간 스트림 엔드포인트 (v0.3.0 EventSource) ──
+; ── 실시간 스트림 엔드포인트 (SSE 미지원 → 폴링 안내) ──
 (defn handle-stream-metrics [$req]
-  (try
-    (let [$callback (fn [$record]
-      (server-event-write (json-stringify $record) "metric"))]
-      (register-watcher $callback)
-      (server-event-stream 200 "metrics"))
-    (catch $e
-      (log-error (str "Error streaming metrics: " $e))
-      (server-json {"error" "Stream failed"} 500))))
+  (server-json {
+    "error" "SSE streaming not supported"
+    "hint" "Use GET /api/metrics with polling instead"
+    "poll_interval_ms" 5000
+  } 501))
+
+; POST/DELETE 라우트 — fl-front-build가 render_post를 인식해서 server-post 등록
+(defn render_post [req]
+  (handle-post-metrics req))

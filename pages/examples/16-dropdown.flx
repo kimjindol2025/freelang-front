@@ -1,0 +1,35 @@
+; pages/examples/16-dropdown.flx
+; 예제 16 — 드롭다운: 열림 상태 + 선택 값을 atom 으로 관리
+; 배우는 것: atom 2개 협력, map 으로 옵션 렌더, 선택 시 닫기
+
+(island Dropdown []
+  (let [open  (atom false)
+        sel   (atom "프레임워크 선택")
+        opts  ["React" "Vue" "Svelte" "FreeLang"]]
+    (h "div" {:style "position:relative;width:240px"}
+      (str
+        (h "button" {:style "width:100%;display:flex;justify-content:space-between;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;background:white;cursor:pointer;font-size:.95rem"
+                     :on-click (fn [] (swap! open (fn [v] (not v))))}
+          (str (str @sel) (if @open "  ▲" "  ▼")))
+        (if @open
+          (h "div" {:style "position:absolute;top:48px;left:0;right:0;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12);overflow:hidden;z-index:10"}
+            (map
+              (fn [o]
+                (h "div" {:style "padding:10px 14px;cursor:pointer;font-size:.95rem"
+                          :on-click (fn [] (reset! sel o) (reset! open false))}
+                  o))
+              opts))
+          "")))))
+
+(defn render [req]
+  (layout-html "16 · 드롭다운"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "드롭다운")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "열림(open)과 선택(sel) 두 atom 이 협력합니다. 선택하면 자동으로 닫힙니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

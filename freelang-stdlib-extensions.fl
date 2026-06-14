@@ -1,0 +1,42 @@
+; freelang-stdlib-extensions.fl — performance-monitor/error-api 호환 레이어
+
+; 로그 함수 (stdlib/log.fl 없이 동작)
+(defn log-info [msg] (println (str "[INFO] " msg)))
+(defn log-warn [msg] (println (str "[WARN] " msg)))
+(defn log-error [msg] (println (str "[ERROR] " msg)))
+
+; 타임스탬프 (date-now → now-ms 대체)
+(defn date-now [] (now-ms))
+(defn time-now [] (now-ms))
+
+; json-parse 별칭
+(defn json-parse [s]
+  (try (json-stringify s) (catch e nil)))
+
+; req 쿼리 파라미터 + 기본값
+(defn req-query-default [req key default]
+  (let [q (get req "query")]
+    (or (get q key) default)))
+
+; 범위 검증 (실패해도 계속 진행)
+(defn validate-range [val min-val max-val field]
+  (if (or (< val min-val) (> val max-val))
+    (println (str "warn: " field " out of range"))
+    nil))
+
+; 길이 검증
+(defn validate-length [val min-len max-len field]
+  (let [s (str val)]
+    (if (or (< (length s) min-len) (> (length s) max-len))
+      (println (str "warn: " field " length out of range"))
+      nil)))
+
+; str-includes? 별칭 (구버전 호환)
+(defn str-includes? [s sub]
+  (str-includes s sub))
+
+; apply-filters 기본 구현
+(defn apply-filters [data metric hours]
+  (if (= metric "")
+    data
+    (filter (fn [r] (= (get r "metric") metric)) data)))

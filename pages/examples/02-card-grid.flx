@@ -1,0 +1,28 @@
+; pages/examples/02-card-grid.flx
+; 예제 02 — 카드 그리드: 데이터 배열을 반복 렌더링
+; 배우는 것: map + arr-join 으로 리스트 → HTML, CSS grid
+
+(defn render [req]
+  (let [products [{"name" "노트북"   "price" 1200000 "emoji" "💻"}
+                  {"name" "마우스"   "price" 35000   "emoji" "🖱"}
+                  {"name" "키보드"   "price" 89000   "emoji" "⌨️"}
+                  {"name" "모니터"   "price" 320000  "emoji" "🖥"}
+                  {"name" "헤드셋"   "price" 150000  "emoji" "🎧"}
+                  {"name" "웹캠"     "price" 78000   "emoji" "📷"}]]
+    (layout-html "02 · 카드 그리드"
+      (h "div" {:style "max-width:760px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 20px"} "카드 그리드")
+          (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px"}
+            (arr-join
+              (map
+                (fn [p]
+                  (h "div" {:style "background:white;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+                    (str
+                      (h "div" {:style "font-size:2rem;margin-bottom:8px"} (get p "emoji"))
+                      (h "h3" {:style "margin:0 0 4px;font-size:1.05rem"} (get p "name"))
+                      (h "p" {:style "color:#6366f1;font-weight:700;margin:0"}
+                        (str (get p "price") "원")))))
+                products)
+              ""))))
+      req)))

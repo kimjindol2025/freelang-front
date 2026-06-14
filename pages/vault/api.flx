@@ -1,0 +1,95 @@
+; pages/vault/api.flx — 비밀번호 금고 API (envelope 암호화)
+; GET  /vault/api?token=SID → {ok, items}  (잠금해제 세션 유효 시, password 평문 복호화)
+; POST /vault/api → action: status|setup|unlock|lock|add|delete|change-master|gen-password
+(load "pages/vault/_db.flx")
+(vault-init)
+
+(defn render [req]
+  (let [token (or (server-req-query req "token") "")
+        items (vault-all-items token)]
+    (if (= items nil)
+      (server-json {"ok" false "locked" true} 401)
+      (do
+        (vault-session-touch token)
+        (server-json {"ok" true "items" items})))))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      ; 최초 설정 여부 — UI 분기용 (인증 불필요)
+      (= action "status")
+        (server-json {"ok" true "setup" (vault-is-setup)})
+
+      ; 최초 마스터 설정 (config 없을 때만)
+      (= action "setup")
+        (let [master (or (get body "master") "")]
+          (if (< (length (str-trim master)) 4)
+            (server-json {"ok" false "error" "마스터 비밀번호는 4자 이상이어야 합니다"} 400)
+            (if (vault-setup master)
+              (server-json {"ok" true})
+              (server-json {"ok" false "error" "이미 금고가 설정되어 있습니다"} 409))))
+
+      ; 잠금 해제
+      (= action "unlock")
+        (let [master (or (get body "password") "")
+              sid    (vault-unlock master)]
+          (if (= sid nil)
+            (server-json {"ok" false "error" "비밀번호가 틀렸거나 금고가 미설정입니다"} 401)
+            (server-json {"ok" true "token" sid})))
+
+      ; 잠금
+      (= action "lock")
+        (let [token (or (get body "token") "")]
+          (vault-lock token)
+          (server-json {"ok" true}))
+
+      ; 강력 비밀번호 생성 (잠금해제 세션 필요)
+      (= action "gen-password")
+        (let [token (or (get body "token") "")]
+          (if (= (vault-session-dek token) nil)
+            (server-json {"ok" false "locked" true} 401)
+            (server-json {"ok" true "password" (vault-gen-password)})))
+
+      ; 마스터 변경
+      (= action "change-master")
+        (let [token (or (get body "token") "")
+              old   (or (get body "old") "")
+              new   (or (get body "new") "")]
+          (if (< (length (str-trim new)) 4)
+            (server-json {"ok" false "error" "새 마스터는 4자 이상이어야 합니다"} 400)
+            (if (vault-change-master token old new)
+              (server-json {"ok" true})
+              (server-json {"ok" false "error" "현재 마스터가 틀렸거나 세션이 만료되었습니다"} 401))))
+
+      ; 항목 추가
+      (= action "add")
+        (let [token (or (get body "token") "")]
+          (if (= (vault-session-dek token) nil)
+            (server-json {"ok" false "locked" true} 401)
+            (let [label    (or (get body "label") "")
+                  username (or (get body "username") "")
+                  password (or (get body "password") "")
+                  url      (or (get body "url") "")
+                  note     (or (get body "note") "")
+                  category (or (get body "category") "기타")]
+              (if (= (str-trim label) "")
+                (server-json {"ok" false "error" "레이블 필요"} 400)
+                (if (vault-add token label username password url note category)
+                  (server-json {"ok" true})
+                  (server-json {"ok" false "locked" true} 401))))))
+
+      ; 항목 삭제
+      (= action "delete")
+        (let [token (or (get body "token") "")
+              id    (get body "id")]
+          (if (= (vault-session-dek token) nil)
+            (server-json {"ok" false "locked" true} 401)
+            (if (= id nil)
+              (server-json {"ok" false "error" "id 필요"} 400)
+              (do
+                (vault-delete token id)
+                (server-json {"ok" true})))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

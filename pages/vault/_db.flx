@@ -1,0 +1,153 @@
+; pages/vault/_db.flx — 비밀번호 금고 DB (envelope 암호화)
+; 보안 설계:
+;   - DEK(데이터 키): 최초 1회 random_bytes(32). 항목 password를 AES-256-GCM으로 암호화.
+;   - KEK(키 암호화 키): 마스터 비밀번호에서 scrypt_kdf로 유도. DEK를 감싸는 데만 사용.
+;   - DB에는 kdf_salt + wrapped_dek 만 저장 → 마스터 평문은 어디에도 없음.
+;   - 잠금해제 = DEK를 인메모리 세션(TTL 15분)에 보관. 프로세스 재시작 시 자동 잠김.
+;   - shell 호출 0개 (과거 base64 obfuscation + shell injection 제거).
+(ns vault)
+
+(define VAULT-DB {:type "sqlite" :path "data/vault.db"})
+(define SESSION-TTL-MS 900000)              ; 15분
+(define vault-sessions (atom {}))           ; sid -> {"dek" hex "exp" ms}
+
+(defn init []
+  (do
+    (db-exec VAULT-DB
+      "CREATE TABLE IF NOT EXISTS vault_config (
+        id INTEGER PRIMARY KEY,
+        kdf_salt TEXT NOT NULL,
+        wrapped_dek TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])
+    (db-exec VAULT-DB
+      "CREATE TABLE IF NOT EXISTS vault_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        label TEXT NOT NULL,
+        username TEXT DEFAULT '',
+        password_enc TEXT DEFAULT '',
+        url TEXT DEFAULT '',
+        note TEXT DEFAULT '',
+        category TEXT DEFAULT '기타',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])))
+
+; ── config / setup ────────────────────────────────────────────
+(defn get-config []
+  (let [rows (db-query VAULT-DB "SELECT * FROM vault_config WHERE id=1" [])]
+    (if (> (length rows) 0)
+      (get rows 0)
+      nil)))
+
+(defn is-setup [] ; 주의: '?' 금지 — ns 접두 치환 정규식이 '?'를 처리 못함
+  (not (= (get-config) nil)))
+
+(defn setup [master]
+  (if (is-setup)
+    false
+    (let [salt    (random_bytes 16)
+          dek     (random_bytes 32)
+          kek     (scrypt_kdf master salt)
+          wrapped (aes_encrypt dek kek)]
+      (db-exec VAULT-DB
+        "INSERT INTO vault_config (id,kdf_salt,wrapped_dek) VALUES (1,?,?)"
+        [salt wrapped])
+      true)))
+
+; ── 인메모리 세션 (요청 간 유지되는 전역 atom) ──────────────────
+(defn session-new [dek]
+  (let [sid (uuid)]
+    (swap! vault-sessions assoc sid {"dek" dek "exp" (+ (now-ms) SESSION-TTL-MS)})
+    sid))
+
+(defn session-dek [sid]
+  (let [s (get @vault-sessions sid)]
+    (if (= s nil)
+      nil
+      (if (> (get s "exp") (now-ms))
+        (get s "dek")
+        (do (swap! vault-sessions dissoc sid) nil)))))
+
+(defn session-touch [sid]
+  (let [s (get @vault-sessions sid)]
+    (when (not (= s nil))
+      (swap! vault-sessions assoc sid (assoc s "exp" (+ (now-ms) SESSION-TTL-MS))))))
+
+(defn lock [sid]
+  (do (swap! vault-sessions dissoc sid) true))
+
+; ── unlock: 마스터로 DEK 복호 → 세션 발급 (실패 시 nil) ──────────
+(defn unlock [master]
+  (let [cfg (get-config)]
+    (if (= cfg nil)
+      nil
+      (let [kek (scrypt_kdf master (get cfg "kdf_salt"))
+            dek (aes_decrypt (get cfg "wrapped_dek") kek)]
+        (if (= dek nil)
+          nil
+          (session-new dek))))))
+
+(defn change-master [sid old-master new-master]
+  (let [dek (session-dek sid)
+        cfg (get-config)]
+    (if (or (= dek nil) (= cfg nil))
+      false
+      (let [old-kek (scrypt_kdf old-master (get cfg "kdf_salt"))
+            check   (aes_decrypt (get cfg "wrapped_dek") old-kek)]
+        (if (= check nil)
+          false
+          (let [new-salt    (random_bytes 16)
+                new-kek     (scrypt_kdf new-master new-salt)
+                new-wrapped (aes_encrypt dek new-kek)]
+            (db-exec VAULT-DB
+              "UPDATE vault_config SET kdf_salt=?, wrapped_dek=? WHERE id=1"
+              [new-salt new-wrapped])
+            true))))))
+
+; ── 강력 비밀번호 생성기 (서버 crypto random) ──────────────────
+(defn gen-password []
+  (let [chars "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*-_"
+        n     (length chars)]
+    (reduce
+      (fn [acc x]
+        (let [i (random_int 0 (- n 1))]
+          (str acc (str-slice chars i (+ i 1)))))
+      ""
+      (range 0 20))))
+
+; ── 항목 CRUD (DEK로 직접 암복호화, scrypt 불필요) ──────────────
+(defn add [sid label username password url note category]
+  (let [dek (session-dek sid)]
+    (if (= dek nil)
+      false
+      (do
+        (db-exec VAULT-DB
+          "INSERT INTO vault_items (label,username,password_enc,url,note,category) VALUES (?,?,?,?,?,?)"
+          [label username (aes_encrypt password dek) url note category])
+        true))))
+
+(defn all-items [sid]
+  (let [dek (session-dek sid)]
+    (if (= dek nil)
+      nil
+      (let [raw (db-query VAULT-DB
+                  "SELECT * FROM vault_items ORDER BY category ASC, label ASC" [])]
+        ; db row 는 JS 네이티브 객체라 obj-merge/obj-omit 미동작 → 명시적 맵 구성.
+        ; password_enc 는 응답에서 자연히 제외(복호화한 password 만 노출).
+        (map
+          (fn [item]
+            {"id"       (get item "id")
+             "label"    (get item "label")
+             "username" (get item "username")
+             "url"      (get item "url")
+             "note"     (get item "note")
+             "category" (get item "category")
+             "password" (or (aes_decrypt (get item "password_enc") dek) "")})
+          raw)))))
+
+(defn delete [sid id]
+  (if (= (session-dek sid) nil)
+    false
+    (do
+      (db-exec VAULT-DB "DELETE FROM vault_items WHERE id=?" [(str-to-num id)])
+      true)))

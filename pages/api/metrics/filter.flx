@@ -1,0 +1,10 @@
+(load "performance-monitor.fl")
+(defn render [$req]
+  (try
+    (let [$query  (get $req "query")
+          $metric (or (get $query "metric") "")
+          $hours  (str-to-num (or (get $query "hours") "24"))
+          $data   (apply-filters (get-performance-stats) $metric $hours)]
+      (server-json {"data" $data "count" (length $data)} 200))
+    (catch $e
+      (server-json {"error" "Filter failed"} 500))))

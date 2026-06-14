@@ -1,0 +1,31 @@
+; pages/examples/25-i18n.flx
+; 예제 25 — 다국어 인사: 쿼리 파라미터로 언어 전환 (서버 사이드)
+; 배우는 것: server-req-query 분기, 활성 링크 스타일
+
+(defn lang-link [cur code label]
+  (h "a" {:href (str "/examples/25-i18n?lang=" code)
+          :style (str "padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:600;"
+                      (if (= cur code) "background:#6366f1;color:white" "background:white;color:#6366f1;border:1px solid #e5e7eb"))}
+    label))
+
+(defn render [req]
+  (let [lang  (let [q (server-req-query req "lang")] (if (or (= q nil) (= q "")) "ko" q))
+        greet (if (= lang "en") "Hello, FreeLang!"
+                (if (= lang "ja") "こんにちは、FreeLang!"
+                  (if (= lang "es") "¡Hola, FreeLang!" "안녕하세요, FreeLang!")))]
+    (layout-html "25 · 다국어 인사"
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "다국어 인사")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "?lang= 쿼리 파라미터로 서버에서 인사말을 선택합니다.")
+          (h "div" {:style "display:flex;gap:6px;margin-bottom:24px"}
+            (str
+              (lang-link lang "ko" "한국어")
+              (lang-link lang "en" "English")
+              (lang-link lang "ja" "日本語")
+              (lang-link lang "es" "Español")))
+          (h "div" {:style "background:white;border-radius:12px;padding:40px 24px;text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+            (h "p" {:style "font-size:1.6rem;font-weight:700;margin:0"} greet))
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      req)))

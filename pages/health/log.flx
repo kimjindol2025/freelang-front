@@ -1,0 +1,89 @@
+; pages/health/log.flx — 건강 기록 히스토리
+; GET /health/log?type=weight
+
+(load "pages/health/_db.flx")
+(health-init)
+
+(defn type-label [t]
+  (cond
+    (= t "weight") "⚖️ 체중"
+    (= t "sleep")  "😴 수면"
+    (= t "workout") "💪 운동"
+    (= t "water")  "💧 수분"
+    (= t "steps")  "🚶 걸음수"
+    true t))
+
+(defn render [req]
+  (let [type (or (server-req-query req "type") "weight")
+        logs (health-by-type type)
+        chart-data (health-recent-week type)]
+    (layout-html (str (type-label type) " 기록")
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#10b981,#059669);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"}
+              (type-label type))
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str (length logs) "개 기록"))))
+        (h "div" {:style "max-width:680px;margin:0 auto;padding:24px"}
+          (str
+            ; 탭 네비게이션
+            (h "div" {:style "display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap"}
+              (arr-join
+                (map
+                  (fn [t]
+                    (let [active (= (get t "key") type)]
+                      (h "a"
+                        {:href (str "/health/log?type=" (get t "key"))
+                         :style (str "padding:8px 16px;border-radius:8px;text-decoration:none;font-size:.85rem;font-weight:600;"
+                                     (if active
+                                       "background:#10b981;color:white"
+                                       "background:white;color:#6b7280;border:1px solid #e5e7eb"))}
+                        (str (get t "icon") " " (get t "label")))))
+                  [{"key" "weight" "icon" "⚖️" "label" "체중"}
+                   {"key" "sleep"  "icon" "😴" "label" "수면"}
+                   {"key" "workout" "icon" "💪" "label" "운동"}
+                   {"key" "water"  "icon" "💧" "label" "수분"}
+                   {"key" "steps"  "icon" "🚶" "label" "걸음수"}])
+                ""))
+
+            ; 미니 차트 (최근 7일)
+            (if (> (length chart-data) 0)
+              (h "div" {:style "background:white;border-radius:12px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+                (str
+                  (h "h3" {:style "font-size:.9rem;font-weight:700;margin:0 0 12px;color:#6b7280"} "최근 7일")
+                  (h "div" {:style "display:flex;gap:6px;align-items:flex-end;height:60px"}
+                    (let [max-v (reduce (fn [m r] (if (> (get r "value") m) (get r "value") m)) 0.001 chart-data)]
+                      (arr-join
+                        (map
+                          (fn [row]
+                            (let [pct (* (/ (get row "value") max-v) 100)]
+                              (h "div" {:style "flex:1;display:flex;flex-direction:column;align-items:center;gap:3px"}
+                                (str
+                                  (h "div" {:style "font-size:.65rem;color:#6b7280"} (str (get row "value")))
+                                  (h "div" {:style (str "background:#10b981;border-radius:3px 3px 0 0;width:100%;height:" pct "%")} "")
+                                  (h "div" {:style "font-size:.6rem;color:#9ca3af"}
+                                    (str-slice (get row "date") 5 10))))))
+                          chart-data)
+                        "")))))
+              "")
+
+            ; 기록 목록
+            (if (= (length logs) 0)
+              (h "div" {:style "background:white;border-radius:12px;padding:40px;text-align:center;color:#9ca3af"}
+                "기록이 없습니다")
+              (h "div" {:style "background:white;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06)"}
+                (arr-join
+                  (map
+                    (fn [log]
+                      (h "div" {:style "padding:12px 18px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;gap:12px"}
+                        (str
+                          (h "div" {:style "font-size:.8rem;color:#9ca3af;min-width:80px"} (get log "date"))
+                          (h "div" {:style "flex:1;font-weight:600"}
+                            (str (get log "value") " " (get log "unit")))
+                          (if (not (= (get log "note") ""))
+                            (h "div" {:style "font-size:.8rem;color:#6b7280"} (get log "note"))
+                            ""))))
+                    logs)
+                  ""))))))
+      req)))

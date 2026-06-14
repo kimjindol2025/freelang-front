@@ -1,0 +1,130 @@
+; pages/flash/study.flx — SRS 학습 세션 (SSR + Island 카드 뒤집기)
+; GET  /flash/study?deck=ID
+; POST /flash/study → answer 처리 후 다음 카드로 redirect
+
+(load "pages/flash/_db.flx")
+(flash-init)
+
+(island FlipCard []
+  (let [flipped (atom false)]
+    (h "div" {}
+      (str
+        (h "div"
+          {:id "card-face"
+           :style "background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:20px;transition:transform .3s"
+           :on-click (fn []
+                       (reset! flipped true)
+                       (.classList.remove (js-eval "document.getElementById('answer-btns')") "hidden")
+                       (.classList.add (js-eval "document.getElementById('flip-hint')") "hidden")
+                       (.classList.remove (js-eval "document.getElementById('card-back')") "hidden")
+                       (.classList.add (js-eval "document.getElementById('card-front')") "hidden"))}
+          "")
+        (h "div" {:id "answer-btns" :class "hidden" :style "display:none"} "")))))
+
+(defn render [req]
+  (let [deck-id  (server-req-query req "deck")
+        deck     (if deck-id (flash-deck-by-id deck-id) nil)]
+    (if (= deck nil)
+      (server-redirect "/flash")
+      (let [due-cards (flash-due-cards deck-id)
+            count     (length due-cards)
+            card      (if (> count 0) (first due-cards) nil)]
+        (layout-html (str "학습: " (get deck "name"))
+          (str
+            (h "div" {:style "background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:20px 24px;text-align:center"}
+              (str
+                (h "h1" {:style "font-size:1.2rem;font-weight:800;margin:0 0 4px"} (get deck "name"))
+                (h "p" {:style "opacity:.8;margin:0;font-size:.85rem"}
+                  (str "오늘 복습: " count " 개"))))
+            (h "div" {:style "max-width:480px;margin:40px auto;padding:0 24px"}
+              (if (= card nil)
+                ; 완료
+                (h "div" {:style "text-align:center;padding:40px 0"}
+                  (str
+                    (h "div" {:style "font-size:3.5rem;margin-bottom:16px"} "🎉")
+                    (h "h2" {:style "font-size:1.3rem;font-weight:800;margin:0 0 8px"} "오늘 복습 완료!")
+                    (h "p" {:style "color:#6b7280;margin:0 0 24px"} "다음 복습 카드는 내일 보여요")
+                    (h "a" {:href "/flash"
+                             :style "background:#f59e0b;color:white;padding:10px 24px;border-radius:10px;text-decoration:none;font-weight:700"}
+                      "← 덱 목록")))
+                ; 카드 학습
+                (str
+                  (h "div" {:style "display:flex;justify-content:space-between;margin-bottom:12px"}
+                    (str
+                      (h "span" {:style "font-size:.85rem;color:#6b7280"} (str "남은 " count " 개"))
+                      (h "a" {:href "/flash" :style "font-size:.8rem;color:#9ca3af;text-decoration:none"} "← 나중에")))
+
+                  ; 카드 앞면/뒷면 (JS로 토글)
+                  (str
+                    """
+<style>
+.hidden { display: none !important; }
+.ans-btn {
+  padding: 12px; border-radius: 10px; cursor: pointer;
+  font-size: .85rem; font-weight: 600; border: 1px solid;
+  transition: opacity .15s;
+}
+.ans-btn:hover { opacity: .8; }
+</style>
+"""
+                    (h "div" {:style "background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);min-height:200px;cursor:pointer;margin-bottom:20px"
+                               :onclick "document.getElementById('card-back').classList.remove('hidden');document.getElementById('card-front').classList.add('hidden');document.getElementById('flip-hint').classList.add('hidden');document.getElementById('answer-btns').classList.remove('hidden')"}
+                      (str
+                        (h "div" {:style "font-size:.72rem;font-weight:700;color:#f59e0b;letter-spacing:.08em;margin-bottom:16px"} "앞면 (질문)")
+                        (h "div" {:id "card-front"}
+                          (h "p" {:style "font-size:1.2rem;line-height:1.6;margin:0"} (get card "front")))
+                        (h "div" {:id "card-back" :class "hidden" :style "display:none"}
+                          (str
+                            (h "div" {:style "font-size:.72rem;font-weight:700;color:#6b7280;letter-spacing:.08em;margin-bottom:16px"} "뒷면 (답)")
+                            (h "p" {:style "font-size:1.2rem;line-height:1.6;margin:0"} (get card "back"))))
+                        (h "div" {:id "flip-hint" :style "margin-top:20px;font-size:.8rem;color:#9ca3af"} "탭하면 답 보기")))
+
+                    ; 평가 버튼 (숨김 → 뒤집기 후 표시)
+                    (h "div" {:id "answer-btns" :class "hidden" :style "display:none"}
+                      (str
+                        (h "p" {:style "text-align:center;font-size:.85rem;color:#6b7280;margin:0 0 10px"} "얼마나 잘 기억했나요?")
+                        (h "div" {:style "display:grid;grid-template-columns:repeat(3,1fr);gap:8px"}
+                          (str
+                            (h "form" {:method "POST"}
+                              (str
+                                (h! "input" {:type "hidden" :name "deck_id" :value deck-id})
+                                (h! "input" {:type "hidden" :name "card_id" :value (str (get card "id"))})
+                                (h! "input" {:type "hidden" :name "quality" :value "1"})
+                                (h "button" {:type "submit" :class "ans-btn" :style "background:#fef2f2;border-color:#fecaca;color:#ef4444"}
+                                  "😰 모름")))
+                            (h "form" {:method "POST"}
+                              (str
+                                (h! "input" {:type "hidden" :name "deck_id" :value deck-id})
+                                (h! "input" {:type "hidden" :name "card_id" :value (str (get card "id"))})
+                                (h! "input" {:type "hidden" :name "quality" :value "3"})
+                                (h "button" {:type "submit" :class "ans-btn" :style "background:#fffbeb;border-color:#fde68a;color:#d97706"}
+                                  "🤔 애매")))
+                            (h "form" {:method "POST"}
+                              (str
+                                (h! "input" {:type "hidden" :name "deck_id" :value deck-id})
+                                (h! "input" {:type "hidden" :name "card_id" :value (str (get card "id"))})
+                                (h! "input" {:type "hidden" :name "quality" :value "5"})
+                                (h "button" {:type "submit" :class "ans-btn" :style "background:#f0fdf4;border-color:#bbf7d0;color:#16a34a"}
+                                  "✅ 완벽"))))))))))
+            ))
+          req)))))
+
+(defn render_post [req]
+  (let [deck-id (form-get req "deck_id")
+        card-id (form-get req "card_id")
+        quality (str-to-num (or (form-get req "quality") "0"))
+        card    (flash-card-by-id card-id)]
+    (if (= card nil)
+      (server-redirect (str "/flash/study?deck=" deck-id))
+      (let [result (flash-sm2-next
+                     (get card "interval_days")
+                     (get card "ease")
+                     (get card "reps")
+                     quality)]
+        (do
+          (flash-update-card-srs card-id
+            (get result "interval")
+            (get result "ease")
+            (get result "reps")
+            (get result "next-at"))
+          (server-redirect (str "/flash/study?deck=" deck-id)))))))

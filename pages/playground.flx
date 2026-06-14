@@ -1,0 +1,81 @@
+; pages/playground.flx — FL 코드 플레이그라운드
+; GET /playground
+
+(style pg-wrap :max-w "900px" :mx "auto" :p "32px 20px")
+(style pg-title :size "1.6rem" :weight "700" :mb "8px" :color "var(--c-primary)")
+(style pg-subtitle :color "var(--c-muted)" :mb "24px" :size ".9rem")
+(style pg-grid :display "grid" :cols "1fr 1fr" :gap "20px")
+(style pg-panel :bg "var(--c-surface)" :radius "12px" :border "1px solid var(--c-border)" :overflow "hidden")
+(style pg-panel-head :p "12px 16px" :border-b "1px solid var(--c-border)" :font-size ".82rem" :weight "600" :color "var(--c-muted)" :display "flex" :justify "space-between" :items "center")
+(style pg-editor :width "100%" :min-h "320px" :p "16px" :font-family "monospace" :font-size ".9rem" :border "none" :outline "none" :resize "vertical" :bg "var(--c-surface)" :color "var(--c-text)" :line-height "1.6")
+(style pg-result :p "16px" :font-family "monospace" :font-size ".85rem" :min-h "320px" :white-space "pre-wrap" :overflow-y "auto" :color "var(--c-text)" :line-height "1.6")
+(style pg-result-error :color "#ef4444")
+(style pg-btn :p "8px 20px" :radius "8px" :bg "var(--c-primary)" :color "white" :border "none" :cursor "pointer" :font-size ".9rem" :weight "600")
+(style pg-examples :display "flex" :gap "8px" :flex-wrap "wrap" :mb "16px")
+(style pg-ex-btn :p "4px 12px" :radius "6px" :bg "var(--c-surface)" :border "1px solid var(--c-border)" :cursor "pointer" :font-size ".78rem" :color "var(--c-muted)")
+(style pg-status :font-size ".75rem" :color "var(--c-muted)")
+
+(island Playground []
+  (let [code (atom "(str \"Hello, \" \"FreeLang!\")")
+        result (atom "")
+        loading (atom false)
+        error (atom false)]
+    (h "div" {:class pg-wrap}
+      (h "h1" {:class pg-title} "FL Playground")
+      (h "p" {:class pg-subtitle} "FreeLang 코드를 브라우저에서 바로 실행해보세요")
+
+      (h "div" {:class pg-examples}
+        (h "button" {:class pg-ex-btn
+                     :on-click (fn []
+                       (reset! code "(let [xs [1 2 3 4 5]]\n  (filter (fn [x] (> x 2)) xs))"))}
+          "배열 필터")
+        (h "button" {:class pg-ex-btn
+                     :on-click (fn []
+                       (reset! code "(let [m {:name \"Kim\" :age 30}]\n  (str (get m :name) \"는 \" (get m :age) \"살\"))"))}
+          "맵 접근")
+        (h "button" {:class pg-ex-btn
+                     :on-click (fn []
+                       (reset! code "(let [n (atom 0)]\n  (swap! n (fn [v] (+ v 10)))\n  (str \"atom 값: \" @n))"))}
+          "atom")
+        (h "button" {:class pg-ex-btn
+                     :on-click (fn []
+                       (reset! code "(loop [i 0 acc 0]\n  (if (> i 10)\n    (str \"합계: \" acc)\n    (recur (inc i) (+ acc i))))"))}
+          "loop/recur")
+        (h "button" {:class pg-ex-btn
+                     :on-click (fn []
+                       (reset! code "(map (fn [x] (* x x)) [1 2 3 4 5])"))}
+          "map")
+        (h "button" {:class pg-ex-btn
+                     :on-click (fn []
+                       (reset! code "(let [name \"FreeLang\"]\n  \"\"\"<b>안녕, ${name}!</b>\"\"\")"))}
+          "삼중따옴표"))
+
+      (h "div" {:class pg-grid}
+        (h "div" {:class pg-panel}
+          (h "div" {:class pg-panel-head}
+            (h "span" {} "코드 입력")
+            (h "button" {:class pg-btn
+                         :on-click (fn []
+                           (reset! loading true)
+                           (reset! error false)
+                           (fetch-post! "/api/playground/eval"
+                             {:code @code}
+                             (fn [res]
+                               (reset! loading false)
+                               (if (get res "ok")
+                                 (do (reset! result (get res "result")) (reset! error false))
+                                 (do (reset! result (get res "error")) (reset! error true))))))}
+              (if @loading "실행 중..." "▶ 실행")))
+          (h "textarea" {:class pg-editor
+                         :value @code
+                         :on-input (fn [e] (reset! code (.-value (.-target e))))}))
+
+        (h "div" {:class pg-panel}
+          (h "div" {:class pg-panel-head}
+            (h "span" {} "실행 결과")
+            (h "span" {:class pg-status} (if @error "오류" (if (= @result "") "대기중" "완료"))))
+          (h "div" {:class (str pg-result (if @error (str " " pg-result-error) ""))}
+            (if (= @result "") "코드를 입력하고 실행 버튼을 눌러보세요." @result)))))))
+
+(defn render [req]
+  (layout-html "FL Playground" (str "ISLAND_PLACEHOLDER_0" "ISLAND_SCRIPTS") req))

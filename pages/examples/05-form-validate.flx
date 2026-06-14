@@ -1,0 +1,44 @@
+; pages/examples/05-form-validate.flx
+; 예제 05 — 폼 검증: 필수 필드 검증 후 분기
+; 배우는 것: form-validate, form-get, 에러 표시
+
+(defn field-row [label name placeholder]
+  (h "div" {:style "margin-bottom:12px"}
+    (str
+      (h "label" {:style "display:block;font-size:.85rem;color:#6b7280;margin-bottom:4px"} label)
+      (h "input" {:name name :placeholder placeholder
+                  :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem"}))))
+
+(defn render [req]
+  (layout-html "05 · 폼 검증"
+    (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+      (str
+        (h "h1" {:style "font-size:1.6rem;margin:0 0 16px"} "회원 가입 (검증)")
+        (h "form" {:method "post" :action "/examples/05-form-validate"}
+          (str
+            (field-row "이름" "name" "홍길동")
+            (field-row "이메일" "email" "hong@example.com")
+            (h "button" {:type "submit"
+                         :style "width:100%;background:#6366f1;color:white;border:none;border-radius:8px;padding:12px;cursor:pointer;margin-top:8px"}
+              "가입")))))
+    req))
+
+(defn render_post [req]
+  (let [result (form-validate req ["name" "email"])
+        valid  (get result "valid")]
+    (if valid
+      (layout-html "05 · 가입 완료"
+        (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px;text-align:center"}
+          (str
+            (h "div" {:style "font-size:3rem"} "✅")
+            (h "p" {:style "font-size:1.3rem;margin:12px 0"}
+              (str (form-get req "name") "님, 가입되었습니다!"))
+            (h "a" {:href "/examples/05-form-validate" :data-spa "1" :style "color:#6366f1"} "← 처음으로")))
+        req)
+      (layout-html "05 · 검증 실패"
+        (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+          (str
+            (h "div" {:style "background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;border-radius:8px;padding:14px;margin-bottom:16px"}
+              "⚠️ 이름과 이메일은 필수입니다.")
+            (h "a" {:href "/examples/05-form-validate" :data-spa "1" :style "color:#6366f1"} "← 다시 입력")))
+        req))))

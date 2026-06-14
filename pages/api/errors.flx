@@ -3,7 +3,7 @@
 ; POST /api/errors — 에러 저장
 ; DELETE /api/errors — 에러 초기화
 
-(load "../error-api.fl")
+(load "error-api.fl")
 
 (defn render [$req]
   (let [$method (get $req "method")]
@@ -20,3 +20,6 @@
       ; 다른 메서드는 405
       true
         (server-json {"error" "Method not allowed"} 405))))
+
+(defn render_post [req]
+  (handle-post-errors req))

@@ -1,7 +1,7 @@
 ; FL-Front 메인 서버
 ; 실행 전 빌드 필수: node fl-front-build.js
 
-(define PORT 40850)
+(define PORT 40860)
 
 ; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
 (load "_app.fl")

@@ -1,0 +1,103 @@
+; pages/shop/orders/[id].flx — 주문 상세
+; GET /shop/orders/:id
+
+(defn SHOP_API [] "http://localhost:40081")
+
+(defn fetch-order [id]
+  (let [res (http-get (str (SHOP_API) "/api/orders/" id))
+        p   (json_parse (get res "body"))]
+    (if (get p "ok") (get p "data") nil)))
+
+(defn render [req]
+  (let [id    (get (get req "params") "id")
+        order (fetch-order id)]
+    (if (nil? order)
+      (server-status 404 "주문을 찾을 수 없습니다")
+      (let [items  (?? (get order "items") [])
+            total  (get order "total")
+            status (get order "status")
+            uid    (get order "user_id")]
+        (layout-html (str "주문 #" id " 상세")
+          (str
+            """
+<style>
+body{background:#f9fafb}
+.wrap{max-width:680px;margin:0 auto;padding:32px 20px}
+.nav{margin-bottom:20px;font-size:.875rem}
+.nav a{color:#6b7280;text-decoration:none}
+.nav a:hover{color:#6366f1}
+.nav span{color:#9ca3af;margin:0 6px}
+.head-card{background:#fff;border-radius:14px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.07);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.order-id{font-size:1.2rem;font-weight:800;color:#111827}
+.order-date{font-size:.8rem;color:#9ca3af;margin-top:4px}
+.status-badge{padding:6px 16px;border-radius:99px;font-size:.8rem;font-weight:700}
+.st-paid{background:#dcfce7;color:#166534}
+.st-pending{background:#fef9c3;color:#854d0e}
+.st-cancel{background:#fee2e2;color:#991b1b}
+.items-card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.07);overflow:hidden;margin-bottom:16px}
+.item-row{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #f3f4f6}
+.item-row:last-child{border-bottom:none}
+.item-name{font-weight:600;color:#111827;font-size:.9rem}
+.item-meta{font-size:.78rem;color:#9ca3af;margin-top:3px}
+.item-subtotal{font-weight:700;color:#111827}
+.total-card{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:18px 20px;display:flex;justify-content:space-between;align-items:center}
+.total-label{font-size:.875rem;color:#166534;font-weight:600}
+.total-amount{font-size:1.5rem;font-weight:800;color:#111827}
+.btn-row{display:flex;gap:10px;margin-top:20px}
+.btn-row a{padding:11px 22px;border-radius:8px;font-size:.875rem;font-weight:600;text-decoration:none}
+.btn-outline{border:1px solid #e5e7eb;color:#6b7280}
+.btn-primary{background:#6366f1;color:#fff}
+</style>
+"""
+            (h "div" {"class" "wrap"}
+              (h "div" {"class" "nav"}
+                (h "a" {"href" "/shop"} "쇼핑몰")
+                (h "span" {} "›")
+                (h "a" {"href" "/shop/orders"} "주문내역")
+                (h "span" {} "›")
+                (h "span" {"style" "color:#111827"} (str "주문 #" id)))
+
+              ;; 주문 헤더
+              (h "div" {"class" "head-card"}
+                (h "div" {}
+                  (h "p" {"class" "order-id"} (str "주문 #" id))
+                  (h "p" {"class" "order-date"} (get order "created_at")))
+                (h "span"
+                  {"class" (str "status-badge "
+                                (cond (= status "paid")    "st-paid"
+                                      (= status "pending") "st-pending"
+                                      true                 "st-cancel"))}
+                  (cond (= status "paid") "결제완료" (= status "pending") "대기중" true "취소")))
+
+              ;; 주문 상품 목록
+              (h "div" {"class" "items-card"}
+                (str-join
+                  (map (fn [item]
+                    (h "div" {"class" "item-row"}
+                      (h "div" {}
+                        (h "p" {"class" "item-name"} (get item "name"))
+                        (h "p" {"class" "item-meta"}
+                          (str "₩" (get item "unit_price") " × " (get item "qty") "개"
+                               (when (not (nil? (get item "category")))
+                                 (str " · " (get item "category"))))))
+                      (h "p" {"class" "item-subtotal"}
+                        (str "₩" (get item "subtotal")))))
+                  items)))
+
+              ;; 합계
+              (h "div" {"class" "total-card"}
+                (h "span" {"class" "total-label"} (str "총 " (length items) "종 상품"))
+                (h "span" {"class" "total-amount"} (str "₩" total)))
+
+              ;; 버튼
+              (h "div" {"class" "btn-row"}
+                (h "a" {"href" "/shop/orders" "class" "btn-row a btn-outline"
+                        "style" "padding:11px 22px;border-radius:8px;font-size:.875rem;font-weight:600;text-decoration:none;border:1px solid #e5e7eb;color:#6b7280"}
+                  "← 주문목록")
+                (h "a" {"href" (str "/shop/users/" uid)
+                        "style" "padding:11px 22px;border-radius:8px;font-size:.875rem;font-weight:600;text-decoration:none;background:#6366f1;color:#fff"}
+                  "회원 정보 보기")
+                (h "a" {"href" "/shop"
+                        "style" "padding:11px 22px;border-radius:8px;font-size:.875rem;font-weight:600;text-decoration:none;border:1px solid #6366f1;color:#6366f1"}
+                  "쇼핑 계속하기"))))
+          req)))))

@@ -1,0 +1,60 @@
+; pages/contacts/api.flx — 연락처 JSON API
+; GET  /contacts/api?q=검색어 → {contacts}
+; GET  /contacts/api?overdue=1  → {overdue}
+; POST /contacts/api → action: add|delete|save-remind
+
+(load "pages/contacts/_db.flx")
+(contacts-init)
+
+(defn render [req]
+  (let [q       (server-req-query req "q")
+        overdue (server-req-query req "overdue")]
+    (cond
+      (= overdue "1")
+        (server-json {"overdue" (contacts-overdue)})
+      (and q (not (= (str-trim q) "")))
+        (server-json {"contacts" (contacts-search q)})
+      true
+        (server-json {"contacts" (contacts-all)}))))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [name        (or (get body "name") "")
+              phone       (or (get body "phone") "")
+              email       (or (get body "email") "")
+              company     (or (get body "company") "")
+              memo        (or (get body "memo") "")
+              group       (or (get body "group") "일반")
+              job-title   (or (get body "job_title") "")
+              tags        (or (get body "tags") "")
+              met-at      (or (get body "met_at") "")
+              remind-days (or (get body "remind_days") "0")
+              linked-url  (or (get body "linked_url") "")]
+          (if (= (str-trim name) "")
+            (server-json {"ok" false "error" "이름 필요"} 400)
+            (do
+              (contacts-add name phone email company memo group job-title tags met-at remind-days linked-url)
+              (server-json {"ok" true "contacts" (contacts-all)}))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (contacts-delete id)
+              (server-json {"ok" true "contacts" (contacts-all)}))))
+
+      (= action "save-remind")
+        (let [id          (get body "id")
+              remind-days (or (get body "remind_days") "0")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (contacts-save-remind id remind-days)
+              (server-json {"ok" true}))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown: " action)} 400))))

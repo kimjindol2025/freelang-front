@@ -1,235 +1,151 @@
-;;; Task Manager 스타일 헬퍼
+; pages/_styles.flx — SKL 다크 테마 CSS 헬퍼
+; 인라인 style 문자열 반복 제거
 
-(defn global-css []
-  "
-  :root {
-    --color-primary: #007bff;
-    --color-danger: #dc3545;
-    --color-success: #28a745;
-    --color-high: #c62828;
-    --color-medium: #f57c00;
-    --color-low: #2e7d32;
-  }
+; ── 색상 토큰 ────────────────────────────────────────────────
+(define $bg     "#0d1829")
+(define $panel  "#0f1d33")
+(define $bdr    "#1e3050")
+(define $muted  "#64748b")
+(define $sub    "#94a3b8")
+(define $text   "#e2e8f0")
+(define $accent "#6366f1")
+(define $ok     "#10b981")
+(define $warn   "#f59e0b")
+(define $danger "#ef4444")
 
-  * {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-  }
+; ── style 조합 함수 ──────────────────────────────────────────
+(defn s [& parts]
+  "여러 style 조각을 ;로 합치기
+   (s (row 8) (p 12) (rounded 8))
+   → 'display:flex;align-items:center;gap:8px;padding:12px;border-radius:8px'"
+  (str-join (filter (fn [x] (not (= x ""))) parts) ";"))
 
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-    background: #f5f5f5;
-    color: #333;
-    line-height: 1.6;
-  }
+; ── 레이아웃 ─────────────────────────────────────────────────
+(defn row [gap]
+  (str "display:flex;align-items:center;gap:" gap "px"))
 
-  .container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
+(defn col [gap]
+  (str "display:flex;flex-direction:column;gap:" gap "px"))
 
-  /* 헤더 */
-  header {
-    background: #fff;
-    padding: 2rem;
-    border-bottom: 1px solid #e0e0e0;
-    margin-bottom: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  }
+(defn between []
+  "display:flex;align-items:center;justify-content:space-between")
 
-  header h1 {
-    font-size: 2rem;
-    margin-bottom: 0.5rem;
-  }
+(defn center []
+  "display:flex;align-items:center;justify-content:center")
 
-  header p {
-    color: #666;
-  }
+(defn full []
+  "width:100%;height:100%")
 
-  /* Task Grid */
-  .task-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-    gap: 1.5rem;
-    margin-bottom: 3rem;
-  }
+(defn flex1 []
+  "flex:1;min-width:0")
 
-  /* Task Card */
-  .task-card {
-    background: #fff;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 1.5rem;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-  }
+; ── 간격 ─────────────────────────────────────────────────────
+(defn p [v]  (str "padding:" v "px"))
+(defn px [v] (str "padding-left:" v "px;padding-right:" v "px"))
+(defn py [v] (str "padding-top:" v "px;padding-bottom:" v "px"))
+(defn mg [v] (str "margin:" v "px"))
 
-  .task-card:hover {
-    box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-    transform: translateY(-2px);
-    border-color: #007bff;
-  }
+; ── 크기 ─────────────────────────────────────────────────────
+(defn w [v]   (str "width:" v))
+(defn ht [v]  (str "height:" v))
+(defn wh [v]  (str "width:" v ";height:" v))
+(defn mxw [v] (str "max-width:" v))
 
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: start;
-    margin-bottom: 1rem;
-  }
+; ── 테두리 ───────────────────────────────────────────────────
+(defn rounded [r]
+  (str "border-radius:" r "px"))
 
-  .card-header h3 {
-    font-size: 1.2rem;
-    margin: 0;
-  }
+(defn border []
+  (str "border:1px solid " $bdr))
 
-  .badge {
-    display: inline-block;
-    padding: 0.25rem 0.75rem;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: bold;
-    text-transform: uppercase;
-  }
+(defn border-b []
+  (str "border-bottom:1px solid " $bdr))
 
-  .badge-high {
-    background: #ffebee;
-    color: var(--color-high);
-  }
+(defn border-r []
+  (str "border-right:1px solid " $bdr))
 
-  .badge-medium {
-    background: #fff3e0;
-    color: var(--color-medium);
-  }
+; ── 배경/색상 ────────────────────────────────────────────────
+(defn bg [c]  (str "background:" c))
+(defn fg [c]  (str "color:" c))
+(defn bg-panel []  (bg $panel))
+(defn bg-page []   (bg $bg))
 
-  .badge-low {
-    background: #e8f5e9;
-    color: var(--color-low);
-  }
+; ── 텍스트 ───────────────────────────────────────────────────
+(defn fs [v]  (str "font-size:" v "px"))
+(defn fw [v]  (str "font-weight:" v))
+(defn truncate [] "overflow:hidden;text-overflow:ellipsis;white-space:nowrap")
+(defn upper []   "text-transform:uppercase;letter-spacing:1px")
+(defn mono []    "font-family:monospace")
 
-  .card-body {
-    margin-bottom: 1rem;
-    padding-bottom: 1rem;
-    border-bottom: 1px solid #f0f0f0;
-  }
+; ── 커서/상호작용 ────────────────────────────────────────────
+(defn pointer [] "cursor:pointer")
+(defn none []    "display:none")
+(defn abs []     "position:absolute")
+(defn fixed []   "position:fixed")
+(defn rel []     "position:relative")
+(defn inset []   "top:0;left:0;right:0;bottom:0")
+(defn ovh []     "overflow:hidden")
+(defn ova []     "overflow-y:auto")
 
-  .card-body p {
-    font-size: 0.95rem;
-    color: #666;
-    margin: 0.5rem 0;
-  }
+; ── 공통 컴포넌트 ────────────────────────────────────────────
+(defn $card []
+  (s (bg-panel) (border) (rounded 12) (p 16)))
 
-  .text-sm {
-    font-size: 0.85rem !important;
-    color: #999 !important;
-  }
+(defn $card-hover []
+  (s ($card) (pointer) "transition:border-color .15s"))
 
-  .card-footer {
-    display: flex;
-    gap: 0.5rem;
-  }
+(defn $input []
+  (s (w "100%") "padding:10px 12px" (bg-page) (border)
+     (fg $text) (rounded 8) "font-size:13px;outline:none"))
 
-  .btn {
-    flex: 1;
-    padding: 0.5rem 1rem;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 500;
-    transition: all 0.2s;
-  }
+(defn $textarea []
+  (s ($input) "resize:vertical;min-height:120px;line-height:1.7"))
 
-  .btn-edit {
-    background: var(--color-primary);
-    color: white;
-  }
+(defn $btn-primary []
+  (s "padding:9px 18px" (bg $accent) (fg "white")
+     "border:none" (rounded 8) (pointer) "font-size:13px;font-weight:600"))
 
-  .btn-edit:hover {
-    background: #0056b3;
-  }
+(defn $btn-ghost []
+  (s "padding:9px 18px;background:transparent"
+     (str "border:1px solid " $bdr) (fg $muted)
+     (rounded 8) (pointer) "font-size:13px"))
 
-  .btn-delete {
-    background: #f8f9fa;
-    color: var(--color-danger);
-    border: 1px solid var(--color-danger);
-  }
+(defn $btn-danger []
+  (s "padding:9px 18px;background:transparent"
+     (str "border:1px solid " $danger) (fg $danger)
+     (rounded 8) (pointer) "font-size:13px"))
 
-  .btn-delete:hover {
-    background: #f5c2c7;
-  }
+(defn $btn-icon []
+  (s "background:transparent;border:none" (fg $muted) (pointer) "font-size:14px;padding:2px 6px"))
 
-  /* Empty State */
-  .empty-state {
-    text-align: center;
-    padding: 3rem;
-    background: #fff;
-    border-radius: 8px;
-    color: #999;
-    margin-bottom: 2rem;
-  }
+(defn $badge [color]
+  (s "padding:2px 8px" (rounded 4) "font-size:11px" (fg color)
+     (str "background:" color "1a")))
 
-  .empty-state p {
-    font-size: 1rem;
-    margin: 0.5rem 0;
-  }
+(defn $sidebar []
+  (s "width:220px" (bg-panel) (border-r)
+     "display:flex;flex-direction:column;flex-shrink:0"))
 
-  /* Create Section */
-  .create-section {
-    background: #fff;
-    padding: 2rem;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  }
+(defn $topbar []
+  (s (between) "padding:12px 20px" (border-b) (bg-panel)))
 
-  .create-section h2 {
-    margin-bottom: 1.5rem;
-    font-size: 1.5rem;
-  }
+(defn $nav-item [active?]
+  (s "display:flex;align-items:center;gap:10px;padding:9px 12px"
+     (rounded 6) (pointer) "font-size:13px;margin-bottom:2px;border:none;width:100%;text-align:left"
+     (if active?
+       (str "background:" $panel ";color:" $text)
+       (str "background:transparent;color:" $sub))))
 
-  /* Form */
-  .form-group {
-    margin-bottom: 1.5rem;
-  }
+(defn $modal-bg []
+  (s (fixed) (inset) "background:rgba(0,0,0,0.7);z-index:100"
+     (center) "padding:16px"))
 
-  .form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-    color: #333;
-  }
+(defn $modal []
+  (s (bg-panel) (border) (rounded 14)
+     "padding:24px;max-width:480px;width:100%"))
 
-  .form-group input,
-  .form-group select {
-    width: 100%;
-    padding: 0.75rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 1rem;
-    font-family: inherit;
-  }
+(defn $empty-state []
+  (s (center) "flex-direction:column;padding:60px 20px" (fg $muted)))
 
-  .form-group input:focus,
-  .form-group select:focus {
-    outline: none;
-    border-color: var(--color-primary);
-    box-shadow: 0 0 0 3px rgba(0,123,255,0.25);
-  }
-
-  /* 반응형 */
-  @media (max-width: 768px) {
-    .container {
-      padding: 1rem;
-    }
-
-    .task-grid {
-      grid-template-columns: 1fr;
-    }
-
-    header h1 {
-      font-size: 1.5rem;
-    }
-  }
-  ")
+(defn $scroll []
+  "::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#1e3050;border-radius:3px}")

@@ -1,0 +1,41 @@
+; pages/examples/27-fetch.flx
+; 예제 27 — 데이터 로딩: Island 에서 fetch! 로 JSON API(예제 26) 호출
+; 배우는 것: fetch!, atom 으로 로딩/데이터 상태, get 으로 응답 파싱
+
+(island Fetcher []
+  (let [data    (atom nil)
+        loading (atom false)
+        load    (fn []
+                  (reset! loading true)
+                  (fetch! "/examples/26-json-api"
+                    (fn [res]
+                      (reset! loading false)
+                      (reset! data (get res "items")))))]
+    (h "div" {}
+      (str
+        (h "button" {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;margin-bottom:16px"
+                     :on-click (fn [] (load))}
+          (if @loading "불러오는 중…" "데이터 불러오기"))
+        (if (= @data nil)
+          (h "p" {:style "color:#9ca3af"} "버튼을 눌러 /examples/26-json-api 에서 데이터를 가져오세요.")
+          (h "div" {:style "display:flex;flex-direction:column;gap:8px"}
+            (map
+              (fn [it]
+                (h "div" {:style "display:flex;justify-content:space-between;padding:12px 16px;background:white;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)"}
+                  (str
+                    (h "span" {:style "font-weight:600"} (get it "name"))
+                    (h "span" {:style "color:#6366f1;font-weight:700"} (str "★ " (str (get it "stars")))))))
+              @data)))))))
+
+(defn render [req]
+  (layout-html "27 · 데이터 로딩"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "fetch! 데이터 로딩")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "Island 에서 fetch! 로 JSON API 를 호출하고, 응답을 atom 에 담아 렌더합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

@@ -1,0 +1,309 @@
+; pages/reading/index.flx — 독서 기록 서재 (reading.skl.kr 디자인 참조)
+
+(load "pages/reading/_db.flx")
+(reading-init)
+
+; OKLCH 기반 독서 전용 CSS (reading.skl.kr 스타일)
+(define READING-CSS "<style>
+.rapp{
+  --c-primary:   oklch(0.50 0.22 296);
+  --c-primary-d: oklch(from var(--c-primary) calc(l - 0.07) c h);
+  --c-primary-l: oklch(from var(--c-primary) 0.94 0.05 h);
+}
+.book-card{
+  background:var(--c-surface);
+  border:1px solid var(--c-border);
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 1px 4px oklch(0 0 0 / .07);
+  cursor:pointer;
+  transition:box-shadow .3s var(--ease-spring),transform .3s var(--ease-spring);
+}
+.book-card:hover{
+  box-shadow:0 8px 24px oklch(0 0 0 / .14);
+  transform:translateY(-3px);
+}
+@keyframes bk-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.book-card{
+  animation:bk-in linear both;
+  animation-timeline:view();
+  animation-range:entry 0% entry 30%;
+}
+@starting-style{.book-card{opacity:0;transform:translateY(14px)}}
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:.25s cubic-bezier(.4,0,1,1) both vt-out}
+::view-transition-new(root){animation:.28s cubic-bezier(0,0,.2,1) both vt-in}
+@keyframes vt-out{to{opacity:0;transform:translateX(-14px) scale(.99)}}
+@keyframes vt-in{from{opacity:0;transform:translateX(14px) scale(.99)}}
+.r-tab{
+  padding:8px 18px;border-radius:8px;border:none;cursor:pointer;
+  font-weight:600;font-size:.85rem;transition:all .2s var(--ease-spring);
+}
+.r-tab:hover{transform:translateY(-1px)}
+.r-tab-active{background:oklch(0.50 0.22 296);color:white}
+.r-tab-idle{background:var(--c-surface);color:var(--c-muted);border:1px solid var(--c-border)}
+.r-form-wrap{
+  background:var(--c-surface);border:1px solid var(--c-border);
+  border-radius:16px;padding:24px;margin-bottom:16px;
+  box-shadow:0 2px 8px oklch(0 0 0 / .06);
+}
+.r-progress{height:4px;background:var(--c-border);border-radius:2px;overflow:hidden}
+.r-progress-fill{height:100%;background:oklch(0.50 0.22 296);transition:width .4s}
+.r-genre-badge{
+  display:inline-block;padding:2px 8px;border-radius:99px;
+  font-size:.7rem;font-weight:600;
+  background:oklch(from var(--c-primary) 0.94 0.05 h);
+  color:oklch(from var(--c-primary) 0.35 0.15 h);
+}
+</style>")
+
+(island ReadingApp []
+  (let [books     (atom nil)
+        tab       (atom "reading")
+        form      (atom false)
+        ftitle    (atom "")
+        fauthor   (atom "")
+        fstatus   (atom "reading")
+        fpages    (atom "0")
+        fcolor    (atom "#7c3aed")
+        fpub      (atom "")
+        fisbn     (atom "")
+        fyear     (atom "")
+        fgenre    (atom "")
+        ferr      (atom "")
+
+        reload (fn [res]
+                 (reset! books (get res "books"))
+                 (reset! form false)
+                 (reset! ftitle "") (reset! fauthor "")
+                 (reset! fpub "")  (reset! fisbn "")
+                 (reset! fyear "") (reset! fgenre "")
+                 (reset! ferr ""))
+
+        filtered (fn []
+                   (filter (fn [bk] (= (get bk "status") @tab)) @books))
+
+        add-book (fn []
+                   (if (= (str-trim @ftitle) "")
+                     (reset! ferr "제목을 입력하세요")
+                     (fetch-post! "/reading/api"
+                       {"action"      "add"
+                        "title"       @ftitle
+                        "author"      @fauthor
+                        "status"      @fstatus
+                        "pages_total" @fpages
+                        "cover_color" @fcolor
+                        "publisher"   @fpub
+                        "isbn"        @fisbn
+                        "pub_year"    @fyear
+                        "genre"       @fgenre}
+                       reload)))
+
+        del-book (fn [bid]
+                   (fetch-post! "/reading/api" {"action" "delete" "id" bid}
+                     (fn [res] (reset! books (get res "books")))))
+
+        stars (fn [rating]
+                (arr-join
+                  (map (fn [idx] (if (<= idx rating) "★" "☆"))
+                    [1 2 3 4 5])
+                  ""))
+
+        pct (fn [bk]
+              (let [total (get bk "pages_total")]
+                (if (> total 0)
+                  (* (/ (get bk "pages_read") total) 100)
+                  0)))]
+
+    (fetch! "/reading/api" (fn [res] (reset! books (get res "books"))))
+
+    (if (= @books nil)
+      (h "div" {:style "text-align:center;padding:60px;color:var(--c-muted)"} "로딩 중…")
+
+      (h "div" {:class "rapp"}
+
+        ; 탭 + 추가 버튼
+        (h "div" {:style "display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;align-items:center"}
+          (str
+            (map
+              (fn [tab-def]
+                (let [tkey    (get tab-def "key")
+                      tcount  (length (filter (fn [bk] (= (get bk "status") tkey)) @books))
+                      active  (= tkey @tab)]
+                  (h "button"
+                    {:class (str "r-tab " (if active "r-tab-active" "r-tab-idle"))
+                     :on-click (fn [] (reset! tab tkey))}
+                    (str (get tab-def "icon") " " (get tab-def "label") " (" tcount ")"))))
+              [{"key" "reading" "icon" "📖" "label" "읽는 중"}
+               {"key" "done"    "icon" "✅" "label" "완독"}
+               {"key" "wish"    "icon" "📌" "label" "읽고 싶어요"}])
+            (h "button"
+              {:style "margin-left:auto;background:oklch(0.50 0.22 296);color:white;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:.85rem;transition:all .2s"
+               :on-click (fn [] (reset! form true))}
+              "+ 책 추가")))
+
+        ; 추가 폼
+        (if @form
+          (h "div" {:class "r-form-wrap"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-size:1rem;font-weight:700;color:var(--c-text)"} "책 추가")
+
+              ; 1행: 제목 + 저자
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "제목 *")
+                      (h! "input" {:type "text" :value @ftitle :placeholder "책 제목"
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! ftitle (.-value (.-target ev))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "저자")
+                      (h! "input" {:type "text" :value @fauthor :placeholder "저자명"
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! fauthor (.-value (.-target ev))))})))))
+
+              ; 2행: 출판사 + 출판연도 + ISBN
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "출판사")
+                      (h! "input" {:type "text" :value @fpub :placeholder "출판사명"
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! fpub (.-value (.-target ev))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "출판연도")
+                      (h! "input" {:type "number" :value @fyear :placeholder "2024"
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! fyear (.-value (.-target ev))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "ISBN")
+                      (h! "input" {:type "text" :value @fisbn :placeholder "978-..."
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! fisbn (.-value (.-target ev))))})))))
+
+              ; 3행: 장르 + 상태 + 페이지 + 커버
+              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:16px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "장르")
+                      (h! "input" {:type "text" :value @fgenre :placeholder "소설·에세이·…"
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! fgenre (.-value (.-target ev))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "상태")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                         :on-change (fn [ev] (reset! fstatus (.-value (.-target ev))))}
+                        (str
+                          (h "option" {:value "reading"} "읽는 중")
+                          (h "option" {:value "wish"}    "읽고 싶어요")
+                          (h "option" {:value "done"}    "완독")))))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "총 페이지")
+                      (h! "input" {:type "number" :value @fpages :placeholder "320"
+                                   :style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                                   :on-input (fn [ev] (reset! fpages (.-value (.-target ev))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:var(--c-muted);display:block;margin-bottom:4px"} "커버 색")
+                      (h "select"
+                        {:style "width:100%;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px;font-size:.9rem;background:var(--c-bg);color:var(--c-text)"
+                         :on-change (fn [ev] (reset! fcolor (.-value (.-target ev))))}
+                        (str
+                          (h "option" {:value "#7c3aed"} "퍼플")
+                          (h "option" {:value "#6366f1"} "인디고")
+                          (h "option" {:value "#0891b2"} "시안")
+                          (h "option" {:value "#e11d48"} "레드")
+                          (h "option" {:value "#0d9488"} "틸")
+                          (h "option" {:value "#d97706"} "앰버")
+                          (h "option" {:value "#16a34a"} "그린")))))))
+
+              (when (not (= @ferr ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @ferr))
+
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:oklch(0.50 0.22 296);color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer;transition:all .2s"
+                     :on-click (fn [] (add-book))}
+                    "저장")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid var(--c-border);background:var(--c-surface);color:var(--c-text);border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! form false))}
+                    "취소")))))
+          "")
+
+        ; 책 그리드
+        (if (= (length (filtered)) 0)
+          (h "div" {:style "text-align:center;padding:60px;color:var(--c-muted);background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px"}
+            (str
+              (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "📚")
+              (h "p" {:style "margin:0"} "목록이 비어 있습니다")))
+          (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px"}
+            (map
+              (fn [bk]
+                (h "div" {:class "book-card"}
+                  (str
+                    (h "a" {:href (str "/reading/" (get bk "id")) :style "text-decoration:none;color:inherit"}
+                      (str
+                        ; 커버
+                        (h "div" {:style (str "background:" (get bk "cover_color") ";height:120px;display:flex;align-items:center;justify-content:center;color:white;font-size:2.5rem;position:relative")}
+                          (str
+                            "📖"
+                            (if (not (= (get bk "genre") ""))
+                              (h "span" {:style "position:absolute;bottom:8px;left:8px;background:rgba(0,0,0,.35);color:white;font-size:.65rem;padding:2px 7px;border-radius:99px;font-weight:600"}
+                                (get bk "genre"))
+                              "")))
+                        ; 정보
+                        (h "div" {:style "padding:12px"}
+                          (str
+                            (h "div" {:style "font-weight:700;font-size:.85rem;line-height:1.4;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;color:var(--c-text)"}
+                              (get bk "title"))
+                            (h "div" {:style "font-size:.75rem;color:var(--c-muted);margin-bottom:4px"}
+                              (if (= (get bk "author") "") "저자 미상" (get bk "author")))
+                            (if (not (= (get bk "publisher") ""))
+                              (h "div" {:style "font-size:.7rem;color:var(--c-muted);margin-bottom:8px"}
+                                (str (get bk "publisher")
+                                     (if (> (get bk "pub_year") 0)
+                                       (str " · " (get bk "pub_year"))
+                                       "")))
+                              "")
+                            ; 진행률
+                            (if (and (= @tab "reading") (> (get bk "pages_total") 0))
+                              (h "div" {:class "r-progress"}
+                                (h "div" {:class "r-progress-fill"
+                                          :style (str "width:" (pct bk) "%")} ""))
+                              "")
+                            ; 별점
+                            (if (= @tab "done")
+                              (h "div" {:style "color:#f59e0b;font-size:.85rem;margin-top:4px"} (stars (get bk "rating")))
+                              "")))))
+                    (h "button"
+                      {:style "width:100%;padding:6px;background:#fef2f2;border:none;border-top:1px solid #fecaca;color:#ef4444;cursor:pointer;font-size:.8rem;transition:background .15s"
+                       :on-click (fn [] (del-book (str (get bk "id"))))}
+                      "삭제"))))
+              (filtered))))))))
+
+(defn render [req]
+  (let [total   (length (reading-all))
+        reading (length (reading-by-status "reading"))
+        done    (length (reading-by-status "done"))]
+    (layout-html "📚 독서 기록"
+      (str
+        READING-CSS
+        (h "div" {:style "background:linear-gradient(135deg,#7c3aed,#6366f1);color:white;padding:28px 24px;text-align:center;margin:-32px -24px 24px;border-radius:0 0 16px 16px"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "📚 독서 기록")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str "읽는 중 " reading " · 완독 " done " · 합계 " total))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

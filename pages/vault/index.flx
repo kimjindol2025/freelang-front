@@ -1,0 +1,298 @@
+; pages/vault/index.flx — 비밀번호 금고 (envelope 암호화)
+; 보안: 마스터 평문은 저장 안 함. 항목은 AES-256-GCM. 잠금해제 15분 후 자동 잠김.
+; island 안전규칙: 문자열 안 ')' 회피, 삼중따옴표 금지, 1글자 람다 변수 금지, JSON은 "키".
+
+(island VaultApp []
+  (let [state     (atom "init")     ; init | setup | locked | unlocked
+        booted    (atom false)
+        token     (atom "")
+        items     (atom nil)
+        pw        (atom "")
+        pw2       (atom "")
+        err       (atom "")
+        form      (atom false)
+        ilabel    (atom "")
+        iuser     (atom "")
+        ipass     (atom "")
+        iurl      (atom "")
+        icategory (atom "기타")
+        show-pw   (atom {})
+
+        boot (fn []
+               (when (not @booted)
+                 (reset! booted true)
+                 (fetch-post! "/vault/api" {"action" "status"}
+                   (fn [res]
+                     (if (get res "setup")
+                       (reset! state "locked")
+                       (reset! state "setup"))))))
+
+        do-setup (fn []
+                   (if (not (= (str-trim @pw) (str-trim @pw2)))
+                     (reset! err "두 비밀번호가 일치하지 않습니다")
+                     (if (< (length (str-trim @pw)) 4)
+                       (reset! err "마스터 비밀번호는 4자 이상이어야 합니다")
+                       (fetch-post! "/vault/api"
+                         {"action" "setup" "master" @pw}
+                         (fn [res]
+                           (if (get res "ok")
+                             (do (reset! err "") (reset! pw "") (reset! pw2 "")
+                                 (reset! state "locked"))
+                             (reset! err (get res "error"))))))))
+
+        reload-items (fn []
+                       (fetch! (str "/vault/api?token=" @token)
+                         (fn [r] (reset! items (get r "items")))))
+
+        unlock (fn []
+                 (if (= (str-trim @pw) "")
+                   (reset! err "비밀번호를 입력하세요")
+                   (fetch-post! "/vault/api"
+                     {"action" "unlock" "password" @pw}
+                     (fn [res]
+                       (if (get res "ok")
+                         (do
+                           (reset! token (get res "token"))
+                           (reset! state "unlocked")
+                           (reset! err "")
+                           (reset! pw "")
+                           (reload-items))
+                         (reset! err (get res "error")))))))
+
+        lock (fn []
+               (fetch-post! "/vault/api" {"action" "lock" "token" @token}
+                 (fn [res]
+                   (reset! state "locked")
+                   (reset! token "")
+                   (reset! items nil)
+                   (reset! show-pw {}))))
+
+        gen (fn []
+              (fetch-post! "/vault/api"
+                {"action" "gen-password" "token" @token}
+                (fn [res] (when (get res "ok") (reset! ipass (get res "password"))))))
+
+        add (fn []
+              (if (= (str-trim @ilabel) "")
+                (reset! err "레이블을 입력하세요")
+                (fetch-post! "/vault/api"
+                  {"action" "add" "token" @token
+                   "label" @ilabel "username" @iuser "password" @ipass
+                   "url" @iurl "category" @icategory}
+                  (fn [res]
+                    (if (get res "ok")
+                      (do
+                        (reset! form false)
+                        (reset! ilabel "") (reset! iuser "") (reset! ipass "")
+                        (reset! iurl "") (reset! err "")
+                        (reload-items))
+                      (reset! err (or (get res "error") "추가 실패 — 다시 잠금해제 하세요")))))))
+
+        del (fn [id label]
+              (when (js-confirm (str "'" label "' 항목을 삭제할까요?"))
+                (fetch-post! "/vault/api"
+                  {"action" "delete" "token" @token "id" id}
+                  (fn [res] (when (get res "ok") (reload-items))))))
+
+        toggle-pw (fn [id]
+                    (reset! show-pw
+                      (obj-merge @show-pw
+                        {(str id) (not (get @show-pw (str id)))})))
+
+        copy-pw (fn [text]
+                  (js-eval (str "navigator.clipboard.writeText(" (json-stringify text) ")")))]
+
+    (boot)
+
+    (cond
+      ; ── 로딩 ──
+      (= @state "init")
+        (h "div" {:style "text-align:center;padding:80px;color:#9ca3af"} "🔐 로딩 중…")
+
+      ; ── 최초 설정 ──
+      (= @state "setup")
+        (h "div" {:style "max-width:420px;margin:60px auto;padding:24px;text-align:center"}
+          (str
+            (h "div" {:style "font-size:4rem;margin-bottom:12px"} "🆕")
+            (h "h2" {:style "font-size:1.3rem;font-weight:800;margin:0 0 6px"} "금고 만들기")
+            (h "p" {:style "color:#6b7280;font-size:.9rem;margin:0 0 20px"}
+              "마스터 비밀번호를 정하세요. 분실 시 복구할 수 없습니다.")
+            (h "div" {:style "background:white;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:left"}
+              (str
+                (h! "input"
+                  {:type "password" :value @pw :placeholder "마스터 비밀번호"
+                   :style "width:100%;padding:12px 16px;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;box-sizing:border-box;margin-bottom:10px"
+                   :on-input (fn [ev] (reset! pw (.-value (.-target ev))))})
+                (h! "input"
+                  {:type "password" :value @pw2 :placeholder "마스터 비밀번호 확인"
+                   :style "width:100%;padding:12px 16px;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;box-sizing:border-box;margin-bottom:10px"
+                   :on-input (fn [ev] (reset! pw2 (.-value (.-target ev))))
+                   :on-keydown (fn [ev] (when (= (.-key ev) "Enter") (do-setup)))})
+                (when (not (= @err ""))
+                  (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 10px"} @err))
+                (h "button"
+                  {:style "width:100%;padding:12px;background:#10b981;color:white;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer"
+                   :on-click (fn [] (do-setup))}
+                  "금고 생성")))))
+
+      ; ── 잠금 ──
+      (= @state "locked")
+        (h "div" {:style "max-width:400px;margin:80px auto;padding:24px;text-align:center"}
+          (str
+            (h "div" {:style "font-size:4rem;margin-bottom:16px"} "🔐")
+            (h "h2" {:style "font-size:1.3rem;font-weight:800;margin:0 0 8px"} "금고 잠금 해제")
+            (h "p" {:style "color:#6b7280;font-size:.9rem;margin:0 0 24px"}
+              "마스터 비밀번호를 입력하세요")
+            (h "div" {:style "background:white;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.1);text-align:left"}
+              (str
+                (h! "input"
+                  {:type "password" :value @pw :placeholder "마스터 비밀번호"
+                   :style "width:100%;padding:12px 16px;border:1px solid #d1d5db;border-radius:10px;font-size:1rem;box-sizing:border-box;margin-bottom:10px"
+                   :on-input (fn [ev] (reset! pw (.-value (.-target ev))))
+                   :on-keydown (fn [ev] (when (= (.-key ev) "Enter") (unlock)))})
+                (when (not (= @err ""))
+                  (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 10px"} @err))
+                (h "button"
+                  {:style "width:100%;padding:12px;background:#6366f1;color:white;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer"
+                   :on-click (fn [] (unlock))}
+                  "잠금 해제")))))
+
+      ; ── 잠금 해제 상태 ──
+      true
+        (h "div" {:style "max-width:760px;margin:0 auto;padding:24px"}
+          (str
+            (h "div" {:style "display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"}
+              (str
+                (h "div" {:style "display:flex;align-items:center;gap:10px"}
+                  (str
+                    (h "span" {:style "font-size:1.2rem"} "🔓")
+                    (h "span" {:style "font-weight:700;color:#10b981"} "잠금 해제됨")))
+                (h "div" {:style "display:flex;gap:8px"}
+                  (str
+                    (h "button"
+                      {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-weight:600;font-size:.85rem"
+                       :on-click (fn [] (reset! form true))}
+                      "+ 추가")
+                    (h "button"
+                      {:style "background:#f3f4f6;border:none;border-radius:8px;padding:8px 16px;cursor:pointer;font-size:.85rem;color:#6b7280"
+                       :on-click (fn [] (lock))}
+                      "🔒 잠금")))))
+
+            (if @form
+              (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+                (str
+                  (h "h3" {:style "margin:0 0 16px;font-weight:700"} "계정 추가")
+                  (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"}
+                    (str
+                      (h "div" {}
+                        (str
+                          (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "레이블 *")
+                          (h! "input" {:type "text" :value @ilabel :placeholder "Gmail"
+                                       :style "width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                       :on-input (fn [ev] (reset! ilabel (.-value (.-target ev))))})))
+                      (h "div" {}
+                        (str
+                          (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "카테고리")
+                          (h "select"
+                            {:style "width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                             :on-change (fn [ev] (reset! icategory (.-value (.-target ev))))}
+                            (str
+                              (h "option" {:value "기타"} "기타")
+                              (h "option" {:value "이메일"} "이메일")
+                              (h "option" {:value "소셜"} "소셜")
+                              (h "option" {:value "업무"} "업무")
+                              (h "option" {:value "금융"} "금융")
+                              (h "option" {:value "쇼핑"} "쇼핑")))))))
+                  (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"}
+                    (str
+                      (h "div" {}
+                        (str
+                          (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "아이디/이메일")
+                          (h! "input" {:type "text" :value @iuser :placeholder "user@email.com"
+                                       :style "width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                       :on-input (fn [ev] (reset! iuser (.-value (.-target ev))))})))
+                      (h "div" {}
+                        (str
+                          (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "비밀번호")
+                          (h "div" {:style "display:flex;gap:6px"}
+                            (str
+                              (h! "input" {:type "text" :value @ipass :placeholder "비밀번호"
+                                           :style "flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;min-width:0"
+                                           :on-input (fn [ev] (reset! ipass (.-value (.-target ev))))})
+                              (h "button"
+                                {:type "button" :title "강력한 비밀번호 생성"
+                                 :style "background:#eef2ff;color:#6366f1;border:none;border-radius:8px;padding:0 12px;cursor:pointer;font-size:.8rem;font-weight:600;white-space:nowrap"
+                                 :on-click (fn [] (gen))}
+                                "🎲 생성")))))))
+                  (h "div" {:style "margin-bottom:14px"}
+                    (str
+                      (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "URL")
+                      (h! "input" {:type "url" :value @iurl :placeholder "https://..."
+                                    :style "width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                    :on-input (fn [ev] (reset! iurl (.-value (.-target ev))))})))
+                  (when (not (= @err ""))
+                    (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+                  (h "div" {:style "display:flex;gap:8px"}
+                    (str
+                      (h "button"
+                        {:style "flex:1;background:#6366f1;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                         :on-click (fn [] (add))}
+                        "저장")
+                      (h "button"
+                        {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                         :on-click (fn [] (do (reset! form false) (reset! err "")))}
+                        "취소")))))
+              "")
+
+            (if (= @items nil)
+              (h "div" {:style "text-align:center;padding:40px;color:#9ca3af"} "로딩 중…")
+              (if (= (length @items) 0)
+                (h "div" {:style "background:white;border-radius:16px;padding:60px;text-align:center;color:#9ca3af"}
+                  (str
+                    (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "🔑")
+                    (h "p" {:style "margin:0"} "저장된 계정이 없습니다")))
+                (h "div" {:style "display:flex;flex-direction:column;gap:8px"}
+                  (map
+                    (fn [item]
+                      (let [id-str  (str (get item "id"))
+                            visible (get @show-pw id-str)]
+                        (h "div" {:style "background:white;border-radius:12px;padding:14px 18px;box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;align-items:center;gap:14px"}
+                          (str
+                            (h "div" {:style "width:38px;height:38px;border-radius:9px;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:.85rem;flex-shrink:0"}
+                              (str-slice (get item "label") 0 2))
+                            (h "div" {:style "flex:1;min-width:0"}
+                              (str
+                                (h "div" {:style "font-weight:600;font-size:.9rem"} (get item "label"))
+                                (h "div" {:style "font-size:.78rem;color:#6b7280;margin-top:2px"}
+                                  (get item "username"))
+                                (h "div" {:style "font-size:.75rem;color:#9ca3af;margin-top:1px;font-family:monospace"}
+                                  (if visible (get item "password") "••••••••"))))
+                            (h "div" {:style "display:flex;gap:6px;flex-shrink:0"}
+                              (str
+                                (h "button"
+                                  {:title "비밀번호 표시/숨기기"
+                                   :style "background:none;border:1px solid #e5e7eb;border-radius:7px;cursor:pointer;padding:5px 8px;font-size:.8rem;color:#374151"
+                                   :on-click (fn [] (toggle-pw id-str))}
+                                  (if visible "숨기기" "보기"))
+                                (h "button"
+                                  {:title "비밀번호 복사"
+                                   :style "background:none;border:1px solid #e5e7eb;border-radius:7px;cursor:pointer;padding:5px 8px;font-size:.8rem;color:#374151"
+                                   :on-click (fn [] (copy-pw (get item "password")))}
+                                  "복사")
+                                (h "button"
+                                  {:title "삭제"
+                                   :style "background:none;border:1px solid #fecaca;border-radius:7px;cursor:pointer;padding:5px 8px;font-size:.8rem;color:#ef4444"
+                                   :on-click (fn [] (del id-str (get item "label")))}
+                                  "삭제")))))))
+                    @items)))))))))
+
+(defn render [req]
+  (layout-html "🔐 Vault"
+    (str
+      (h "div" {:style "background:linear-gradient(135deg,#374151,#1f2937);color:white;padding:28px 24px;text-align:center"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "🔐 Vault")
+          (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"} "비밀번호 금고 · AES-256-GCM 암호화")))
+      "ISLAND_PLACEHOLDER"
+      "ISLAND_SCRIPTS")
+    req))

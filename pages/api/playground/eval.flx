@@ -1,0 +1,20 @@
+; pages/api/playground/eval.flx — FL 코드 실행 API
+; POST /api/playground/eval  { "code": "(+ 1 2)" }
+
+(defn render [req]
+  (server-json {:ok false :error "POST 메서드를 사용하세요"}))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        code (get body "code")]
+    (if (nil-or-empty? code)
+      (server-json {:ok false :error "코드가 없습니다"})
+      (let [tmp (str "/tmp/pg-" (uuid) ".fl")]
+        (file-write tmp (str "(println " code ")"))
+        (let [out (shell-exec-stdout (str "timeout 5 node /root/freelang-v11/bootstrap.js run " tmp " 2>&1"))]
+          (file-delete tmp)
+          (if (nil? out)
+            (server-json {:ok false :error "실행 실패 또는 타임아웃 (5초)"})
+            (if (str-includes out "실행 오류")
+              (server-json {:ok false :error (str-trim out)})
+              (server-json {:ok true :result (str-trim out)}))))))))

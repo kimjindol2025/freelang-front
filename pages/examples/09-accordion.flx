@@ -1,0 +1,34 @@
+; pages/examples/09-accordion.flx
+; 예제 09 — 아코디언 FAQ: 열린 항목 id 를 atom 으로 관리
+; 배우는 것: map 으로 항목 생성, 같은 항목 재클릭 시 닫기
+
+(island Accordion []
+  (let [open (atom -1)
+        faqs [{"id" 0 "q" "FreeLang 이 뭔가요?" "a" "Lisp 계열 풀스택 언어입니다. 서버와 클라이언트를 한 언어로 작성합니다."}
+              {"id" 1 "q" "Island 는 어떻게 동작하나요?" "a" "(island ...) 블록이 vanilla JS 로 컴파일되어 해당 위치에 마운트됩니다."}
+              {"id" 2 "q" "atom 과 store 차이는?" "a" "atom 은 Island 로컬 상태, store 는 Island 간 공유 전역 상태입니다."}]]
+    (h "div" {}
+      (map
+        (fn [f]
+          (h "div" {:style "border:1px solid #e5e7eb;border-radius:8px;margin-bottom:8px;overflow:hidden"}
+            (str
+              (h "button" {:style "width:100%;text-align:left;padding:14px 16px;background:white;border:none;cursor:pointer;font-size:.95rem;font-weight:600;display:flex;justify-content:space-between"
+                           :on-click (fn [] (reset! open (if (= @open (get f "id")) -1 (get f "id"))))}
+                (str (get f "q") (if (= @open (get f "id")) "  −" "  +")))
+              (if (= @open (get f "id"))
+                (h "div" {:style "padding:0 16px 16px;color:#6b7280;line-height:1.7"} (get f "a"))
+                ""))))
+        faqs))))
+
+(defn render [req]
+  (layout-html "09 · 아코디언"
+    (str
+      (h "div" {:style "max-width:560px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "아코디언 FAQ")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "열린 항목 id 를 atom 으로 추적하고, 재클릭하면 닫힙니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

@@ -1,0 +1,120 @@
+; pages/contacts/_db.flx — 연락처 DB (독립 CRM)
+; 완전 독립: Android/iOS/Google Contacts 등 외부 주소록 연동 없음. 자체 contacts.db 만 사용.
+; 활동기록(activities)도 자동수집 없이 사용자 직접 입력(통화 로그/SMS 읽기 X).
+(ns contacts)
+
+(define CONTACTS-DB {:type "sqlite" :path "data/contacts.db"})
+
+(defn init []
+  (do
+    (db-exec CONTACTS-DB
+      "CREATE TABLE IF NOT EXISTS contacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT DEFAULT '',
+        email TEXT DEFAULT '',
+        company TEXT DEFAULT '',
+        memo TEXT DEFAULT '',
+        group_name TEXT DEFAULT '일반',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])
+    ; 마이그레이션: 누락 컬럼 추가 (이미 있으면 오류 무시)
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN company TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN job_title TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN tags TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN met_at TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN remind_days INTEGER DEFAULT 0" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN last_contact_at TEXT DEFAULT ''" [])
+         (catch e nil))
+    (try (db-exec CONTACTS-DB "ALTER TABLE contacts ADD COLUMN linked_url TEXT DEFAULT ''" [])
+         (catch e nil))
+    (db-exec CONTACTS-DB
+      "CREATE TABLE IF NOT EXISTS activities (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        contact_id INTEGER NOT NULL,
+        log_date TEXT DEFAULT (date('now','localtime')),
+        content TEXT NOT NULL,
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])))
+
+; ── 연락처 ─────────────────────────────────────────────────────
+(defn all []
+  (db-query CONTACTS-DB "SELECT * FROM contacts ORDER BY name ASC" []))
+
+(defn search [q]
+  (db-query CONTACTS-DB
+    "SELECT * FROM contacts WHERE name LIKE ? OR phone LIKE ? OR email LIKE ? OR company LIKE ? ORDER BY name ASC"
+    [(str "%" q "%") (str "%" q "%") (str "%" q "%") (str "%" q "%")]))
+
+(defn by-id [id]
+  ; db-one 미존재 → db-query 후 첫 행
+  (let [rows (db-query CONTACTS-DB "SELECT * FROM contacts WHERE id=?" [(str-to-num id)])]
+    (if (> (length rows) 0)
+      (get rows 0)
+      nil)))
+
+(defn add [name phone email company memo group-name job-title tags met-at remind-days linked-url]
+  (db-exec CONTACTS-DB
+    "INSERT INTO contacts (name,phone,email,company,memo,group_name,job_title,tags,met_at,remind_days,linked_url)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)"
+    [name phone email company memo group-name job-title tags met-at (str-to-num remind-days) linked-url]))
+
+(defn update [id name phone email company memo group-name job-title tags met-at remind-days linked-url]
+  (db-exec CONTACTS-DB
+    "UPDATE contacts SET name=?,phone=?,email=?,company=?,memo=?,group_name=?,
+     job_title=?,tags=?,met_at=?,remind_days=?,linked_url=? WHERE id=?"
+    [name phone email company memo group-name job-title tags met-at (str-to-num remind-days) linked-url (str-to-num id)]))
+
+(defn delete [id]
+  (do
+    (db-exec CONTACTS-DB "DELETE FROM activities WHERE contact_id=?" [(str-to-num id)])
+    (db-exec CONTACTS-DB "DELETE FROM contacts WHERE id=?" [(str-to-num id)])))
+
+; ── 활동 기록 (직접 입력) ───────────────────────────────────────
+(defn activities-by-contact [contact-id]
+  (db-query CONTACTS-DB
+    "SELECT * FROM activities WHERE contact_id=? ORDER BY log_date DESC, id DESC"
+    [(str-to-num contact-id)]))
+
+(defn update-last-contact [contact-id]
+  (db-exec CONTACTS-DB
+    "UPDATE contacts SET last_contact_at=date('now','localtime') WHERE id=?"
+    [(str-to-num contact-id)]))
+
+(defn save-remind [contact-id remind-days]
+  (db-exec CONTACTS-DB
+    "UPDATE contacts SET remind_days=? WHERE id=?"
+    [(str-to-num remind-days) (str-to-num contact-id)]))
+
+(defn overdue []
+  (db-query CONTACTS-DB
+    "SELECT *,
+       CASE
+         WHEN last_contact_at='' THEN 9999
+         ELSE CAST(julianday('now','localtime') - julianday(last_contact_at) AS INTEGER)
+       END AS days_since
+     FROM contacts
+     WHERE remind_days > 0
+       AND (last_contact_at='' OR
+            CAST(julianday('now','localtime') - julianday(last_contact_at) AS INTEGER) >= remind_days)
+     ORDER BY days_since DESC"
+    []))
+
+(defn add-activity [contact-id log-date content]
+  (do
+    (if (= (str-trim log-date) "")
+      (db-exec CONTACTS-DB
+        "INSERT INTO activities (contact_id,content) VALUES (?,?)"
+        [(str-to-num contact-id) content])
+      (db-exec CONTACTS-DB
+        "INSERT INTO activities (contact_id,log_date,content) VALUES (?,?,?)"
+        [(str-to-num contact-id) log-date content]))
+    (update-last-contact contact-id)))
+
+(defn delete-activity [id]
+  (db-exec CONTACTS-DB "DELETE FROM activities WHERE id=?" [(str-to-num id)]))

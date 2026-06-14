@@ -1,0 +1,59 @@
+; pages/reading/_db.flx — 독서 기록 DB (v2: 메타데이터 포함)
+(ns reading)
+
+(define READING-DB {:type "sqlite" :path "data/reading.db"})
+
+(defn init []
+  (db-exec READING-DB
+    "CREATE TABLE IF NOT EXISTS books (
+      id           INTEGER PRIMARY KEY AUTOINCREMENT,
+      title        TEXT NOT NULL,
+      author       TEXT DEFAULT '',
+      status       TEXT DEFAULT 'wish',
+      rating       INTEGER DEFAULT 0,
+      pages_total  INTEGER DEFAULT 0,
+      pages_read   INTEGER DEFAULT 0,
+      cover_color  TEXT DEFAULT '#7c3aed',
+      review       TEXT DEFAULT '',
+      started_at   TEXT DEFAULT '',
+      finished_at  TEXT DEFAULT '',
+      publisher    TEXT DEFAULT '',
+      isbn         TEXT DEFAULT '',
+      pub_year     INTEGER DEFAULT 0,
+      genre        TEXT DEFAULT '',
+      created_at   TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query READING-DB "SELECT * FROM books ORDER BY status ASC, created_at DESC" []))
+
+(defn by-status [status]
+  (db-query READING-DB "SELECT * FROM books WHERE status=? ORDER BY created_at DESC" [status]))
+
+(defn by-id [id]
+  (db-one READING-DB "SELECT * FROM books WHERE id=?" [(str-to-num id)]))
+
+(defn add [title author status pages-total cover-color publisher isbn pub-year genre]
+  (db-exec READING-DB
+    "INSERT INTO books (title,author,status,pages_total,cover_color,publisher,isbn,pub_year,genre)
+     VALUES (?,?,?,?,?,?,?,?,?)"
+    [title author status (str-to-num pages-total) cover-color
+     publisher isbn (str-to-num pub-year) genre]))
+
+(defn update-progress [id pages-read status started-at finished-at]
+  (db-exec READING-DB
+    "UPDATE books SET pages_read=?,status=?,started_at=?,finished_at=? WHERE id=?"
+    [(str-to-num pages-read) status started-at finished-at (str-to-num id)]))
+
+(defn update-review [id rating review]
+  (db-exec READING-DB
+    "UPDATE books SET rating=?,review=? WHERE id=?"
+    [(str-to-num rating) review (str-to-num id)]))
+
+(defn update-meta [id publisher isbn pub-year genre]
+  (db-exec READING-DB
+    "UPDATE books SET publisher=?,isbn=?,pub_year=?,genre=? WHERE id=?"
+    [publisher isbn (str-to-num pub-year) genre (str-to-num id)]))
+
+(defn delete [id]
+  (db-exec READING-DB "DELETE FROM books WHERE id=?" [(str-to-num id)]))

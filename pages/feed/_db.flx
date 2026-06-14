@@ -1,0 +1,71 @@
+; pages/feed/_db.flx — RSS 피드 DB
+(ns feed)
+
+(define FEED-DB {:type "sqlite" :path "data/feed.db"})
+
+(defn init []
+  (do
+    (db-exec FEED-DB
+      "CREATE TABLE IF NOT EXISTS feeds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        url TEXT NOT NULL UNIQUE,
+        title TEXT DEFAULT '',
+        description TEXT DEFAULT '',
+        last_fetched TEXT DEFAULT '',
+        created_at TEXT DEFAULT (datetime('now','localtime'))
+      )" [])
+    (db-exec FEED-DB
+      "CREATE TABLE IF NOT EXISTS feed_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        feed_id INTEGER NOT NULL,
+        title TEXT DEFAULT '',
+        url TEXT DEFAULT '',
+        summary TEXT DEFAULT '',
+        published_at TEXT DEFAULT '',
+        is_read INTEGER DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now','localtime')),
+        UNIQUE(feed_id, url)
+      )" [])))
+
+(defn all-feeds []
+  (db-query FEED-DB
+    "SELECT f.*, COUNT(CASE WHEN i.is_read=0 THEN 1 END) as unread_count
+     FROM feeds f LEFT JOIN feed_items i ON i.feed_id=f.id GROUP BY f.id ORDER BY f.title ASC" []))
+
+(defn feed-by-id [id]
+  (db-one FEED-DB "SELECT * FROM feeds WHERE id=?" [(str-to-num id)]))
+
+(defn items-by-feed [feed-id limit]
+  (db-query FEED-DB
+    "SELECT * FROM feed_items WHERE feed_id=? ORDER BY published_at DESC, id DESC LIMIT ?"
+    [(str-to-num feed-id) (str-to-num limit)]))
+
+(defn recent-items [limit]
+  (db-query FEED-DB
+    "SELECT i.*, f.title as feed_title FROM feed_items i JOIN feeds f ON f.id=i.feed_id ORDER BY i.published_at DESC, i.id DESC LIMIT ?"
+    [(str-to-num limit)]))
+
+(defn add-feed [url]
+  (db-exec FEED-DB "INSERT OR IGNORE INTO feeds (url) VALUES (?)" [url]))
+
+(defn update-feed-meta [id title description]
+  (let [now (str-trim (shell "date '+%Y-%m-%d %H:%M:%S'"))]
+    (db-exec FEED-DB
+      "UPDATE feeds SET title=?,description=?,last_fetched=? WHERE id=?"
+      [title description now (str-to-num id)])))
+
+(defn insert-item [feed-id title url summary published-at]
+  (db-exec FEED-DB
+    "INSERT OR IGNORE INTO feed_items (feed_id,title,url,summary,published_at) VALUES (?,?,?,?,?)"
+    [(str-to-num feed-id) title url summary published-at]))
+
+(defn mark-read [id]
+  (db-exec FEED-DB "UPDATE feed_items SET is_read=1 WHERE id=?" [(str-to-num id)]))
+
+(defn mark-all-read [feed-id]
+  (db-exec FEED-DB "UPDATE feed_items SET is_read=1 WHERE feed_id=?" [(str-to-num feed-id)]))
+
+(defn delete-feed [id]
+  (do
+    (db-exec FEED-DB "DELETE FROM feed_items WHERE feed_id=?" [(str-to-num id)])
+    (db-exec FEED-DB "DELETE FROM feeds WHERE id=?" [(str-to-num id)])))

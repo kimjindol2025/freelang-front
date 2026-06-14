@@ -1,21 +1,21 @@
 ; pages/api-custom-metrics.flx — 커스텀 메트릭 API (v0.8.0)
 
-(load "../performance-monitor.fl")
+(load "performance-monitor.fl")
 
 (defn render [$req]
   (let [$path (get $req "path")
         $method (get $req "method")]
     (cond
-      (and (= $method "POST") (str-includes? $path "/api/custom-metrics"))
+      (and (= $method "POST") (str-includes $path "/api/custom-metrics"))
       (handle-create-custom-metric $req)
 
-      (and (= $method "GET") (str-includes? $path "/api/custom-metrics"))
+      (and (= $method "GET") (str-includes $path "/api/custom-metrics"))
       (handle-list-custom-metrics $req)
 
-      (and (= $method "POST") (str-includes? $path "/api/custom-metrics/record"))
+      (and (= $method "POST") (str-includes $path "/api/custom-metrics/record"))
       (handle-record-custom-metric $req)
 
-      (and (= $method "GET") (str-includes? $path "/api/custom-metrics/data"))
+      (and (= $method "GET") (str-includes $path "/api/custom-metrics/data"))
       (handle-get-custom-metric-data $req)
 
       true
@@ -44,7 +44,7 @@
     (let [$metrics (get-custom-metrics)]
       (server-json {
         "total" (length $metrics)
-        "metrics" (values $metrics)
+        "metrics" (obj-values $metrics)
       } 200))
 
     (catch $e
@@ -58,7 +58,7 @@
           $metric-id (get $body "metric-id")
           $value (get $body "value")]
       (if (and $metric-id $value)
-        (let [$record (record-custom-metric $metric-id (parse-float $value))]
+        (let [$record (record-custom-metric $metric-id (str-to-num $value))]
           (if $record
             (server-json $record 200)
             (server-json {"error" "Metric not found"} 404)))
@@ -73,7 +73,7 @@
   (try
     (let [$query (get $req "query")
           $metric-id (get $query "metric-id")
-          $limit (parse-int (or (get $query "limit") "50"))]
+          $limit (str-to-num (or (get $query "limit") "50"))]
       (if $metric-id
         (let [$data (get-custom-metric-data $metric-id $limit)]
           (server-json $data 200))

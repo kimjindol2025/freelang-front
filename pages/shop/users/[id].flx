@@ -1,0 +1,97 @@
+; pages/shop/users/[id].flx — 회원 상세
+; GET /shop/users/:id
+
+(defn SHOP_API [] "http://localhost:40081")
+
+(defn fetch-user [id]
+  (let [res (http-get (str (SHOP_API) "/api/users/" id))
+        p   (json_parse (get res "body"))]
+    (if (get p "ok") (get p "data") nil)))
+
+(defn fetch-orders [uid]
+  (let [res (http-get (str (SHOP_API) "/api/orders/user/" uid))
+        p   (json_parse (get res "body"))]
+    (if (get p "ok")
+      (?? (get (get p "data") "orders") [])
+      [])))
+
+(defn status-chip [s]
+  (let [bg (cond (= s "paid") "#dcfce7" (= s "pending") "#fef9c3" true "#fee2e2")
+        fg (cond (= s "paid") "#166534" (= s "pending") "#854d0e" true "#991b1b")
+        lb (cond (= s "paid") "결제완료" (= s "pending") "대기중"  true "취소")]
+    (h "span"
+      {"style" (str "font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:99px;background:" bg ";color:" fg)}
+      lb)))
+
+(defn render [req]
+  (let [id     (get (get req "params") "id")
+        user   (fetch-user id)
+        orders (fetch-orders id)]
+    (if (nil? user)
+      (server-status 404 "회원을 찾을 수 없습니다")
+      (layout-html (str (get user "name") " — 회원 정보")
+        (str
+          """
+<style>
+body{background:#f9fafb}
+.wrap{max-width:760px;margin:0 auto;padding:32px 20px}
+.nav{margin-bottom:20px;font-size:.875rem}
+.nav a{color:#6b7280;text-decoration:none}
+.nav a:hover{color:#6366f1}
+.nav span{color:#9ca3af;margin:0 6px}
+.profile{background:#fff;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,.08);padding:28px;margin-bottom:20px;display:flex;align-items:center;gap:20px}
+.avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:1.8rem;font-weight:800;color:#fff;flex-shrink:0}
+.profile-info h2{font-size:1.3rem;font-weight:800;color:#111827;margin:0 0 4px}
+.profile-info p{font-size:.875rem;color:#6b7280;margin:2px 0}
+.point-badge{display:inline-block;background:#fef3c7;color:#92400e;font-size:.8rem;font-weight:700;padding:3px 10px;border-radius:99px;margin-top:6px}
+.section{background:#fff;border-radius:12px;box-shadow:0 1px 4px rgba(0,0,0,.06);overflow:hidden;margin-bottom:16px}
+.section-head{padding:16px 20px;border-bottom:1px solid #f3f4f6;font-size:.9rem;font-weight:700;color:#374151}
+.order-row{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #f9fafb;text-decoration:none;color:inherit}
+.order-row:last-child{border-bottom:none}
+.order-row:hover{background:#f9fafb}
+.order-meta{font-size:.78rem;color:#9ca3af;margin-top:2px}
+.empty{padding:40px;text-align:center;color:#9ca3af;font-size:.9rem}
+</style>
+"""
+          (h "div" {"class" "wrap"}
+            (h "div" {"class" "nav"}
+              (h "a" {"href" "/shop"} "쇼핑몰")
+              (h "span" {} "›")
+              (h "span" {"style" "color:#111827"} "회원 정보"))
+
+            ;; 프로필 카드
+            (h "div" {"class" "profile"}
+              (h "div" {"class" "avatar"}
+                (str-slice (get user "name") 0 1))
+              (h "div" {"class" "profile-info"}
+                (h "h2" {} (get user "name"))
+                (h "p" {} (str "✉ " (get user "email")))
+                (when (not (nil? (get user "phone")))
+                  (h "p" {} (str "📱 " (get user "phone"))))
+                (when (not (nil? (get user "address")))
+                  (h "p" {} (str "📍 " (get user "address"))))
+                (h "span" {"class" "point-badge"}
+                  (str "⭐ " (?? (get user "point") 0) "P"))))
+
+            ;; 주문 내역
+            (h "div" {"class" "section"}
+              (h "div" {"class" "section-head"}
+                (str "주문 내역 (" (length orders) "건)"))
+              (if (empty? orders)
+                (h "div" {"class" "empty"} "주문 내역이 없습니다")
+                (str-join
+                  (map (fn [o]
+                    (h "a"
+                      {"class" "order-row"
+                       "href"  (str "/shop/orders/" (get o "id"))}
+                      (h "div" {}
+                        (h "p" {"style" "font-weight:600;color:#111827;font-size:.9rem"}
+                          (str "주문 #" (get o "id")))
+                        (h "p" {"class" "order-meta"}
+                          (get o "created_at")))
+                      (h "div" {"style" "display:flex;align-items:center;gap:10px"}
+                        (status-chip (get o "status"))
+                        (h "p" {"style" "font-weight:700;color:#111827;font-size:.95rem"}
+                          (str "₩" (get o "total"))))))
+                  orders))))))
+        req))))

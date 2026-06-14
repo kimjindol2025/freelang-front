@@ -1,0 +1,286 @@
+{
+  "$": "airc-helpers",
+  "version": "1.0.0",
+  "project": "freelang-front",
+  "for": "다른 Claude — 헬퍼 파일 API + 현재 앱 상태 한눈에 파악",
+  "date": "2026-06-04",
+  "read_order": "HANDOFF.airc → SYNTAX.airc → HELPERS.airc (이 파일)",
+  "v11_handoff": "freelang-v11/HANDOFF.airc  ← 언어 엔진 변경 내역 (오늘 에러/nil/매크로 개선)",
+
+  "current_state": {
+    "routes_total": 82,
+    "helpers_total": 11,
+    "build_status": "✅ 이슈 0",
+    "ports": { "app": 40850, "hmr_api": 40851 },
+    "working_features": [
+      "SSR 파일 라우팅 (pages/*.flx → URL)",
+      "동적 라우트 ([id].flx → :id)",
+      "Island 클라이언트 컴포넌트 (atom + defstore)",
+      "CSS DSL (style 블록 → scoped CSS)",
+      "SQLite DB (db-query / db-exec)",
+      "쿠키 세션 인증 (admin / admin123)",
+      "SVG 차트 (chart-bar / chart-line)",
+      "404 핸들러 (/* 와일드카드)",
+      "HMR 자동 재시작 (dev-server.js)",
+      "SPA 라우팅 (View Transitions API)",
+      "다크모드 (localStorage 영구 저장)",
+      "FL DevTools (Ctrl+Shift+D 디버그 패널)",
+      "브라우저 에러 수집 → /api/errors",
+      "성능 모니터링 → /api/metrics (서킷 브레이커 탑재)",
+      "Island headless 테스트 → /~ai/test"
+    ],
+    "demo_account": { "username": "admin", "password": "admin123" },
+    "db_file": "data/app.db  (SQLite — 자동 생성)",
+    "store_keys": ["count", "likes", "logs", "log_filter", "log_running", "notes"]
+  },
+
+  "helpers": {
+
+    "_layout.flx": {
+      "purpose": "모든 페이지 공통 레이아웃 — nav / footer / CSS 토큰 / 스크립트 자동 주입",
+      "auto_injected": "서버 시작 시 _app.fl 맨 앞에 자동 삽입. 직접 load 불필요.",
+
+      "functions": {
+        "layout-html": {
+          "signature": "(layout-html title content req)",
+          "returns": "HTTP 200 응답 (server-html 내부 호출)",
+          "includes": ["GLOBAL-CSS", "nav", "footer", "HMR", "SPA라우터", "다크모드", "DevTools", "에러수집", "성능모니터"],
+          "example": "(defn render [req]\n  (layout-html \"내 페이지\"\n    (h \"div\" {:class card} (h \"p\" {} \"내용\"))\n    req))"
+        },
+        "layout-html-seo": {
+          "signature": "(layout-html-seo title content req seo-opts)",
+          "seo-opts": "{:title \"\" :desc \"\" :image \"/og.png\" :type \"website\" :url \"https://...\"}",
+          "example": "(layout-html-seo \"포스트 제목\" content req {:title \"포스트 제목\" :desc \"요약\" :image \"/thumbnail.png\"})"
+        },
+        "nav-link": {
+          "signature": "(nav-link href label current-path)",
+          "note": "현재 경로면 흰 배경 강조. layout-html 내부에서 자동 호출."
+        },
+        "seo-tags": {
+          "signature": "(seo-tags m)",
+          "returns": "og: + twitter: 메타 태그 HTML 문자열"
+        }
+      },
+
+      "css_variables": {
+        "--c-primary":   "#6366f1 (인디고)",
+        "--c-primary-d": "#4f46e5 (진한 인디고)",
+        "--c-primary-l": "#ede9fe (연한 인디고)",
+        "--c-bg":        "#f9fafb",
+        "--c-surface":   "#fff",
+        "--c-border":    "#e5e7eb",
+        "--c-text":      "#111827",
+        "--c-muted":     "#9ca3af",
+        "--c-success":   "#16a34a",
+        "--c-warning":   "#d97706",
+        "--c-danger":    "#dc2626",
+        "--radius-sm":   "8px",
+        "--radius-md":   "12px",
+        "--shadow-sm":   "0 1px 3px rgba(0,0,0,.07)",
+        "--shadow-md":   "0 4px 16px rgba(0,0,0,.10)"
+      },
+
+      "builtin_classes": {
+        ".card":         "흰 배경 + 테두리 + 그림자 + hover 상승",
+        ".stat":         "숫자 강조 카드 (.v = 큰 숫자, .l = 레이블)",
+        ".badge":        "인라인 태그",
+        ".badge-primary/success/warning/danger": "색상별 뱃지",
+        ".grid-2":       "2열 반응형 그리드 (min 280px)",
+        ".grid-3":       "3열 반응형 그리드 (min 200px)",
+        ".table-wrap":   "테이블 래퍼 (border-radius + overflow)",
+        ".muted":        "보조 텍스트 색상",
+        ".field":        ":has(input:focus) label 강조 컨테이너"
+      },
+
+      "nav_links": ["/", "/dashboard", "/counter", "/contact", "/styled", "/todo", "/notes", "/about"],
+      "note": "nav에 링크 추가 = layout-core 함수 내 nav-link 호출 추가"
+    },
+
+    "_db.flx": {
+      "purpose": "SQLite DB 연결 + 마이그레이션 자동 실행",
+      "auto_injected": "서버 시작 시 _app.fl에 자동 삽입. (db-migrate) 즉시 실행됨.",
+
+      "constants": {
+        "DB": "{:type \"sqlite\" :path \"data/app.db\"}  ← 모든 페이지에서 바로 사용 가능"
+      },
+
+      "functions": {
+        "db-migrate": {
+          "signature": "(db-migrate)",
+          "creates_tables": ["sessions (인증)", "stats (대시보드 통계)", "monthly_stats (월별 데이터)"],
+          "note": "서버 시작 시 자동 호출됨. 직접 호출 불필요."
+        },
+        "db-fetch-stats": {
+          "signature": "(db-fetch-stats)",
+          "returns": "{:users N :revenue N :orders N :monthly [{:label :value}...] :weekly [...]}"
+        }
+      },
+
+      "usage": {
+        "select": "(db-query DB \"SELECT * FROM items WHERE done = ?\" [0])",
+        "insert": "(db-exec  DB \"INSERT INTO items (text) VALUES (?)\" [text])",
+        "update": "(db-exec  DB \"UPDATE items SET done = ? WHERE id = ?\" [1 id])",
+        "delete": "(db-exec  DB \"DELETE FROM items WHERE id = ?\" [id])",
+        "create_table": "(db-exec DB \"CREATE TABLE IF NOT EXISTS my_table (id INTEGER PRIMARY KEY AUTOINCREMENT, text TEXT)\" [])"
+      },
+
+      "note": "새 테이블 추가 시 db-migrate 함수 안에 CREATE TABLE IF NOT EXISTS 추가 후 서버 재시작"
+    },
+
+    "_auth.flx": {
+      "purpose": "쿠키 세션 인증 — 로그인/로그아웃/인증 가드",
+      "depends_on": "_db.flx (DB 정의 + sessions 테이블)",
+      "demo_account": "admin / admin123",
+
+      "constants": {
+        "COOKIE_NAME": "\"fl_session\"",
+        "DEMO_USER":   "\"admin\"",
+        "DEMO_PASS":   "\"admin123\""
+      },
+
+      "functions": {
+        "auth-check": {
+          "signature": "(auth-check req)",
+          "returns": "username 문자열 또는 nil",
+          "example": "(let [user (auth-check req)]\n  (if user\n    (layout-html \"대시보드\" (str \"안녕, \" user) req)\n    (server-redirect \"/login\")))"
+        },
+        "auth-required": {
+          "signature": "(auth-required req handler)",
+          "handler": "(fn [user] ...)",
+          "example": "(defn render [req]\n  (auth-required req\n    (fn [user]\n      (layout-html \"보호 페이지\" (str \"유저: \" user) req))))"
+        },
+        "auth-login": {
+          "signature": "(auth-login username password)",
+          "returns": "쿠키 문자열 (성공) 또는 nil (실패)",
+          "example": "(let [cookie (auth-login username password)]\n  (if cookie\n    (server-html-cookie \"<script>location='/'</script>\" cookie)\n    (server-redirect \"/login?error=1\")))"
+        },
+        "auth-logout": {
+          "signature": "(auth-logout req)",
+          "returns": "만료 쿠키 문자열",
+          "example": "(defn render [req]\n  (let [cookie (auth-logout req)]\n    (server-html-cookie \"<script>location='/'</script>\" cookie)))"
+        },
+        "auth-session-id": {
+          "signature": "(auth-session-id req)",
+          "returns": "세션 ID 문자열 또는 nil"
+        }
+      }
+    },
+
+    "_charts.flx": {
+      "purpose": "순수 SSR SVG 차트 — npm 패키지 0개",
+
+      "functions": {
+        "chart-bar": {
+          "signature": "(chart-bar data width height)",
+          "data_format": "[{:label \"1월\" :value 1200} {:label \"2월\" :value 1800} ...]",
+          "returns": "SVG HTML 문자열",
+          "example": "(chart-bar (:monthly stats) 480 240)"
+        },
+        "chart-line": {
+          "signature": "(chart-line data width height)",
+          "data_format": "[{:label \"월\" :value 320} ...]",
+          "returns": "SVG HTML 문자열",
+          "example": "(chart-line (:weekly stats) 480 200)"
+        }
+      },
+
+      "usage_with_db": "(let [stats (db-fetch-stats)]\n  (str\n    (h \"div\" {:class card} (chart-bar (:monthly stats) 480 240))\n    (h \"div\" {:class card} (chart-line (:weekly stats) 480 200))))"
+    },
+
+    "_error.flx": {
+      "purpose": "에러 페이지 함수",
+      "functions": {
+        "page-404": "(page-404 req)  → 404 HTML 응답",
+        "page-500": "(page-500 req msg)  → 500 HTML 응답"
+      },
+      "note": "404는 fl-front-build.js가 /* 와일드카드로 자동 등록. 직접 호출 불필요."
+    },
+
+    "_ui.flx": {
+      "purpose": "공통 UI 컴포넌트 (버튼, 뱃지, 알림 등)",
+      "note": "내용은 pages/_ui.flx 직접 참고"
+    },
+
+    "_email.flx":   { "purpose": "이메일 발송 헬퍼" },
+    "_oauth.flx":   { "purpose": "OAuth 인증 헬퍼" },
+    "_payment.flx": { "purpose": "결제 헬퍼" },
+    "_storage.flx": { "purpose": "파일 스토리지 헬퍼" },
+    "_styles.flx":  { "purpose": "공통 (style ...) 블록 모음" }
+  },
+
+  "page_creation_checklist": {
+    "새_페이지_만들 때": [
+      "1. pages/my-page.flx 생성",
+      "2. (defn render [req] ...) 작성",
+      "3. DB 필요하면 DB 상수 바로 사용 (이미 정의됨)",
+      "4. 인증 필요하면 (auth-required req (fn [user] ...)) 감싸기",
+      "5. node fl-front-build.js 실행 → _app.fl 재생성",
+      "6. 빌드 이슈 0 확인"
+    ],
+    "Island_추가할 때": [
+      "1. (island Name [] ...) 블록 작성",
+      "2. 글로벌 상태 필요하면 (defstore :key init) 페이지 상단 추가",
+      "3. ISLAND_PLACEHOLDER (단일) 또는 ISLAND_PLACEHOLDER_0, _1... (복수)",
+      "4. 마지막에 ISLAND_SCRIPTS 포함",
+      "5. 빌드 → Island JS 문법 검사 통과 확인"
+    ]
+  },
+
+  "macros": {
+    "load": "(load \"stdlib/macros.fl\")  ← 페이지 상단에 한 줄",
+    "stdlib_path": "freelang-front/stdlib/macros.fl → freelang-v11/stdlib/macros.fl (심링크)",
+    "available": {
+      "unless":    "(unless false body)               ; 조건 역전",
+      "when+":     "(when+ true step1 step2 ...)       ; 여러 body",
+      "assert!":   "(assert! expr \"메시지\")            ; 테스트/디버그",
+      "spy":       "(spy \"라벨\" expr)                  ; 값 출력 후 그대로 반환",
+      "time!":     "(time! \"라벨\" step1 step2 ...)     ; 실행 시간 측정",
+      "with-log":  "(with-log \"라벨\" step1 step2 ...)  ; 블록 진입/종료 로그",
+      "default":   "(default nil \"기본값\")              ; nil 대체",
+      "when-val":  "(when-val x (println it))          ; nil 아닐 때 it로 바인딩",
+      "apply-fn":  "(apply-fn f x)                     ; 함수 값을 인자에 적용"
+    },
+    "builtin_no_load_needed": {
+      "->":  "(-> x f1 f2 f3)   ; 스레딩 (앞에 삽입) — 내장",
+      "->>": "(->> x f1 f2 f3)  ; 스레딩 (끝에 삽입) — 내장"
+    },
+    "example": "; pages/my-page.flx\n(load \"stdlib/macros.fl\")\n\n(defn render [req]\n  (let [items (db-query DB \"SELECT * FROM t\" [])\n        result (-> items (filter (fn [x] (get x \"active\"))) length)]\n    (layout-html \"페이지\"\n      (unless (= result 0)\n        (h \"p\" {} (str \"활성: \" result)))\n      req)))"
+  },
+
+  "v11_new_functions_2026_06_04": {
+    "note": "오늘 freelang-v11에 추가됨 — 심링크로 freelang-front에서 바로 사용 가능",
+    "nil_safe": {
+      "first!":         "(first! arr)           — 빈 배열/nil 에러 (first의 strict 버전)",
+      "last!":          "(last! arr)            — 빈 배열/nil 에러",
+      "or!":            "(or! a b c)            — 모두 nil/false면 에러",
+      "assert-not-nil": "(assert-not-nil v msg) — nil이면 msg로 에러",
+      "get!":           "(get! m \"key\")          — 키 없으면 실제 키 목록 출력 후 에러",
+      "get-in!":        "(get-in! m [k1 k2])    — 중첩 경로 nil 시 어느 단계인지 표시",
+      "db-one":         "(db-one DB sql params) — 첫 행 반환 nil (first(db-query) 대체)"
+    },
+    "str_behavior_change": "(str \"안녕 \" nil) → \"안녕 \" (이전: \"안녕 null\") — 하위 호환 주의",
+    "macros": {
+      "load": "(load \"stdlib/macros.fl\")",
+      "unless":   "(unless false body)",
+      "when+":    "(when+ true s1 s2 ...)",
+      "assert!":  "(assert! expr \"msg\")",
+      "spy":      "(spy \"label\" expr)  — 값 출력 후 그대로 반환",
+      "time!":    "(time! \"label\" s1 s2 ...)",
+      "with-log": "(with-log \"label\" s1 s2 ...)",
+      "default":  "(default nil \"기본\")",
+      "when-val": "(when-val x (println it))"
+    },
+    "db_pattern_before": "(let [rows (db-query DB sql [])]\n  (first rows))",
+    "db_pattern_after":  "(db-one DB sql [])   ; nil 반환 시 명확"
+  },
+
+  "known_gotchas": [
+    "Island 안에서 db-query, server-html, auth-check 등 서버 함수 사용 → 빌드 에러",
+    "(map arr fn) 인자 순서 반대 → 런타임 에러. 항상 (map fn arr)",
+    "(filter arr fn) 동일. 항상 (filter fn arr)",
+    "새 (defstore :key init) 추가 후 빌드 안 하면 런타임에 스토어 미초기화",
+    "Island 여러 개인데 ISLAND_PLACEHOLDER (번호 없음) 쓰면 전부 같은 자리에 겹침",
+    "Island 안 fetch-post!는 JSON을 자동 serialize. (get res \"field\") 로 응답 접근",
+    "_layout.flx nav에 없는 경로는 강조 안 됨 — nav 추가하려면 layout-core 내 nav-link 호출 추가"
+  ]
+}

@@ -1,7 +1,7 @@
 ; pages/errors-stats.flx — 에러 통계 대시보드 (간단한 버전)
 ; GET /errors-stats — 에러 현황 시각화
 
-(load "../error-api.fl")
+(load "error-api.fl")
 
 (style stats-container :p "24px" :max-w "1200px" :mx "auto")
 (style stats-grid :display "grid" :grid-cols "repeat(auto-fit, minmax(200px, 1fr))" :gap "16px" :mb "24px")

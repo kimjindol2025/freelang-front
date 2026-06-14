@@ -1,14 +1,14 @@
 ; pages/api-sla.flx — SLO/SLA API (v0.9.0)
 
-(load "../performance-monitor.fl")
+(load "performance-monitor.fl")
 
 (defn render [$req]
   (let [$path (get $req "path")]
     (cond
-      (str-includes? $path "/api/sla/status")
+      (str-includes $path "/api/sla/status")
       (handle-get-sla-status $req)
 
-      (str-includes? $path "/api/sla/report")
+      (str-includes $path "/api/sla/report")
       (handle-get-sla-report $req)
 
       true

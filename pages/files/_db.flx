@@ -1,0 +1,40 @@
+; pages/files/_db.flx — 파일 드라이브 DB
+(ns files)
+
+(define FILES-DB {:type "sqlite" :path "data/files.db"})
+
+(defn init []
+  (db-exec FILES-DB
+    "CREATE TABLE IF NOT EXISTS files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      path TEXT NOT NULL,
+      size INTEGER DEFAULT 0,
+      mime TEXT DEFAULT '',
+      folder TEXT DEFAULT '/',
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query FILES-DB "SELECT * FROM files ORDER BY created_at DESC" []))
+
+(defn by-folder [folder]
+  (db-query FILES-DB "SELECT * FROM files WHERE folder=? ORDER BY created_at DESC" [folder]))
+
+(defn images []
+  (db-query FILES-DB "SELECT * FROM files WHERE mime LIKE 'image/%' ORDER BY created_at DESC" []))
+
+(defn by-id [id]
+  (db-one FILES-DB "SELECT * FROM files WHERE id=?" [(str-to-num id)]))
+
+(defn add [name path size mime folder note]
+  (db-exec FILES-DB
+    "INSERT INTO files (name,path,size,mime,folder,note) VALUES (?,?,?,?,?,?)"
+    [name path (str-to-num size) mime folder note]))
+
+(defn delete [id]
+  (let [f (by-id id)]
+    (when f
+      (shell (str "rm -f " (get f "path")))
+      (db-exec FILES-DB "DELETE FROM files WHERE id=?" [(str-to-num id)]))))

@@ -1,0 +1,60 @@
+; pages/examples/index.flx
+; 예제 갤러리 인덱스 — GET /examples
+; 30개 FreeLang 프론트엔드 예제 카드 목록
+
+(defn ex-card [num title desc slug tag]
+  (h "a" {:href (str "/examples/" slug) :data-spa "1"
+          :style "display:block;background:white;border-radius:12px;padding:18px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08);text-decoration:none;color:inherit;transition:transform .15s,box-shadow .15s"}
+    (str
+      (h "div" {:style "display:flex;align-items:center;gap:8px;margin-bottom:6px"}
+        (str
+          (h "span" {:style "font-size:.78rem;font-weight:800;color:#6366f1"} num)
+          (h "span" {:style "font-size:.68rem;font-weight:700;color:#9ca3af;background:#f3f4f6;border-radius:99px;padding:2px 8px"} tag)))
+      (h "div" {:style "font-size:1.05rem;font-weight:700;margin-bottom:4px"} title)
+      (h "p" {:style "font-size:.84rem;color:#6b7280;line-height:1.5;margin:0"} desc))))
+
+(defn render [req]
+  (let [items [["01" "Hello" "render 하나로 그리는 가장 단순한 페이지" "01-hello" "기본"]
+               ["02" "카드 그리드" "데이터 배열을 map 으로 반복 렌더링" "02-card-grid" "기본"]
+               ["03" "검색 필터" "쿼리스트링으로 서버 사이드 필터링" "03-list-filter" "서버"]
+               ["04" "폼 + POST" "입력을 받아 결과 페이지 렌더" "04-form" "서버"]
+               ["05" "폼 검증" "필수 필드 검증 후 분기" "05-form-validate" "서버"]
+               ["06" "카운터" "Island + atom 으로 클라이언트 상태" "06-counter" "Island"]
+               ["07" "토글" "불리언 atom 으로 보이기/숨기기" "07-toggle" "Island"]
+               ["08" "탭" "선택 id 를 atom 으로 관리" "08-tabs" "Island"]
+               ["09" "아코디언" "열린 항목 추적, 재클릭 시 닫기" "09-accordion" "Island"]
+               ["10" "To-Do" "atom 배열로 추가·완료·삭제" "10-todo" "Island"]
+               ["11" "라이브 검색" "입력 즉시 클라이언트 필터링" "11-live-search" "Island"]
+               ["12" "별점" "클릭으로 평점 선택" "12-star-rating" "Island"]
+               ["13" "글자수 카운터" "입력 길이 실시간 표시 + 한도 경고" "13-char-count" "Island"]
+               ["14" "토스트" "atom 배열 알림 추가/제거" "14-toast" "Island"]
+               ["15" "모달" "오버레이 다이얼로그" "15-modal" "Island"]
+               ["16" "드롭다운" "열림+선택 두 atom 협력" "16-dropdown" "Island"]
+               ["17" "위저드" "단계 이동 + 진행 표시" "17-wizard" "Island"]
+               ["18" "슬라이더" "range 값 실시간 미리보기" "18-slider" "Island"]
+               ["19" "색상 선택기" "type=color 값 미리보기" "19-color-picker" "Island"]
+               ["20" "비밀번호 강도" "길이·구성 규칙 점수화" "20-password-strength" "Island"]
+               ["21" "장바구니" "수량 증감 + reduce 총액" "21-cart" "Island"]
+               ["22" "온도 변환기" "atom 에서 산술 파생값 계산" "22-temp-convert" "Island"]
+               ["23" "좋아요 (store)" "Island 간 글로벌 store 공유" "23-like-store" "Island"]
+               ["24" "페이지네이션" "쿼리로 목록 페이지 분할" "24-pagination" "서버"]
+               ["25" "다국어 인사" "?lang= 로 서버 사이드 전환" "25-i18n" "서버"]
+               ["26" "JSON API" "render 가 JSON 을 반환" "26-json-api" "서버"]
+               ["27" "데이터 로딩" "fetch! 로 JSON API 호출" "27-fetch" "Island"]
+               ["28" "실시간 투표" "득표 막대 그래프" "28-poll" "Island"]
+               ["29" "BMI 계산기" "산술 + 비교로 분류" "29-bmi" "Island"]
+               ["30" "라이트박스" "썸네일 클릭 확대 오버레이" "30-lightbox" "Island"]]]
+    (layout-html "FreeLang 예제 갤러리"
+      (h "div" {:style "max-width:960px;margin:0 auto;padding:48px 24px"}
+        (str
+          (h "h1" {:style "font-size:2rem;font-weight:800;margin:0 0 8px"} "예제 갤러리")
+          (h "p" {:style "color:#6b7280;margin:0 0 32px;font-size:1.05rem"}
+            (str (length items) "개의 FreeLang 프론트엔드 예제 — 기본 / 서버 / Island 패턴"))
+          (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px"}
+            (arr-join
+              (map
+                (fn [it]
+                  (ex-card (nth it 0) (nth it 1) (nth it 2) (nth it 3) (nth it 4)))
+                items)
+              ""))))
+      req)))

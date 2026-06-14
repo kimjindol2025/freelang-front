@@ -1,8 +1,323 @@
-;;; FreeLang Front 홈페이지
+; index.flx — 새로 작성. 삼중따옴표 전면 사용.
+
+(style wrap :max-w "980px" :mx "auto" :p "40px 24px")
 
 (defn render [req]
-  (layout-html "FreeLang Front"
-    (h "div" {:class "hero"}
-      (h "h1" {} "🚀 FreeLang Front")
-      (h "p" {} "AI-Native 프론트엔드 프레임워크"))
-    req))
+  (layout-html "FreeLang" (str
+
+    """
+<style>
+:root{
+  --ink:#0d0d12;--surface:#13131c;--raised:#1c1c28;--rim:rgba(139,92,246,.18);
+  --pop:#8b5cf6;--pop2:#6366f1;--sea:#06b6d4;--go:#10b981;--warn:#f59e0b;
+  --tx:#dde1f0;--dim:#6b7280;--faint:#2a2a3a;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100dvh}
+
+/* 애니메이션 */
+@keyframes up{from{opacity:0;translate:0 20px}to{opacity:1;translate:0}}
+@keyframes orb{0%,100%{opacity:.2}50%{opacity:.5}}
+@keyframes pan{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes bob{0%,100%{translate:0}50%{translate:0 -8px}}
+@keyframes spin{to{rotate:360deg}}
+
+/* 배경 오브 */
+.orb{position:absolute;border-radius:50%;filter:blur(90px);pointer-events:none;animation:orb 6s ease-in-out infinite}
+.o1{width:560px;height:560px;background:rgba(139,92,246,.1);top:-160px;right:-120px}
+.o2{width:420px;height:420px;background:rgba(6,182,212,.07);bottom:-100px;left:-80px;animation-delay:3s}
+
+/* 히어로 */
+.hero{position:relative;overflow:hidden;
+  border:1px solid var(--rim);border-radius:20px;
+  background:var(--surface);padding:80px 56px 72px;margin-bottom:28px;
+  box-shadow:0 40px 100px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.04)}
+.badge{display:inline-flex;align-items:center;gap:8px;
+  border:1px solid rgba(139,92,246,.35);border-radius:99px;
+  background:rgba(139,92,246,.1);padding:5px 14px;
+  font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:#c4b5fd;margin-bottom:32px;animation:up .5s ease both}
+.dot{width:6px;height:6px;border-radius:50%;background:#a78bfa;
+  box-shadow:0 0 0 3px rgba(167,139,250,.3);animation:orb 2s ease infinite}
+.hero h1{font-size:clamp(2.6rem,5.5vw,4.8rem);font-weight:900;line-height:1.08;
+  letter-spacing:-.03em;margin-bottom:20px;
+  background:linear-gradient(135deg,#fff 0%,#c4b5fd 45%,#67e8f9 100%);
+  background-size:200%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  animation:up .6s .05s ease both,pan 7s ease infinite}
+.hero p{font-size:1.1rem;color:var(--dim);line-height:1.8;
+  max-width:540px;margin-bottom:40px;animation:up .6s .1s ease both}
+.hero p strong{color:var(--tx);font-weight:600}
+.btns{display:flex;gap:10px;flex-wrap:wrap;animation:up .6s .15s ease both}
+.btn-fill{background:linear-gradient(135deg,var(--pop),var(--pop2));color:#fff;
+  border-radius:10px;padding:12px 26px;font-weight:700;text-decoration:none;
+  font-size:.9rem;box-shadow:0 4px 20px rgba(139,92,246,.4);
+  transition:translate .2s,box-shadow .2s;display:inline-block}
+.btn-fill:hover{translate:0 -2px;box-shadow:0 8px 30px rgba(139,92,246,.55);color:#fff;text-decoration:none}
+.btn-line{background:rgba(255,255,255,.05);color:var(--dim);
+  border:1px solid rgba(255,255,255,.1);border-radius:10px;
+  padding:12px 22px;font-weight:600;text-decoration:none;font-size:.9rem;
+  transition:all .2s;display:inline-block}
+.btn-line:hover{background:rgba(255,255,255,.1);color:var(--tx);text-decoration:none}
+
+/* 루프 배너 — 오늘의 핵심 */
+.loop{display:grid;grid-template-columns:repeat(4,1fr);gap:0;
+  border:1px solid var(--rim);border-radius:16px;overflow:hidden;margin-bottom:28px}
+.loop-step{background:var(--surface);padding:24px 20px;text-align:center;
+  border-right:1px solid var(--faint);position:relative}
+.loop-step:last-child{border-right:none}
+.loop-step::after{content:"→";position:absolute;right:-12px;top:50%;translate:0 -50%;
+  color:var(--pop);font-size:1rem;z-index:1}
+.loop-step:last-child::after{display:none}
+.loop-icon{font-size:1.6rem;margin-bottom:10px;display:block}
+.loop-label{font-size:.78rem;font-weight:700;color:var(--tx);margin-bottom:4px}
+.loop-desc{font-size:.72rem;color:var(--dim);line-height:1.5}
+.loop-new{position:absolute;top:10px;right:10px;
+  background:var(--go);color:#fff;font-size:.6rem;font-weight:800;
+  padding:2px 6px;border-radius:99px;letter-spacing:.05em}
+
+/* 통계 */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:28px}
+.stat{background:var(--surface);border:1px solid var(--rim);border-radius:14px;
+  padding:20px 16px;text-align:center;transition:border-color .2s,translate .2s}
+.stat:hover{border-color:rgba(139,92,246,.4);translate:0 -2px}
+.stat-n{font-size:1.9rem;font-weight:900;
+  background:linear-gradient(135deg,#a78bfa,#67e8f9);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1}
+.stat-l{font-size:.72rem;color:var(--dim);margin-top:5px}
+
+/* 코드 예시 */
+.win{background:var(--surface);border:1px solid var(--rim);
+  border-radius:16px;overflow:hidden;margin-bottom:28px;
+  animation:bob 8s ease-in-out infinite;
+  box-shadow:0 24px 60px rgba(0,0,0,.5)}
+.win-bar{background:var(--raised);padding:12px 18px;
+  display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--faint)}
+.dd{width:10px;height:10px;border-radius:50%}
+.dr{background:#ff5f57}.dy{background:#febc2e}.dg{background:#28c840}
+.win-title{margin-left:8px;font-size:.72rem;color:var(--dim);font-family:monospace}
+.win-tag{margin-left:auto;font-size:.65rem;font-weight:700;
+  background:rgba(16,185,129,.15);color:#34d399;
+  padding:2px 8px;border-radius:99px}
+.code{padding:28px 32px;font-family:"SF Mono","Fira Code",monospace;
+  font-size:.84rem;line-height:2;overflow-x:auto;color:var(--tx)}
+.kw{color:#c084fc}.fn{color:#86efac}.str{color:#fca5a5}
+.cm{color:#3d455a;font-style:italic}.sym{color:#93c5fd}.hi{color:#67e8f9}
+.ok{color:#4ade80}
+
+/* 피처 */
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px}
+.feat{background:var(--surface);border:1px solid var(--rim);
+  border-radius:14px;padding:24px;position:relative;overflow:hidden;
+  transition:border-color .2s,translate .2s}
+.feat:hover{border-color:rgba(139,92,246,.4);translate:0 -2px}
+.feat::before{content:"";position:absolute;bottom:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,var(--pop),var(--sea));opacity:0;transition:opacity .2s}
+.feat:hover::before{opacity:1}
+.feat-i{font-size:1.5rem;margin-bottom:12px;display:block}
+.feat-t{font-size:.9rem;font-weight:700;color:var(--tx);margin-bottom:6px}
+.feat-d{font-size:.8rem;color:var(--dim);line-height:1.65}
+.tag{display:inline-block;margin-top:10px;font-family:monospace;font-size:.72rem;
+  background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.2);
+  color:#c4b5fd;padding:2px 8px;border-radius:4px}
+
+/* AI 배너 */
+.ai{border:1px solid rgba(139,92,246,.25);border-radius:14px;
+  background:linear-gradient(135deg,rgba(139,92,246,.08),rgba(6,182,212,.04));
+  padding:32px 36px;margin-bottom:28px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
+.ai h3{font-size:1rem;font-weight:800;color:var(--tx);margin-bottom:6px}
+.ai p{font-size:.84rem;color:var(--dim);line-height:1.65;max-width:500px}
+
+/* 반응형 */
+@media(max-width:768px){
+  .loop,.stats,.feats{grid-template-columns:repeat(2,1fr)}
+  .hero{padding:40px 28px}
+  .ai{flex-direction:column}
+}
+@media(max-width:480px){
+  .loop,.stats{grid-template-columns:1fr 1fr}
+  .feats{grid-template-columns:1fr}
+}
+</style>
+"""
+
+    "<div class='" wrap "'>"
+
+    """
+<div class="hero">
+  <div class="orb o1"></div>
+  <div class="orb o2"></div>
+  <div class="badge"><span class="dot"></span>AI-Native · Zero Dependencies</div>
+  <h1>npm install 없이<br>풀스택 프론트엔드</h1>
+  <p>
+    FreeLang v11로 <strong>SSR · CSS DSL · Island · 에러 루프</strong>를<br>
+    단일 .fl 파일로. React도 Next.js도 Tailwind도 없이.
+  </p>
+  <div class="btns">
+    <a href="/intro" class="btn-fill">AI-Native 선언문 →</a>
+    <a href="/dashboard" class="btn-line">운영 대시보드</a>
+    <a href="/freelang" class="btn-line">FreeLang 소개</a>
+    <a href="/counter" class="btn-line">Island 예제</a>
+  </div>
+</div>
+"""
+
+    """
+<div class="loop">
+  <div class="loop-step">
+    <span class="loop-icon">✏️</span>
+    <div class="loop-label">쓰기</div>
+    <div class="loop-desc">pages/*.flx 저장<br>삼중따옴표로 자유롭게</div>
+  </div>
+  <div class="loop-step">
+    <span class="loop-icon">⚡</span>
+    <div class="loop-label">자동 빌드</div>
+    <div class="loop-desc">파일 감지 → 빌드<br>150ms</div>
+  </div>
+  <div class="loop-step">
+    <span class="loop-icon">🎯</span>
+    <div class="loop-label">에러 위치</div>
+    <div class="loop-desc">_app.fl:2022 아닌<br>index.flx:205 표시</div>
+    <span class="loop-new">NEW</span>
+  </div>
+  <div class="loop-step">
+    <span class="loop-icon">🎉</span>
+    <div class="loop-label">해결 확인</div>
+    <div class="loop-desc">고치면 자동으로<br>"루프 완료" 알림</div>
+    <span class="loop-new">NEW</span>
+  </div>
+</div>
+"""
+
+    """
+<div class="stats">
+  <div class="stat"><div class="stat-n">0</div><div class="stat-l">npm 의존성</div></div>
+  <div class="stat"><div class="stat-n">150ms</div><div class="stat-l">빌드 속도</div></div>
+  <div class="stat"><div class="stat-n">없음</div><div class="stat-l">이스케이프 불필요</div></div>
+  <div class="stat"><div class="stat-n">✓ ✗ →</div><div class="stat-l">유니코드 직접</div></div>
+</div>
+"""
+
+    """
+<div class="win">
+  <div class="win-bar">
+    <div class="dd dr"></div><div class="dd dy"></div><div class="dd dg"></div>
+    <span class="win-title">pages/hello.flx — 삼중따옴표로 쓴 실제 코드</span>
+    <span class="win-tag">✓ 작동함</span>
+  </div>
+  <div class="code"><pre>
+<span class="cm">; CSS DSL — S식으로 선언, scoped 해시 클래스 자동 생성</span>
+<span class="kw">(style</span> <span class="fn">card</span>  <span class="sym">:bg "#1c1c28"  :radius "12px"  :p "24px"</span><span class="kw">)</span>
+<span class="kw">(style</span> <span class="fn">title</span> <span class="sym">:size "1.4rem"  :weight "700"  :color "#c4b5fd"</span><span class="kw">)</span>
+
+<span class="cm">; Island — 필요한 부분만 JS, 나머지는 SSR</span>
+<span class="kw">(island</span> <span class="fn">Counter</span> <span class="sym">[]</span>
+  <span class="kw">(let</span> <span class="sym">[n (atom 0)]</span>
+    <span class="kw">(h</span> <span class="str">"button"</span> <span class="sym">{"on-click" (fn [] (swap! n inc))}</span>
+      <span class="kw">(str</span> <span class="sym">"&#128293; " @n</span><span class="kw">))))</span>
+
+<span class="cm">; 삼중따옴표 — ✓ 유니코드 · "따옴표" → 화살표 이모지 🎯 전부 그냥</span>
+<span class="kw">(defn</span> <span class="fn">render</span> <span class="sym">[req]</span>
+  <span class="kw">(layout-html</span> <span class="str">"hello"</span>
+    <span class="kw">(str</span>
+      <span class="str">&quot;&quot;&quot;&lt;div class="${card}"&gt;&quot;&quot;&quot;</span>
+      <span class="str">&quot;&quot;&quot;  &lt;h1 class="${title}"&gt;&#10003; 삼중따옴표 안은 자유&lt;/h1&gt;&quot;&quot;&quot;</span>
+      <span class="str">&quot;&quot;&quot;  ${Counter}&quot;&quot;&quot;</span>
+      <span class="str">&quot;&quot;&quot;&lt;/div&gt;&quot;&quot;&quot;</span><span class="kw">)</span>
+    <span class="sym">req</span><span class="kw">))</span>
+  </pre></div>
+</div>
+"""
+
+    """
+<div class="feats">
+  <div class="feat">
+    <span class="feat-i">🗂️</span>
+    <div class="feat-t">파일 기반 라우팅</div>
+    <div class="feat-d">pages/ 에 파일 만들면 라우트 자동 등록. 설정 파일 없음.</div>
+    <span class="tag">pages/[id].flx → /:id</span>
+  </div>
+  <div class="feat">
+    <span class="feat-i">🎨</span>
+    <div class="feat-t">CSS DSL</div>
+    <div class="feat-d">S식으로 스타일 선언 → scoped 해시 클래스. 반응형 breakpoint 내장.</div>
+    <span class="tag">:sm-p :md-cols</span>
+  </div>
+  <div class="feat">
+    <span class="feat-i">🏝️</span>
+    <div class="feat-t">Island 아키텍처</div>
+    <div class="feat-d">SSR 기본, 상호작용 필요한 부분만 vanilla JS emit. &lt;1KB 런타임.</div>
+    <span class="tag">(island Name [] body)</span>
+  </div>
+  <div class="feat">
+    <span class="feat-i">🎯</span>
+    <div class="feat-t">소스맵</div>
+    <div class="feat-d">에러가 나면 _app.fl:2022가 아닌 pages/index.flx:205를 가리킴.</div>
+    <span class="tag">오늘 완성됨</span>
+  </div>
+  <div class="feat">
+    <span class="feat-i">🔄</span>
+    <div class="feat-t">에러 루프</div>
+    <div class="feat-d">고치면 "🎉 루프 완료" 자동 리포트. AIRC에 자동 기록.</div>
+    <span class="tag">오늘 완성됨</span>
+  </div>
+  <div class="feat">
+    <span class="feat-i">📋</span>
+    <div class="feat-t">AIRC 인계</div>
+    <div class="feat-d">세션이 끊겨도 다음 AI가 맥락을 잃지 않고 이어받음.</div>
+    <span class="tag">/~ai · HANDOFF.airc</span>
+  </div>
+  <div class="feat">
+    <span class="feat-i">📊</span>
+    <div class="feat-t">운영 대시보드 v1.1</div>
+    <div class="feat-d">5개 서비스 실시간 모니터링. SLO/SLA 자동 추적. 커스텀 메트릭.</div>
+    <span class="tag">v1.1.0 신규</span>
+  </div>
+</div>
+"""
+
+    """
+<div class="ai">
+  <div>
+    <h3>AI-Native가 마케팅 문구가 아닌 이유</h3>
+    <p>S식이 차별점이 아닙니다. Lisp은 60년 전부터 있었습니다.<br>
+    진짜 차별점은 AIRC · /~ai · 에러 루프 · 자동 인계입니다.<br>
+    AI가 개발·운영·유지보수 전체를 이어받을 수 있는 생태계.</p>
+  </div>
+  <a href="/intro" class="btn-fill">선언문 읽기 →</a>
+</div>
+"""
+
+    """
+<style>
+.apps-section{margin-bottom:28px}
+.apps-section h2{font-size:1rem;font-weight:700;color:var(--tx);margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.apps-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.app-card{background:var(--surface);border:1px solid var(--rim);border-radius:14px;
+  padding:18px 16px;text-decoration:none;color:inherit;display:flex;flex-direction:column;
+  align-items:center;gap:8px;text-align:center;
+  transition:border-color .2s,translate .2s}
+.app-card:hover{border-color:rgba(139,92,246,.45);translate:0 -3px;text-decoration:none;color:inherit}
+.app-card .icon{font-size:1.8rem;line-height:1}
+.app-card .name{font-size:.82rem;font-weight:700;color:var(--tx)}
+.app-card .desc{font-size:.7rem;color:var(--dim);line-height:1.45}
+</style>
+<div class="apps-section">
+  <h2>🗂️ 내 앱 <span style="font-size:.72rem;font-weight:500;color:var(--dim);background:rgba(139,92,246,.12);padding:2px 8px;border-radius:4px">10개 빌트인</span></h2>
+  <div class="apps-grid">
+    <a href="/files"   class="app-card"><span class="icon">📁</span><span class="name">파일</span><span class="desc">드라이브·첨부</span></a>
+    <a href="/photos"  class="app-card"><span class="icon">🖼️</span><span class="name">사진</span><span class="desc">갤러리·라이트박스</span></a>
+    <a href="/vault"   class="app-card"><span class="icon">🔐</span><span class="name">Vault</span><span class="desc">비밀번호 금고</span></a>
+    <a href="/contacts" class="app-card"><span class="icon">👤</span><span class="name">연락처</span><span class="desc">인맥·CRM</span></a>
+    <a href="/health"  class="app-card"><span class="icon">💪</span><span class="name">건강</span><span class="desc">운동·체중·수면</span></a>
+    <a href="/reading" class="app-card"><span class="icon">📚</span><span class="name">독서</span><span class="desc">서재·서평</span></a>
+    <a href="/goals"   class="app-card"><span class="icon">🎯</span><span class="name">목표</span><span class="desc">OKR·분기 목표</span></a>
+    <a href="/flash"   class="app-card"><span class="icon">🃏</span><span class="name">플래시카드</span><span class="desc">SRS 암기</span></a>
+    <a href="/subs"    class="app-card"><span class="icon">💳</span><span class="name">구독</span><span class="desc">정기결제 관리</span></a>
+    <a href="/feed"    class="app-card"><span class="icon">📡</span><span class="name">피드</span><span class="desc">RSS 뉴스</span></a>
+  </div>
+</div>
+"""
+
+    "</div>") req))

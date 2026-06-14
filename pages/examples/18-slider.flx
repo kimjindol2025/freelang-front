@@ -1,0 +1,27 @@
+; pages/examples/18-slider.flx
+; 예제 18 — 슬라이더: range 입력 값을 atom 으로 실시간 반영
+; 배우는 것: type=range, :on-input, 값에 따른 미리보기 변화
+
+(island Slider []
+  (let [size (atom 24)]
+    (h "div" {}
+      (str
+        (h "input" {:type "range" :min "12" :max "72" :value (str @size)
+                    :style "width:100%"
+                    :on-input (fn [e] (reset! size (.-value (.-target e))))})
+        (h "p" {:style "color:#6b7280;margin:12px 0"} (str "글자 크기: " (str @size) "px"))
+        (h "div" {:style (str "padding:20px;background:white;border-radius:10px;box-shadow:0 1px 4px rgba(0,0,0,.08);font-size:" (str @size) "px;font-weight:700;color:#6366f1")}
+          "가나다 ABC")))))
+
+(defn render [req]
+  (layout-html "18 · 슬라이더"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "슬라이더")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "range 입력값을 atom 으로 받아 미리보기 글자 크기에 실시간 반영합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

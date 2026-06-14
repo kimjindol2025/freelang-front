@@ -1,0 +1,40 @@
+; pages/examples/17-wizard.flx
+; 예제 17 — 단계 위저드: 현재 단계를 atom 으로, 이전/다음 이동
+; 배우는 것: atom 숫자 단계, 비교로 버튼 비활성, 진행 표시
+
+(island Wizard []
+  (let [step  (atom 1)
+        total 3
+        titles ["계정 정보" "프로필 설정" "완료"]]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:flex;gap:6px;margin-bottom:20px"}
+          (map
+            (fn [n]
+              (h "div" {:style (str "flex:1;height:6px;border-radius:99px;" (if (>= @step n) "background:#6366f1" "background:#e5e7eb"))}
+                ""))
+            [1 2 3]))
+        (h "div" {:style "background:white;border-radius:12px;padding:28px;box-shadow:0 1px 4px rgba(0,0,0,.08);min-height:120px"}
+          (str
+            (h "p" {:style "color:#9ca3af;font-size:.8rem;margin:0 0 6px"} (str "단계 " (str @step) " / " (str total)))
+            (h "h3" {:style "margin:0 0 10px"} (get titles (- @step 1)))
+            (h "p" {:style "color:#6b7280;line-height:1.7;margin:0"} "이 단계의 내용이 여기에 표시됩니다.")))
+        (h "div" {:style "display:flex;justify-content:space-between;margin-top:16px"}
+          (str
+            (h "button" {:style (str "border:1px solid #d1d5db;border-radius:8px;padding:8px 18px;background:white;" (if (<= @step 1) "color:#d1d5db;cursor:not-allowed" "color:#374151;cursor:pointer"))
+                         :on-click (fn [] (when (> @step 1) (swap! step (fn [v] (- v 1)))))} "이전")
+            (h "button" {:style (str "border:none;border-radius:8px;padding:8px 18px;color:white;" (if (>= @step total) "background:#d1d5db;cursor:not-allowed" "background:#6366f1;cursor:pointer"))
+                         :on-click (fn [] (when (< @step total) (swap! step (fn [v] (+ v 1)))))} "다음")))))))
+
+(defn render [req]
+  (layout-html "17 · 위저드"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "단계 위저드")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "현재 단계를 atom 으로 관리하고, 비교로 버튼 활성/비활성을 결정합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

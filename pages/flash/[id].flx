@@ -1,0 +1,103 @@
+; pages/flash/[id].flx — 덱 카드 편집
+; GET  /flash/:id
+; POST /flash/:id
+
+(load "pages/flash/_db.flx")
+(flash-init)
+
+(defn render [req]
+  (let [id    (server-req-param req "id")
+        deck  (flash-deck-by-id id)
+        cards (flash-cards-by-deck id)]
+    (if (= deck nil)
+      (server-redirect "/flash")
+      (layout-html (str (get deck "name") " — 카드 편집")
+        (h "div" {:style "max-width:720px;margin:0 auto;padding:24px"}
+          (str
+            (h "div" {:style "display:flex;align-items:center;gap:12px;margin-bottom:24px"}
+              (str
+                (h "a" {:href "/flash" :style "color:#f59e0b;text-decoration:none;font-size:.9rem"} "← 덱 목록")
+                (h "h1" {:style "font-size:1.3rem;font-weight:800;margin:0;flex:1"} (get deck "name"))
+                (h "a" {:href (str "/flash/study?deck=" id)
+                        :style "background:#f59e0b;color:white;padding:8px 16px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.85rem"}
+                  "▶ 학습")))
+            ; 카드 추가 폼
+            (h "div" {:style "background:white;border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.07)"}
+              (str
+                (h "h3" {:style "font-size:.9rem;font-weight:700;margin:0 0 12px"} "카드 추가")
+                (h "form" {:method "POST"}
+                  (str
+                    (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"}
+                      (str
+                        (h "div" {}
+                          (str
+                            (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "앞면 (질문)")
+                            (h "textarea" {:name "front" :rows "3" :required "true"
+                                           :style "width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;resize:none"}
+                              "")))
+                        (h "div" {}
+                          (str
+                            (h "label" {:style "font-size:.78rem;color:#6b7280;display:block;margin-bottom:3px"} "뒷면 (답)")
+                            (h "textarea" {:name "back" :rows "3" :required "true"
+                                           :style "width:100%;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem;resize:none"}
+                              "")))))
+                    (h! "input" {:type "hidden" :name "action" :value "add"})
+                    (h "button" {:type "submit"
+                                 :style "background:#f59e0b;color:white;border:none;border-radius:8px;padding:8px 24px;font-weight:600;cursor:pointer"}
+                      "+ 카드 추가")))))
+            ; 카드 목록
+            (h "div" {:style "font-size:.8rem;color:#9ca3af;margin-bottom:10px"}
+              (str (length cards) " 카드"))
+            (if (= (length cards) 0)
+              (h "div" {:style "background:white;border-radius:12px;padding:32px;text-align:center;color:#9ca3af"}
+                "카드를 추가해보세요")
+              (h "div" {:style "display:flex;flex-direction:column;gap:8px"}
+                (arr-join
+                  (map
+                    (fn [c]
+                      (h "div" {:style "background:white;border-radius:10px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:start"}
+                        (str
+                          (h "div" {}
+                            (str
+                              (h "div" {:style "font-size:.72rem;color:#f59e0b;font-weight:700;margin-bottom:4px"} "앞면")
+                              (h "p" {:style "margin:0;font-size:.88rem;line-height:1.5"} (get c "front"))))
+                          (h "div" {}
+                            (str
+                              (h "div" {:style "font-size:.72rem;color:#6b7280;font-weight:700;margin-bottom:4px"} "뒷면")
+                              (h "p" {:style "margin:0;font-size:.88rem;line-height:1.5"} (get c "back"))))
+                          (h "div" {:style "display:flex;flex-direction:column;gap:4px;align-items:flex-end"}
+                            (str
+                              (h "span" {:style "font-size:.68rem;color:#9ca3af;white-space:nowrap"}
+                                (str "다음: " (get c "next_at")))
+                              (h "form" {:method "POST"}
+                                (str
+                                  (h! "input" {:type "hidden" :name "card_id" :value (str (get c "id"))})
+                                  (h! "input" {:type "hidden" :name "action" :value "delete"})
+                                  (h "button" {:type "submit"
+                                               :style "background:none;border:1px solid #fecaca;border-radius:6px;color:#ef4444;cursor:pointer;padding:3px 8px;font-size:.75rem"}
+                                    "삭제"))))))))
+                  cards)
+                "")))))
+        req))))
+
+(defn render_post [req]
+  (let [id     (server-req-param req "id")
+        action (form-get req "action")]
+    (cond
+      (= action "add")
+        (let [front (form-get req "front")
+              back  (form-get req "back")]
+          (if (or (= (str-trim front) "") (= (str-trim back) ""))
+            (server-redirect (str "/flash/" id))
+            (do
+              (flash-add-card id front back)
+              (server-redirect (str "/flash/" id)))))
+
+      (= action "delete")
+        (let [card-id (form-get req "card_id")]
+          (do
+            (flash-delete-card card-id)
+            (server-redirect (str "/flash/" id))))
+
+      true
+        (server-redirect (str "/flash/" id)))))

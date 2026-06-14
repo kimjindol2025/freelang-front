@@ -1,0 +1,29 @@
+; pages/examples/19-color-picker.flx
+; 예제 19 — 색상 선택기: type=color 값을 atom 으로 미리보기
+; 배우는 것: type=color, :on-input, 동적 인라인 스타일
+
+(island ColorPicker []
+  (let [color (atom "#6366f1")]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:flex;align-items:center;gap:14px;margin-bottom:18px"}
+          (str
+            (h "input" {:type "color" :value @color
+                        :style "width:56px;height:56px;border:none;border-radius:10px;cursor:pointer;background:none"
+                        :on-input (fn [e] (reset! color (.-value (.-target e))))})
+            (h "code" {:style "font-size:1.1rem;color:#374151"} (str @color))))
+        (h "div" {:style (str "padding:32px;border-radius:12px;text-align:center;color:white;font-weight:700;background:" (str @color))}
+          "선택한 색상 미리보기")))))
+
+(defn render [req]
+  (layout-html "19 · 색상 선택기"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "색상 선택기")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "type=color 입력값을 atom 으로 받아 미리보기 배경에 즉시 반영합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

@@ -1,0 +1,43 @@
+; pages/health/_db.flx — 건강 기록 DB
+(ns health)
+
+(define HEALTH-DB {:type "sqlite" :path "data/health.db"})
+
+(defn init []
+  (db-exec HEALTH-DB
+    "CREATE TABLE IF NOT EXISTS health_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL,
+      type TEXT NOT NULL,
+      value REAL NOT NULL,
+      unit TEXT DEFAULT '',
+      note TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query HEALTH-DB "SELECT * FROM health_logs ORDER BY date DESC, id DESC" []))
+
+(defn by-type [type]
+  (db-query HEALTH-DB
+    "SELECT * FROM health_logs WHERE type=? ORDER BY date DESC LIMIT 30"
+    [type]))
+
+(defn recent-week [type]
+  (db-query HEALTH-DB
+    "SELECT date, AVG(value) as value FROM health_logs WHERE type=? AND date >= date('now','-7 days') GROUP BY date ORDER BY date ASC"
+    [type]))
+
+(defn today-summary []
+  (let [today (str-trim (shell "date '+%Y-%m-%d'"))]
+    (db-query HEALTH-DB
+      "SELECT type, value, unit, note FROM health_logs WHERE date=? ORDER BY id DESC"
+      [today])))
+
+(defn add [date type value unit note]
+  (db-exec HEALTH-DB
+    "INSERT INTO health_logs (date,type,value,unit,note) VALUES (?,?,?,?,?)"
+    [date type (str-to-num value) unit note]))
+
+(defn delete [id]
+  (db-exec HEALTH-DB "DELETE FROM health_logs WHERE id=?" [(str-to-num id)]))

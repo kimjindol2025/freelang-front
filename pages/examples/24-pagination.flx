@@ -1,0 +1,42 @@
+; pages/examples/24-pagination.flx
+; 예제 24 — 페이지네이션: 쿼리 파라미터로 목록을 페이지 단위로 분할
+; 배우는 것: server-req-query, range/nth 로 슬라이스, 페이지 링크 생성
+
+(defn page-num [req]
+  (let [raw (server-req-query req "page")]
+    (if (or (= raw nil) (= raw "")) 1 (str-to-num raw))))
+
+(defn render [req]
+  (let [all   ["사과" "바나나" "포도" "딸기" "수박" "참외" "복숭아" "오렌지"
+               "자두" "체리" "망고" "키위" "레몬" "라임" "멜론" "감"]
+        per   5
+        page  (page-num req)
+        total (length all)
+        pages (floor (/ (+ total (- per 1)) per))
+        start (* (- page 1) per)
+        idxs  (filter (fn [i] (and (>= i start) (< i (+ start per)))) (range 0 total))
+        rows  (map (fn [i] (nth all i)) idxs)]
+    (layout-html "24 · 페이지네이션"
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "페이지네이션")
+          (h "p" {:style "color:#6b7280;margin:0 0 20px"} (str "총 " (str total) "개 · " (str page) " 페이지"))
+          (h "ul" {:style "list-style:none;margin:0 0 20px;padding:0"}
+            (arr-join
+              (map
+                (fn [x] (h "li" {:style "padding:12px 14px;background:white;border-radius:8px;margin-bottom:6px;box-shadow:0 1px 3px rgba(0,0,0,.06)"} x))
+                rows)
+              ""))
+          (h "div" {:style "display:flex;gap:6px;justify-content:center"}
+            (arr-join
+              (map
+                (fn [p]
+                  (h "a" {:href (str "/examples/24-pagination?page=" (str p))
+                          :style (str "padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;"
+                                      (if (= p page) "background:#6366f1;color:white" "background:white;color:#6366f1;border:1px solid #e5e7eb"))}
+                    (str p)))
+                (map (fn [i] (+ i 1)) (range 0 pages)))
+              ""))
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      req)))

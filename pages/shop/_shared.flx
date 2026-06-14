@@ -1,0 +1,17 @@
+; pages/shop/_shared.flx — 쇼핑몰 공유 헬퍼
+; (ns shop) → 모든 defn에 shop- 접두사 자동 적용
+; 외부에서: (shop-api-base), (shop-product-emoji cat)
+
+(ns shop)
+
+(defn api-base [] "http://localhost:40081")
+
+(defn product-emoji [cat]
+  (cond
+    (= cat "전자제품") "📱"
+    (= cat "의류")     "👕"
+    (= cat "식품")     "🍱"
+    (= cat "생활용품") "🏠"
+    (= cat "스포츠")   "⚽"
+    (= cat "뷰티")     "💄"
+    true               "🛍"))

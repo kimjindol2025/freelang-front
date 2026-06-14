@@ -1,0 +1,150 @@
+; pages/goals/index.flx — 목표/OKR 대시보드
+
+(load "pages/goals/_db.flx")
+(goals-init)
+
+(island GoalsApp []
+  (let [goals     (atom nil)
+        show-form (atom false)
+        gtitle    (atom "")
+        gperiod   (atom "2026-Q3")
+        err       (atom "")
+
+        reload (fn [res]
+                 (reset! goals (get res "goals"))
+                 (reset! show-form false)
+                 (reset! gtitle "") (reset! err ""))
+
+        add-goal (fn []
+                   (if (= (str-trim @gtitle) "")
+                     (reset! err "목표 제목을 입력하세요")
+                     (fetch-post! "/goals/api"
+                       {"action" "add-goal" "title" @gtitle "period" @gperiod}
+                       reload)))
+
+        del-goal (fn [id]
+                   (fetch-post! "/goals/api" {"action" "delete-goal" "id" id} reload))
+
+        update-kr (fn [kr-id val]
+                    (fetch-post! "/goals/api" {"action" "update-kr" "id" kr-id "current" val}
+                      (fn [res] (reset! goals (get res "goals")))))
+
+        progress-color (fn [p]
+                         (cond
+                           (>= p 80) "#10b981"
+                           (>= p 50) "#f59e0b"
+                           true "#ef4444"))]
+
+    (fetch! "/goals/api" (fn [res] (reset! goals (get res "goals"))))
+
+    (if (= @goals nil)
+      (h "div" {:style "text-align:center;padding:60px;color:#9ca3af"} "로딩 중…")
+
+      (h "div" {:style "max-width:760px;margin:0 auto;padding:24px"}
+
+        ; 추가 버튼 / 폼
+        (if @show-form
+          (h "div" {:style "background:white;border-radius:16px;padding:24px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.08)"}
+            (str
+              (h "h3" {:style "margin:0 0 16px;font-weight:700"} "새 목표 추가")
+              (h "div" {:style "display:grid;grid-template-columns:2fr 1fr;gap:12px;margin-bottom:16px"}
+                (str
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "목표 제목 *")
+                      (h! "input" {:type "text" :value @gtitle :placeholder "ex. 매출 2배 달성"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! gtitle (.-value (.-target e))))})))
+                  (h "div" {}
+                    (str
+                      (h "label" {:style "font-size:.8rem;color:#6b7280;display:block;margin-bottom:4px"} "분기")
+                      (h! "input" {:type "text" :value @gperiod :placeholder "2026-Q3"
+                                   :style "width:100%;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:.9rem"
+                                   :on-input (fn [e] (reset! gperiod (.-value (.-target e))))})))))
+              (when (not (= @err ""))
+                (h "p" {:style "color:#ef4444;font-size:.85rem;margin:0 0 8px"} @err))
+              (h "div" {:style "display:flex;gap:8px"}
+                (str
+                  (h "button"
+                    {:style "flex:1;background:#6366f1;color:white;border:none;border-radius:8px;padding:10px;font-weight:600;cursor:pointer"
+                     :on-click (fn [] (add-goal))}
+                    "저장")
+                  (h "button"
+                    {:style "padding:10px 20px;border:1px solid #d1d5db;background:white;border-radius:8px;cursor:pointer"
+                     :on-click (fn [] (reset! show-form false))}
+                    "취소")))))
+          (h "div" {:style "text-align:right;margin-bottom:16px"}
+            (h "button"
+              {:style "background:#6366f1;color:white;border:none;border-radius:10px;padding:10px 20px;cursor:pointer;font-weight:700"
+               :on-click (fn [] (reset! show-form true))}
+              "+ 목표 추가")))
+
+        ; 목표 카드 목록
+        (if (= (length @goals) 0)
+          (h "div" {:style "text-align:center;padding:60px;color:#9ca3af;background:white;border-radius:16px"}
+            (str
+              (h "div" {:style "font-size:2.5rem;margin-bottom:8px"} "🎯")
+              (h "p" {:style "margin:0"} "목표를 추가해보세요")))
+          (h "div" {:style "display:flex;flex-direction:column;gap:16px"}
+            (map
+              (fn [g]
+                (let [p (get g "progress")
+                      c (progress-color p)]
+                  (h "div" {:style "background:white;border-radius:16px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,.07)"}
+                    (str
+                      ; 목표 헤더
+                      (h "div" {:style "display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;gap:12px"}
+                        (str
+                          (h "div" {}
+                            (str
+                              (h "div" {:style "font-weight:800;font-size:1rem;margin-bottom:4px"} (get g "title"))
+                              (h "span" {:style "font-size:.75rem;background:#ede9fe;color:#7c3aed;padding:2px 8px;border-radius:4px"}
+                                (get g "period"))))
+                          (h "div" {:style "display:flex;align-items:center;gap:10px;flex-shrink:0"}
+                            (str
+                              (h "div" {:style (str "font-size:1.4rem;font-weight:900;color:" c)} (str p "%"))
+                              (h "a" {:href (str "/goals/" (get g "id"))
+                                      :style "padding:5px 12px;border:1px solid #e5e7eb;border-radius:7px;text-decoration:none;color:#374151;font-size:.8rem"}
+                                "편집")
+                              (h "button"
+                                {:style "background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1rem;padding:4px"
+                                 :on-click (fn [] (del-goal (str (get g "id"))))}
+                                "×")))))
+                      ; 전체 진행률 바
+                      (h "div" {:style "height:6px;background:#f3f4f6;border-radius:3px;margin-bottom:16px;overflow:hidden"}
+                        (h "div" {:style (str "height:100%;border-radius:3px;background:" c ";width:" p "%")} ""))
+                      ; KR 목록
+                      (if (= (length (get g "krs")) 0)
+                        (h "p" {:style "color:#9ca3af;font-size:.85rem;margin:0"} "KR을 추가하려면 편집 버튼을 누르세요")
+                        (h "div" {:style "display:flex;flex-direction:column;gap:10px"}
+                          (map
+                            (fn [kr]
+                              (let [kp (if (> (get kr "target") 0)
+                                         (floor (* (/ (get kr "current") (get kr "target")) 100))
+                                         0)]
+                                (h "div" {}
+                                  (str
+                                    (h "div" {:style "display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"}
+                                      (str
+                                        (h "span" {:style "font-size:.85rem;font-weight:600"} (get kr "title"))
+                                        (h "span" {:style "font-size:.8rem;color:#6b7280"}
+                                          (str (get kr "current") "/" (get kr "target") " " (get kr "unit")))))
+                                    (h "div" {:style "height:4px;background:#f3f4f6;border-radius:2px;overflow:hidden"}
+                                      (h "div" {:style (str "height:100%;background:" (progress-color kp) ";width:" kp "%")} ""))))))
+                            (get g "krs"))))))))
+              @goals)))))))
+
+(defn render [req]
+  (let [goals (goals-all)
+        total (length goals)
+        active (length (filter (fn [g] (= (get g "status") "active")) goals))]
+    (layout-html "🎯 목표/OKR"
+      (str
+        (h "div" {:style "background:linear-gradient(135deg,#6366f1,#4f46e5);color:white;padding:28px 24px;text-align:center"}
+          (str
+            (h "h1" {:style "font-size:1.6rem;font-weight:800;margin:0 0 4px"} "🎯 목표 / OKR")
+            (h "p" {:style "opacity:.8;margin:0;font-size:.9rem"}
+              (str "진행 중 " active " · 합계 " total " 목표"))))
+        "ISLAND_PLACEHOLDER"
+        "ISLAND_SCRIPTS")
+      req)))

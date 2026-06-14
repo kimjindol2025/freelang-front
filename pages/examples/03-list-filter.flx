@@ -1,0 +1,26 @@
+; pages/examples/03-list-filter.flx
+; 예제 03 — 검색 필터: 쿼리스트링으로 목록 필터링 (서버 사이드)
+; 배우는 것: server-req-query, filter, str-count 부분일치
+
+(defn render [req]
+  (let [q   (server-req-query req "q")
+        kw  (if (= q nil) "" q)
+        all ["사과" "바나나" "포도" "딸기" "수박" "참외" "복숭아" "오렌지" "자두" "체리"]
+        hits (filter (fn [x] (or (= kw "") (> (str-count x kw) 0))) all)]
+    (layout-html "03 · 검색 필터"
+      (h "div" {:style "max-width:520px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 16px"} "검색 필터")
+          (h "form" {:method "get" :action "/examples/03-list-filter" :style "margin-bottom:16px"}
+            (h "input" {:name "q" :value kw :placeholder "과일 이름 검색…"
+                        :style "width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem"}))
+          (h "p" {:style "color:#9ca3af;font-size:.85rem;margin:0 0 12px"}
+            (str (length hits) "개 결과"))
+          (h "ul" {:style "list-style:none;margin:0;padding:0"}
+            (arr-join
+              (map
+                (fn [x]
+                  (h "li" {:style "padding:12px 14px;background:white;border-radius:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06)"} x))
+                hits)
+              ""))))
+      req)))

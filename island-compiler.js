@@ -2,11 +2,13 @@
 // island-compiler.js — (island Name [] body) → vanilla JS emit
 
 // ── S식 파서 ─────────────────────────────────────────────────
-function parse(src) {
-  let i = 0;
+function parse(src, baseLineOffset = 0) {
+  let i = 0, line = 1 + baseLineOffset;
   function skipWs() {
-    while (i < src.length && /[\s,]/.test(src[i])) i++;
-    // 라인 주석
+    while (i < src.length && /[\s,]/.test(src[i])) {
+      if (src[i] === '\n') line++;
+      i++;
+    }
     if (src[i] === ';') { while (i < src.length && src[i] !== '\n') i++; skipWs(); }
   }
   function readAtom() {
@@ -22,6 +24,7 @@ function parse(src) {
     i++; // skip "
     let s = '';
     while (i < src.length && src[i] !== '"') {
+      if (src[i] === '\n') line++;
       if (src[i] === '\\') { i++; s += src[i++]; } else s += src[i++];
     }
     i++; // skip "
@@ -29,14 +32,22 @@ function parse(src) {
   }
   function readList(close) {
     i++; // skip open
+    const startLine = line;
     const items = [];
     skipWs();
     while (i < src.length && src[i] !== close) {
+      const before = i;
       items.push(read());
       skipWs();
+      if (i === before) {
+        const ctx = src.slice(Math.max(0, i - 40), i + 5);
+        throw new Error(`island 파싱 오류 (line ${line}): '${close}'를 기대했으나 예상치 못한 '${src[i]}' — 괄호 짝을 확인하세요.\n  …${ctx}`);
+      }
     }
     i++; // skip close
-    return items;
+    const result = items;
+    result._line = startLine;
+    return result;
   }
   function read() {
     skipWs();
@@ -49,7 +60,6 @@ function parse(src) {
       const obj = {};
       for (let j = 0; j < pairs.length; j += 2) {
         const k = pairs[j];
-        // :keyword → "keyword", symbol → sym, string → string
         obj[typeof k === 'string' ? k : k?.kw ?? k?.sym ?? String(k)] = pairs[j + 1];
       }
       return { map: obj };
@@ -102,6 +112,11 @@ function emitList(node, ctx) {
   const head = node[0];
   const args = node.slice(1);
 
+  // head가 sym이 아니면 벡터 리터럴 [v1 v2 ...]
+  if (head?.sym === undefined && !Array.isArray(head)) {
+    return `[${node.map(n => emit(n, ctx)).join(', ')}]`;
+  }
+
   if (head?.sym === 'island') return emitIsland(args, ctx);
   if (head?.sym === 'let')    return emitLet(args, ctx);
   if (head?.sym === 'fn')     return emitFn(args, ctx);
@@ -119,6 +134,12 @@ function emitList(node, ctx) {
   if (head?.sym === '/')      return `(${args.map(a=>emit(a,ctx)).join(' / ')})`;
   if (head?.sym === '=')      return `(${emit(args[0],ctx)} === ${emit(args[1],ctx)})`;
   if (head?.sym === 'not=')   return `(${emit(args[0],ctx)} !== ${emit(args[1],ctx)})`;
+  if (head?.sym === '>')      return `(${emit(args[0],ctx)} > ${emit(args[1],ctx)})`;
+  if (head?.sym === '<')      return `(${emit(args[0],ctx)} < ${emit(args[1],ctx)})`;
+  if (head?.sym === '>=')     return `(${emit(args[0],ctx)} >= ${emit(args[1],ctx)})`;
+  if (head?.sym === '<=')     return `(${emit(args[0],ctx)} <= ${emit(args[1],ctx)})`;
+  if (head?.sym === 'mod')    return `(${emit(args[0],ctx)} % ${emit(args[1],ctx)})`;
+  if (head?.sym === '??')     return `(${emit(args[0],ctx)} ?? ${emit(args[1],ctx)})`;  // nil-coalescing
   if (head?.sym === 'not')    return `!(${emit(args[0],ctx)})`;
   if (head?.sym === 'when')   return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : null`;
   if (head?.sym === 'or')     return `(${args.map(a=>`(${emit(a,ctx)})`).join(' || ')})`;
@@ -141,8 +162,15 @@ function emitList(node, ctx) {
   if (head?.sym === 'watch-store')  return `_fl.watch_store(${emit(args[0],ctx)})`;
   if (head?.sym === 'empty?')  return `(!((${emit(args[0],ctx)}) && (${emit(args[0],ctx)}).length > 0))`;
   // fetch! / fetch-post! — Island 내부 비동기 API 호출
-  if (head?.sym === 'fetch!')       return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
-  if (head?.sym === 'fetch-post!')  return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
+  if (head?.sym === 'fetch!')        return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'fetch-post!')   return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
+  if (head?.sym === 'fetch-delete!') return `_fl.fetch_delete(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  // Clojure interop: (.-prop obj) → (obj).prop  — DOM 이벤트 값 접근 등
+  if (head?.sym && head.sym.startsWith('.-'))
+    return `(${emit(args[0], ctx)}).${head.sym.slice(2)}`;
+  // Clojure interop: (.method obj a b) → (obj).method(a, b)
+  if (head?.sym && head.sym.startsWith('.') && head.sym.length > 1)
+    return `(${emit(args[0], ctx)}).${head.sym.slice(1)}(${args.slice(1).map(a => emit(a, ctx)).join(', ')})`;
   // 일반 함수 호출
   const fn = emit(head, ctx);
   return `${fn}(${args.map(a => emit(a, ctx)).join(', ')})`;
@@ -160,6 +188,33 @@ function emitGetIn(args, ctx) {
 function emitIsland(args, ctx) {
   // (island Name [] body)
   const body = args.slice(2);
+
+  // 최상위 let 바인딩에서 atom 선언을 외부 클로저로 끌어올림
+  // → update() 호출 시 atom이 재초기화되지 않고 상태 유지
+  if (body.length === 1 && Array.isArray(body[0]) && body[0][0]?.sym === 'let') {
+    const bindings = body[0][1]; // [name, expr, name2, expr2, ...]
+    const letBody  = body[0].slice(2);
+
+    const stateDecls  = []; // atom → 외부 클로저 (1회 생성)
+    const renderDecls = []; // 그 외 → 렌더 함수 내부 (매 렌더마다)
+    for (let i = 0; i < bindings.length; i += 2) {
+      const name    = emitSym(bindings[i]?.sym ?? String(bindings[i]));
+      const valNode = bindings[i + 1];
+      const val     = emit(valNode, ctx);
+      const isAtom  = Array.isArray(valNode) && valNode[0]?.sym === 'atom';
+      if (isAtom) stateDecls.push(`const ${name} = ${val}`);
+      else        renderDecls.push(`const ${name} = ${val}`);
+    }
+
+    if (stateDecls.length > 0) {
+      const bodyJs = letBody.map(n => emit(n, ctx)).join(';\n      ');
+      const inner  = renderDecls.length > 0
+        ? `${renderDecls.join('; ')}; return ${bodyJs};`
+        : `return ${bodyJs};`;
+      return `(() => { ${stateDecls.join('; ')};\n  return (update) => { ${inner} };\n})()`;
+    }
+  }
+
   const bodyJs = body.map(n => emit(n, ctx)).join(';\n    ');
   return `(update) => {\n    return ${bodyJs};\n  }`;
 }
@@ -213,7 +268,7 @@ function emitH(args, ctx) {
 }
 
 function emitStr(args, ctx) {
-  return `[${args.map(a => emit(a, ctx)).join(', ')}].map(String).join('')`;
+  return `_fl_str(${args.map(a => emit(a, ctx)).join(', ')})`;
 }
 
 // ── Island 런타임 (~900B) ────────────────────────────────────
@@ -252,11 +307,13 @@ const _fl={
       else if(k.startsWith('on-'))el.addEventListener(k.slice(3),v);
       else if(v!==null&&v!==undefined&&v!=='')el.setAttribute(k,String(v));
     }
-    ch.flat().forEach(c=>{
+    function app(c){
       if(c==null)return;
+      if(Array.isArray(c)){c.forEach(app);return;}
       if(c instanceof Node)el.appendChild(c);
-      else el.appendChild(document.createTextNode(String(c)));
-    });
+      else{const s=String(c);if(s)el.appendChild(document.createTextNode(s));}
+    }
+    ch.forEach(app);
     return el;
   },
   // ── fetch! — Island 내부 API 호출 (GET, JSON 자동 파싱) ──
@@ -268,22 +325,34 @@ const _fl={
       .catch(err=>{ _fl._err('fetch!',new Error('GET '+url+' → '+err),'request'); });
   },
   // fetch-post! — POST JSON → Island 콜백
-  // 사용: (fetch-post! "/api/save" {"name" "홍"} (fn [res] (reset! result res)))
   fetch_post:(url,body,cb)=>{
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)})
       .then(r=>r.ok?r.json():Promise.reject(r.status))
       .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-post!',e,'callback'); } })
       .catch(err=>{ _fl._err('fetch-post!',new Error('POST '+url+' → '+err),'request'); });
   },
-  // ── Island 에러 리포터 → /~errors ──
+  // fetch-delete! — DELETE → Island 콜백
+  fetch_delete:(url,cb)=>{
+    fetch(url,{method:'DELETE',headers:{'Accept':'application/json'}})
+      .then(r=>r.ok?r.json():Promise.reject(r.status))
+      .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-delete!',e,'callback'); } })
+      .catch(err=>{ _fl._err('fetch-delete!',new Error('DELETE '+url+' → '+err),'request'); });
+  },
+  // ── Island 에러 리포터 → /~errors (dev 전용) ──
   _err:(islandId,err,phase)=>{
-    const EV='http://'+location.hostname+':40851/~errors';
     const msg=err&&err.message?err.message:String(err);
     const stack=err&&err.stack?err.stack:'';
-    fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({type:'island',message:'['+islandId+'] '+msg,source:phase,line:0,col:0,stack:stack,url:location.href})
-    }).catch(function(){});
-    console.error('[Island:'+islandId+']',err);
+    console.error('[Island:'+islandId+']['+phase+'] '+msg+'\n'+stack);
+    try{
+      if(location.hostname==='localhost'||location.port==='40850'||location.port==='40851'){
+        const EV='http://'+location.hostname+':40851/~errors';
+        const lineMatch=stack.match(/:(\d+):\d+\)?$/m);
+        const lineNo=lineMatch?parseInt(lineMatch[1]):0;
+        fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({type:'island',message:'['+islandId+']['+phase+'] '+msg,source:'island-'+islandId+'.flx',line:lineNo,col:0,stack:stack,url:location.href})
+        }).catch(function(){});
+      }
+    }catch(e){}
   },
   // ── Island 마운트 (store watch 통합) ──
   mount:(id,renderFn)=>{
@@ -311,7 +380,23 @@ const _fl={
     });
   },
 };
-const _fl_str=(...xs)=>xs.map(String).join('');
+// str: Node 포함 시 children 컨텍스트용 배열 반환, 순수 문자열이면 join
+// 주의: 속성값에 Node를 섞어 쓰는 패턴은 지원하지 않음 (String([node]) → 깨짐)
+function _fl_str(...xs){
+  const flat=[];
+  function col(v){if(v==null)return;if(v instanceof Node){flat.push(v);return;}if(Array.isArray(v)){v.forEach(col);return;}flat.push(String(v));}
+  xs.forEach(col);
+  return flat.some(x=>x instanceof Node)?flat:flat.join('');
+}
+window._fl=_fl;
+// ── Island 전역 헬퍼 (arr-join, concat, str-* 등) ──
+const arr_join=(arr,sep)=>{const a=arr||[];return a.some(x=>x instanceof Node)?a:a.join(sep??'');};
+const concat=(a,b)=>[...(a||[]),...(b||[])];
+const str_contains=(s,sub)=>String(s??'').includes(String(sub??''));
+const str_blank_q=(s)=>!s||String(s).trim()==='';
+const str_slice=(s,start,end)=>String(s??'').slice(start,end);
+const js_prompt=(msg,def)=>window.prompt(msg,def??'');
+const js_confirm=(msg)=>window.confirm(msg);
 </script>`;
 
 // ── .flx 파일에서 (island ...) 블록 추출 ────────────────────
@@ -321,6 +406,7 @@ function extractIslands(content) {
   while (i < content.length) {
     const idx = content.indexOf('(island ', i);
     if (idx === -1) break;
+    const startLine = content.slice(0, idx).split('\n').length;
     let depth = 0, j = idx;
     while (j < content.length) {
       if (content[j] === '(') depth++;
@@ -328,7 +414,7 @@ function extractIslands(content) {
       j++;
     }
     const block = content.slice(idx, j);
-    islands.push({ block, start: idx, end: j });
+    islands.push({ block, start: idx, end: j, startLine });
     i = j;
   }
   return islands;
@@ -344,8 +430,8 @@ function compileFileIslands(flxContent) {
   let modified  = flxContent;
   let offset    = 0;
 
-  found.forEach(({ block, start, end }, idx) => {
-    const ast  = parse(block);
+  found.forEach(({ block, start, end, startLine = 1 }, idx) => {
+    const ast  = parse(block, startLine - 1);
     const name = ast[1]?.sym ?? `Island${idx}`;
     const id   = `island-${name.toLowerCase()}-${idx}`;
     // 두 번째 인자가 배열이면 옵션 맵으로 해석 ([:watch "key1" ...])
@@ -357,9 +443,10 @@ function compileFileIslands(flxContent) {
         }, [])
       : [];
     const renderFn = emitIsland(ast.slice(1), {});
-    const js = watchKeys.length
+    const mountCall = watchKeys.length
       ? `_fl.mount_reactive(${JSON.stringify(id)}, ${renderFn}, ${JSON.stringify(watchKeys)});`
       : `_fl.mount(${JSON.stringify(id)}, ${renderFn});`;
+    const js = `${mountCall}\n//# sourceURL=island-${name.toLowerCase()}.flx`;
     scripts.push(js);
     // island 블록 → <div id="..."></div> 플레이스홀더로 교체
     const placeholder = `"<div id='${id}'></div>"`;

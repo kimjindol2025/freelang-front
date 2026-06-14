@@ -1,203 +1,202 @@
 {
   "project": "fl-front",
-  "date": "2026-06-01",
-  "session": "ai-native-dx — 쓰고 싶은 언어 만들기",
-  "path": "/root/kim/freelang-front",
+  "date": "2026-06-03",
+  "session": "신규 머신 클론 + 연동 + AIRC 문서화",
+  "path": "/home/kim/바탕화면/kim/freelang-front",
+  "runtime_path": "/home/kim/바탕화면/kim/freelang-v11/bootstrap.js",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
-  "last_commit": "01b5ef6",
+  "read_order": "1. HANDOFF.airc(이 파일) → 2. SYNTAX.airc(문법) → 3. HELPERS.airc(헬퍼 API + 현재 상태)",
+  "last_commit": "205f7b1",
   "ports": {
     "app": 40850,
     "hmr": 40851
   },
-  "start": "cd /root/kim/freelang-front && node dev-server.js",
+  "start": "cd /home/kim/바탕화면/kim/freelang-front && node dev-server.js",
   "build": "node fl-front-build.js",
+  "build_json": "node fl-front-build.js --json",
+  "island_test_cli": "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
+  "island_test_http": "GET http://localhost:40851/~ai/test?file=<path>[&island][&click][&store]",
+  "ai_context": "GET http://localhost:40851/~ai",
   "done": [
-    "pages/intro.flx — AI 개발 운영체제 선언 랜딩 페이지 (/intro)",
-    "pages/index.flx — 삼중따옴표 전면 적용, 다크 테마, AI-Native 포지셔닝",
-    "fl-front-build.js: BOOTSTRAP 경로 fallback (환경변수→/root→/home/kimjin)",
-    "fl-front-build.js: 삼중따옴표 인식 — 정규식 마스킹 + removeStyleBlocks 보호",
-    "fl-front-build.js: sourceMap 정확화 — 배열 요소 수 → 실제 텍스트 라인 (마커 기반)",
-    "dev-server.js: EADDRINUSE 핸들러 + SIGTERM + SIGKILL fallback",
-    "dev-server.js: translateLines() — at line N → pages/*.flx:N 자동 치환",
-    "dev-server.js: 에러→수정→검증 자동 루프 — [loop] ✅/❌/🎉 리포트",
-    "dev-server.js: HANDOFF.airc auto_errors 자동 기록/resolved 처리",
-    "freelang-v11 interpreter.js: 삼중따옴표 파싱 구현",
-    "freelang-v11 interpreter.js: lastStringStart 에러 힌트 추가",
-    "블로그 연재 3편 (ID: 950, 951, 953)"
+    "언어 정검: 예제 01~30 코드 전수 리뷰 + 서버 동작 확인 (30/30 GET, POST, 쿼리)",
+    "fix(24-pagination): pages = (floor (/ (+ total per-1) per)). e7ee433→4496c4b",
+    "fix(22-temp-convert): 화씨 부동소수점 → round 1자리. e7ee433",
+    "fix(29-bmi): BMI 소수점 과다 → round 1자리. e7ee433",
+    "fix(fl-front-build): math 헬퍼 false positive — floor/ceil/abs/min-val/max-val 등록. b795391",
+    "fix(form-validate): (filter keys fn) → (filter fn keys). POST 500 해소. d27eeec",
+    "feat(FL DevTools): 브라우저 우하단 🔧 패널 — store 실시간 + island 목록 + 에러. fba19ad",
+    "feat(defstore): store 키 레지스트리 — 빌드 미선언 경고 + 런타임 초기값 주입. 24abe2f",
+    "feat(type-check): arity 불일치 경고 + island 경계 서버함수 사용 에러. 0c18b48",
+    "feat(AI-Native DX): JSON 빌드 출력(--json) + /~ai 쿼리(6개 엔드포인트) + island-runner.js headless 22/22. ed89ab1",
+    "fix(island-compiler): [map1 map2 ...] 벡터 오파싱 버그 수정. ed89ab1",
+    "feat(/~ai/test): Island headless HTTP API. 205f7b1",
+    "blog: ID=975(언어정검), ID=977(AI-Native DX) 게시"
   ],
-  "next": [
+  "bugs_found": [
     {
-      "id": "P0",
-      "title": "삼중따옴표 안 ${변수} 보간",
-      "what": "\"\"\"...\"\"\" 안에서 ${변수} 직접 쓸 수 있어야 HTML 완전히 자연스러워짐. bootstrap.js에는 있었지만 interpreter.js에 미구현.",
-      "files": [
-        "freelang-v11/self/runtime/interpreter.js"
-      ],
-      "time": "~2시간"
+      "file": "pages/examples/24-pagination.flx",
+      "bug": "total이 per 배수일 때 pages가 소수 → range가 1 더 긴 배열 → 페이지 수 초과",
+      "fix": "(floor (/ (+ total (- per 1)) per))",
+      "note": "교육용 데이터(16개)가 우연히 맞아서 장기간 미발견."
     },
     {
-      "id": "P1",
-      "title": "auto_errors 중복 제거",
-      "what": "같은 에러가 재시작마다 중복 기록됨. 동일 message면 open 상태로 유지, 중복 추가 안 하도록.",
-      "files": [
-        "dev-server.js"
-      ],
-      "time": "~30분"
+      "file": "pages/examples/22-temp-convert.flx",
+      "bug": "37°C → 98.60000000000001°F 부동소수점 노출",
+      "fix": "(/ (round (* f 10)) 10)"
     },
     {
-      "id": "P2",
-      "title": "삼중따옴표 안 유니코드 직접 허용 확인",
-      "what": "bootstrap.js 경로로 실행 시 ✓ · → 이모지가 삼중따옴표 안에서 동작 확인됨. interpreter.js 경로(fl-node)는 미확인.",
-      "files": [
-        "freelang-v11/self/runtime/interpreter.js"
-      ],
-      "time": "~30분"
+      "file": "pages/examples/29-bmi.flx",
+      "bug": "BMI 22.491349... 소수점 과다",
+      "fix": "(/ (round (* bmi 10)) 10)"
+    },
+    {
+      "file": "fl-front-build.js (form-validate 정의)",
+      "bug": "(filter keys fn) 인자 순서 역전 → 모든 POST 500",
+      "fix": "(filter (fn [k] ...) keys)"
+    },
+    {
+      "file": "island-compiler.js",
+      "bug": "[map1 map2 map3] 벡터 리터럴 → map1(map2,map3) 함수 호출로 오파싱",
+      "fix": "emitList 상단에 head?.sym 없으면 벡터 리터럴로 처리"
     }
   ],
   "mistakes": [
     {
-      "what": "freelang-v11 remote 상태 미확인 후 bootstrap.js 수정",
-      "detail": "v11.9.0에서 bootstrap.js가 이미 삭제됐는데 수정 시도 → rebase 충돌. 세션 중 3번 stash pop 반복.",
-      "fix": "공유 리포 작업 전 git fetch && git log origin/master 필수",
-      "lesson": "bootstrap.js는 stash에서만 존재. 세션 시작 시 git stash pop 필요."
+      "what": "ceil → floor 2번 수정",
+      "lesson": "새 함수 쓰기 전 grep으로 _app.fl.out.js / FL_FRONT_HELPERS 확인 필수."
     },
     {
-      "what": "유니코드 에러 원인을 빌드 시스템 탓으로 잘못 분석",
-      "detail": "FL 문자열 안 이스케이프 안 된 \"가 조기 종료시키는 것인데, 빌드 시스템이 싱글쿼트 생성한다고 봤음.",
-      "fix": "에러 위치가 다를 때 파서 동작 역추적. 에러 메시지 그대로 믿지 말 것.",
-      "lesson": "소스맵이 없으면 에러 위치가 틀릴 수 있다. 이게 오늘 소스맵 만든 이유."
+      "what": "arity 파서 3번 재작성",
+      "lesson": "FL 소스 파싱 시 항상 stripComments(문자열 보호 버전) 사용. 정규식 주석 제거 금지."
     },
     {
-      "what": "삼중따옴표 안에 삼중따옴표 넣어서 문자열 조기 종료",
-      "detail": "코드 예시 안에 \"\"\"...\"\"\" 패턴 보여주려다 바깥 삼중따옴표가 닫힘.",
-      "fix": "&quot;&quot;&quot; 엔티티로 대체",
-      "lesson": "삼중따옴표 안에 \"\"\"는 사용 불가. 코드 예시는 엔티티 처리 필요."
+      "what": "Island 초기 검증 오탐 (단/쌍따옴표, 브라우저 API 미스텁)",
+      "lesson": "Node.js에서 브라우저 JS 실행 시 document/fetch/location stub 필수."
     },
     {
-      "what": "루프 분석 처음에 쓰기/에러 고치기에만 집중",
-      "detail": "사용자가 '그 다음'을 물어보기 전까지 검증 루프가 없다는 걸 몰랐음.",
-      "fix": "에러→수정→검증 루프 구현",
-      "lesson": "언어 DX는 쓰기만이 아니라 전체 루프다. 고쳐도 됐는지 아는 것이 핵심."
+      "what": "island-runner VNode toString() 누락 → [object Object]",
+      "lesson": "VirtualDOM 노드는 toString()=_serialize() 구현 필수."
+    }
+  ],
+  "ai_native_dx": {
+    "build_json": {
+      "cmd": "node fl-front-build.js --json | jq '.issues'",
+      "output": "{ ok, time, elapsed, routes[], helpers[], store_keys[], issues[], sourceMap }"
+    },
+    "ai_endpoints": {
+      "summary": "GET :40851/~ai",
+      "routes": "GET :40851/~ai/routes",
+      "fns": "GET :40851/~ai/fns  (defn 시그니처 205개)",
+      "store": "GET :40851/~ai/store",
+      "issues": "GET :40851/~ai/issues",
+      "errors": "GET :40851/~ai/errors",
+      "test": "GET :40851/~ai/test?file=<path>[&island=Name][&click=sel][&store={...}]"
+    },
+    "island_runner": {
+      "cmd": "node island-runner.js <file.flx> [--island=Name] [--click=selector] [--dispatch=key:val] [--store={...}]",
+      "result": "{ ok, results[{island, ok, html, html_after, store, events, sim}] }",
+      "coverage": "22/22 예제 Island PASS"
+    }
+  },
+  "what_claude_cant_verify": [
+    "다크모드 전환 시각적 동작",
+    "SPA 라우터 뷰 트랜지션 애니메이션",
+    "Island CSS 시각적 렌더링 결과"
+  ],
+  "what_claude_can_now_verify": [
+    "Island atom 상태 변화 (GET /~ai/test?click=selector)",
+    "Island dispatch/store 동기화 (GET /~ai/test?store={...}&click=button)",
+    "Island 렌더 HTML 구조 (VirtualDOM 직렬화)",
+    "빌드 이슈 전수 (node fl-front-build.js --json | jq .issues)",
+    "서버 함수 목록 (GET /~ai/fns)",
+    "미정의 함수 여부 (GET /~ai/issues)"
+  ],
+  "build_checks": {
+    "order": [
+      "괄호 균형",
+      "Island JS 문법 (new Function)",
+      "island 경계 — 서버 전용 함수 island 내 사용 → exit 1",
+      "미정의 함수",
+      "store 키 레지스트리 (defstore 선언 여부)",
+      "arity 불일치"
+    ],
+    "store_keys_registered": [
+      "count",
+      "likes",
+      "logs",
+      "log_filter",
+      "log_running",
+      "notes"
+    ]
+  },
+  "next": [
+    {
+      "id": "P0",
+      "title": "삼중따옴표 ${} 보간 — 이미 구현됨",
+      "what": "확인 결과 bootstrap.js·fl-front runtime 양쪽 완전 동작. 단순변수·표현식·함수 호출 모두 정상. HANDOFF 노트가 stale했음.",
+      "status": "resolved",
+      "verified": "단순 ${name}, 표현식 ${(+ count 10)}, 중첩 ${joined} 전수 통과"
     }
   ],
   "insights": [
-    "새 기능보다 진단 신뢰도가 먼저. 오늘 삼중따옴표+소스맵+루프 세 개가 새 함수 수십 개보다 체감 효과가 컸음.",
-    "언어를 쓰면서 언어를 고쳤다. 이게 AI-Native의 실제 의미.",
-    "쓰고 싶은 언어의 조건: 에러가 나면 위치를 믿을 수 있고, 고치면 됐다고 알려주는 것."
+    "'인간용 아님 AI 전용으로 가자' 한 마디로 에디터 플러그인 대신 headless 실행기를 만들었다. 방향 결정이 기술보다 중요했다.",
+    "Island headless 실행기를 만들다가 island-compiler 벡터 파싱 버그를 발견했다. 새 도구가 기존 버그를 드러낸다.",
+    "arity 파서는 3번 고쳐야 했다. FL 소스 파싱은 ;를 주석으로 단순 처리할 수 없다.",
+    "what_claude_cant_verify 목록이 CSS 시각적 결과 하나만 남았다. 나머지는 전부 headless·JSON으로 검증 가능."
   ],
   "env": {
-    "os": "Android PRoot Ubuntu (aarch64)",
-    "node": "v24.15.0",
-    "freelang": "v11.9.0 (bootstrap.js는 stash에서 복원 필요)",
-    "bootstrap": "git stash pop → /root/freelang-v11/bootstrap.js 복원",
-    "note": "watchdog.sh 비활성화(chmod -x). dev-server.js가 bootstrap.js를 자동으로 찾아서 실행."
+    "os": "Linux (x86_64)",
+    "node": "v24+",
+    "freelang": "v11 (/home/kim/바탕화면/kim/freelang-v11/bootstrap.js)",
+    "symlink": "freelang-front/runtime/bootstrap.js → freelang-v11/bootstrap.js (심링크 — 항상 최신)",
+    "note": "dev-server 기동 전 포트 40851 확인. 기존 프로세스 kill 후 재시작. island-runner.js는 서버 불필요 — 독립 실행."
   },
-  "known_issues": [
-    "bootstrap.js: v11.9.0에서 삭제됨. git stash pop으로 매 세션 복원 필요. stash 분실 시 fl-front 실행 불가.",
-    "삼중따옴표 안 ${변수}: bootstrap.js 경로에서는 미동작(보간 없음). str로 쪼개야 함.",
-    "auto_errors: 재시작마다 동일 에러 중복 기록됨. P1에서 수정 예정.",
-    "fl-node(compiler 경로): 삼중따옴표 미지원. bootstrap.js run으로만 동작 확인됨."
-  ],
+  "session_2026_06_03": {
+    "done": [
+      "freelang-v11 클론 → /home/kim/바탕화면/kim/freelang-v11",
+      "freelang-front 클론 → /home/kim/바탕화면/kim/freelang-front",
+      "runtime/bootstrap.js → freelang-v11/bootstrap.js 심링크 연동",
+      "package.json start 스크립트 경로 수정 (/home/kimjin → runtime/bootstrap.js)",
+      "fl-front-build.js candidates에 현재 경로 추가",
+      "빌드 테스트 통과 (82개 라우트, 이슈 0)",
+      "SYNTAX.airc 신규 생성 (FreeLang 프론트 문법 완전 레퍼런스)",
+      "HANDOFF.airc 경로 업데이트"
+    ],
+    "rule": "앞으로 모든 기능은 FreeLang(.flx)으로 구현. JS는 빌드 도구만."
+  },
   "auto_errors": [
     {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'server-event-stream' 정의 없음",
-      "status": "open"
+      "time": "2026-06-04T14:34:36.789Z",
+      "message": "'html-escape' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-06-04T14:39:18.951Z"
     },
     {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'register-watcher' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'server-event-write' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'export-to-json' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'server-response' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'export-to-csv' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'reverse' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'take' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'apply-filters' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'str-to-num' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'req-query-default' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T13:06:05.744Z",
-      "message": "'str-includes?' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:46:25.406Z",
-      "message": "'handle-delete-metrics' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:46:25.406Z",
-      "message": "'handle-get-metrics' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:46:25.406Z",
-      "message": "'handle-post-metrics' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:42:14.541Z",
-      "message": "'get-error-stats' 정의 없음",
-      "status": "open"
-    },
-    {
-      "time": "2026-06-01T12:40:11.785Z",
+      "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-delete-errors' 정의 없음",
-      "status": "open"
+      "status": "resolved",
+      "note": "error-api.fl에 구현. (load ...) 로 정상 로드. build --json issues:0 확인."
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
+      "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-get-errors' 정의 없음",
-      "status": "open"
+      "status": "resolved"
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
+      "time": "2026-06-02T10:12:29.195Z",
       "message": "'handle-post-errors' 정의 없음",
-      "status": "open"
+      "status": "resolved"
     },
     {
-      "time": "2026-06-01T12:40:11.785Z",
-      "message": "'load' 정의 없음",
-      "status": "open"
+      "time": "2026-06-02T10:12:29.195Z",
+      "message": "'get-custom-metric-data' 정의 없음",
+      "status": "resolved",
+      "note": "performance-monitor.fl에 구현. (load ...) 정상."
+    },
+    {
+      "time": "2026-06-02T10:12:29.195Z",
+      "message": "'record-custom-metric' 정의 없음",
+      "status": "resolved"
     }
   ]
 }

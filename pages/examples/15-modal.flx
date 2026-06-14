@@ -1,0 +1,34 @@
+; pages/examples/15-modal.flx
+; 예제 15 — 모달: 열림 상태를 atom 불리언으로, 오버레이/닫기 처리
+; 배우는 것: atom 불리언, 조건부 오버레이 렌더, 이벤트 버블링 분리
+
+(island Modal []
+  (let [open (atom false)]
+    (h "div" {}
+      (str
+        (h "button" {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:10px 18px;cursor:pointer"
+                     :on-click (fn [] (reset! open true))} "모달 열기")
+        (if @open
+          (h "div" {:style "position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:100"
+                    :on-click (fn [] (reset! open false))}
+            (h "div" {:style "background:white;border-radius:14px;padding:28px;max-width:360px;width:90%;box-shadow:0 12px 40px rgba(0,0,0,.25)"
+                      :on-click (fn [e] (.stopPropagation e))}
+              (str
+                (h "h3" {:style "margin:0 0 10px;font-size:1.2rem"} "안녕하세요 👋")
+                (h "p" {:style "color:#6b7280;line-height:1.7;margin:0 0 20px"} "오버레이를 클릭하면 닫히고, 내용 영역은 stopPropagation 으로 보호됩니다.")
+                (h "button" {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:8px 16px;cursor:pointer"
+                             :on-click (fn [] (reset! open false))} "닫기"))))
+          "")))))
+
+(defn render [req]
+  (layout-html "15 · 모달"
+    (str
+      (h "div" {:style "max-width:480px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "모달 다이얼로그")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "불리언 atom 으로 열림을 제어하고, 오버레이 클릭으로 닫습니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

@@ -1,0 +1,31 @@
+; pages/api/notes.flx — 노트 CRUD API (SQLite)
+; GET  /api/notes  → 목록
+; POST /api/notes  → 추가
+
+(define NOTES-DB {:type "sqlite" :path "/tmp/fl-notes.sqlite"})
+
+(defn ensure-notes-db []
+  (db-exec NOTES-DB "CREATE TABLE IF NOT EXISTS notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    pinned INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )" []))
+
+(defn render [req]
+  (ensure-notes-db)
+  (let [rows (db-query NOTES-DB
+                "SELECT * FROM notes ORDER BY pinned DESC, id DESC" [])]
+    (server-json {:ok true :notes rows})))
+
+(defn render_post [req]
+  (ensure-notes-db)
+  (let [body    (get req "body")
+        content (str-trim (str (get body "content")))]
+    (if (str-blank? content)
+      (server-json {:ok false :error "내용이 없습니다"})
+      (do
+        (db-exec NOTES-DB "INSERT INTO notes (content) VALUES (?)" [content])
+        (let [rows (db-query NOTES-DB
+                     "SELECT * FROM notes ORDER BY id DESC LIMIT 1" [])]
+          (server-json {:ok true :note (first rows)}))))))

@@ -1,0 +1,36 @@
+; pages/examples/08-tabs.flx
+; 예제 08 — 탭: 선택된 id 를 atom 으로 관리
+; 배우는 것: atom 숫자 상태, map 으로 탭 버튼 생성, filter+first 로 본문 선택
+
+(island Tabs []
+  (let [sel  (atom 0)
+        tabs [{"id" 0 "label" "개요" "body" "FreeLang 으로 만든 탭 컴포넌트입니다."}
+              {"id" 1 "label" "기능" "body" "atom 하나로 선택 상태를 들고, 클릭하면 본문이 바뀝니다."}
+              {"id" 2 "label" "가격" "body" "서버 왕복 없이 클라이언트에서 즉시 전환됩니다."}]
+        cur  (first (filter (fn [t] (= (get t "id") @sel)) tabs))]
+    (h "div" {}
+      (str
+        (h "div" {:style "display:flex;gap:4px;border-bottom:2px solid #e5e7eb"}
+          (map
+            (fn [t]
+              (h "button" {:style (str "padding:10px 18px;border:none;background:none;cursor:pointer;font-size:.95rem;"
+                                       (if (= @sel (get t "id")) "color:#6366f1;border-bottom:2px solid #6366f1;margin-bottom:-2px;font-weight:700" "color:#9ca3af"))
+                           :on-click (fn [] (reset! sel (get t "id")))}
+                (get t "label")))
+            tabs))
+        (h "div" {:style "padding:20px 4px;color:#374151;line-height:1.7"}
+          (get cur "body"))))))
+
+(defn render [req]
+  (layout-html "08 · 탭"
+    (str
+      (h "div" {:style "max-width:520px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {:style "font-size:1.6rem;margin:0 0 8px"} "탭")
+          (h "p" {:style "color:#6b7280;margin:0 0 24px"} "선택된 탭 id 를 atom 으로 관리합니다.")
+          (h "div" {:style "background:white;border-radius:12px;padding:16px 20px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
+            "ISLAND_PLACEHOLDER")
+          (h "p" {:style "margin-top:24px"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"} "← 예제 갤러리로"))))
+      "ISLAND_SCRIPTS")
+    req))

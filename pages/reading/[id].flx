@@ -1,0 +1,233 @@
+; pages/reading/[id].flx — 책 상세 + 편집
+; GET  /reading/:id
+; POST /reading/:id
+
+(load "pages/reading/_db.flx")
+(reading-init)
+
+; 별점 텍스트 (HTML 태그 미사용 — 색상은 부모 div로)
+(defn reading-stars [rating]
+  (arr-join
+    (map (fn [idx] (if (<= idx rating) "★" "☆")) [1 2 3 4 5])
+    ""))
+
+(defn reading-status-badge [status]
+  (cond
+    (= status "reading") (h "span" {:style "padding:4px 12px;border-radius:99px;font-size:.78rem;font-weight:700;background:#ede9fe;color:#7c3aed"} "📖 읽는 중")
+    (= status "done")    (h "span" {:style "padding:4px 12px;border-radius:99px;font-size:.78rem;font-weight:700;background:#dcfce7;color:#16a34a"} "✅ 완독")
+    true                 (h "span" {:style "padding:4px 12px;border-radius:99px;font-size:.78rem;font-weight:700;background:#fef3c7;color:#d97706"} "📌 읽고 싶어요")))
+
+(defn reading-meta-row [label value]
+  (if (not (= value ""))
+    (h "div" {:style "display:flex;gap:12px;align-items:baseline;margin-bottom:8px"}
+      (str
+        (h "span" {:style "font-size:.75rem;color:var(--c-muted);width:64px;flex-shrink:0"} label)
+        (h "span" {:style "font-size:.9rem;color:var(--c-text);font-weight:500"} value)))
+    ""))
+
+(defn render [req]
+  (let [id  (server-req-param req "id")
+        bk  (reading-by-id id)]
+    (if (= bk nil)
+      (server-redirect "/reading")
+      (let [progress (if (> (get bk "pages_total") 0)
+                       (floor (* (/ (get bk "pages_read") (get bk "pages_total")) 100))
+                       0)]
+        (layout-html (get bk "title")
+          (h "div" {:style "max-width:640px;margin:0 auto;padding:24px"}
+            (str
+              (h "a" {:href "/reading" :style "color:#7c3aed;text-decoration:none;font-size:.9rem;display:inline-block;margin-bottom:20px;transition:color .15s"} "← 서재로")
+
+              (h "div" {:style "background:var(--c-surface);border:1px solid var(--c-border);border-radius:16px;overflow:hidden;box-shadow:0 2px 12px oklch(0 0 0 / .08)"}
+                (str
+                  ; 커버 헤더
+                  (h "div" {:style (str "background:" (get bk "cover_color") ";padding:32px;display:flex;align-items:flex-end;gap:20px")}
+                    (str
+                      (h "div" {:style "font-size:3rem"} "📖")
+                      (h "div" {:style "color:white;flex:1"}
+                        (str
+                          (h "h1" {:style "font-size:1.4rem;font-weight:800;margin:0 0 4px"} (get bk "title"))
+                          (h "p" {:style "opacity:.85;margin:0;font-size:.9rem"}
+                            (if (= (get bk "author") "") "저자 미상" (get bk "author")))))))
+
+                  (h "div" {:style "padding:24px"}
+                    (str
+                      ; 상태 배지 + 페이지 정보
+                      (h "div" {:style "display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap;align-items:center"}
+                        (str
+                          (reading-status-badge (get bk "status"))
+                          (if (> (get bk "pages_total") 0)
+                            (h "span" {:style "padding:4px 12px;border-radius:99px;font-size:.78rem;background:var(--c-border);color:var(--c-muted)"}
+                              (str (get bk "pages_read") "/" (get bk "pages_total") "p · " progress "%"))
+                            "")
+                          (if (not (= (get bk "genre") ""))
+                            (h "span" {:style "padding:4px 12px;border-radius:99px;font-size:.78rem;background:#ede9fe;color:#7c3aed"}
+                              (get bk "genre"))
+                            "")))
+
+                      ; 진행률 바
+                      (if (> (get bk "pages_total") 0)
+                        (h "div" {:style "margin-bottom:20px"}
+                          (str
+                            (h "div" {:style "height:6px;background:var(--c-border);border-radius:3px;overflow:hidden"}
+                              (h "div" {:style (str "height:100%;background:#7c3aed;border-radius:3px;width:" progress "%")} ""))
+                            (h "div" {:style "font-size:.75rem;color:var(--c-muted);margin-top:6px;text-align:right"}
+                              (str progress "% 완료"))))
+                        "")
+
+                      ; 책 메타데이터 섹션
+                      (h "div" {:style "background:var(--c-bg);border-radius:10px;padding:16px;margin-bottom:20px"}
+                        (str
+                          (h "div" {:style "font-size:.72rem;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px"} "책 정보")
+                          (reading-meta-row "출판사" (get bk "publisher"))
+                          (reading-meta-row "출판연도" (if (> (get bk "pub_year") 0) (str (get bk "pub_year") "년") ""))
+                          (reading-meta-row "ISBN" (get bk "isbn"))
+                          (if (and (= (get bk "publisher") "")
+                                   (= (get bk "isbn") "")
+                                   (= (get bk "pub_year") 0))
+                            (h "p" {:style "color:var(--c-muted);font-size:.8rem;margin:0"} "메타데이터 없음 — 아래 폼에서 추가하세요")
+                            "")))
+
+                      ; 별점 (완독 시)
+                      (if (= (get bk "status") "done")
+                        (h "div" {:style "margin-bottom:20px"}
+                          (str
+                            (h "div" {:style "font-size:.8rem;color:var(--c-muted);margin-bottom:4px"} "평점")
+                            (h "div" {:style "font-size:1.5rem"} (reading-stars (get bk "rating")))))
+                        "")
+
+                      ; 서평
+                      (if (not (= (get bk "review") ""))
+                        (h "div" {:style "background:var(--c-bg);border-left:3px solid #7c3aed;border-radius:0 10px 10px 0;padding:16px;margin-bottom:20px"}
+                          (str
+                            (h "div" {:style "font-size:.72rem;font-weight:700;color:#7c3aed;margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em"} "서평")
+                            (h "p" {:style "margin:0;line-height:1.75;font-size:.92rem;color:var(--c-text)"}
+                              (get bk "review"))))
+                        "")
+
+                      ; 날짜 정보
+                      (h "div" {:style "display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap"}
+                        (str
+                          (if (not (= (get bk "started_at") ""))
+                            (h "div" {}
+                              (str
+                                (h "div" {:style "font-size:.72rem;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em"} "시작일")
+                                (h "div" {:style "font-size:.9rem;font-weight:600;color:var(--c-text)"} (get bk "started_at"))))
+                            "")
+                          (if (not (= (get bk "finished_at") ""))
+                            (h "div" {}
+                              (str
+                                (h "div" {:style "font-size:.72rem;color:var(--c-muted);text-transform:uppercase;letter-spacing:.04em"} "완독일")
+                                (h "div" {:style "font-size:.9rem;font-weight:600;color:var(--c-text)"} (get bk "finished_at"))))
+                            "")))
+
+                      ; 편집 폼
+                      (h "form" {:method "POST" :style "border-top:1px solid var(--c-border);padding-top:20px;max-width:none"}
+                        (str
+                          (h "h3" {:style "font-size:.9rem;font-weight:700;margin:0 0 16px;color:var(--c-text)"} "기록 업데이트")
+
+                          ; 진행 정보
+                          (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"}
+                            (str
+                              (h "div" {}
+                                (str
+                                  (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "읽은 페이지")
+                                  (h! "input" {:type "number" :name "pages_read" :value (str (get bk "pages_read"))
+                                               :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))
+                              (h "div" {}
+                                (str
+                                  (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "상태")
+                                  (h "select" {:name "status"
+                                               :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"}
+                                    (arr-join
+                                      (map
+                                        (fn [opt]
+                                          (if (= (get opt "key") (get bk "status"))
+                                            (str "<option value='" (get opt "key") "' selected>" (get opt "label") "</option>")
+                                            (str "<option value='" (get opt "key") "'>" (get opt "label") "</option>")))
+                                        [{"key" "wish"    "label" "읽고 싶어요"}
+                                         {"key" "reading" "label" "읽는 중"}
+                                         {"key" "done"    "label" "완독"}])
+                                      ""))))))
+
+                          ; 별점 + 완독일
+                          (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px"}
+                            (str
+                              (h "div" {}
+                                (str
+                                  (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "별점 (1-5)")
+                                  (h! "input" {:type "number" :name "rating" :min "0" :max "5" :value (str (get bk "rating"))
+                                               :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))
+                              (h "div" {}
+                                (str
+                                  (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "완독일")
+                                  (h! "input" {:type "date" :name "finished_at" :value (get bk "finished_at")
+                                               :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))))
+
+                          ; 메타데이터 편집
+                          (h "div" {:style "background:var(--c-bg);border-radius:8px;padding:12px;margin-bottom:12px"}
+                            (str
+                              (h "div" {:style "font-size:.72rem;font-weight:700;color:var(--c-muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px"} "책 메타데이터")
+                              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px"}
+                                (str
+                                  (h "div" {}
+                                    (str
+                                      (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "출판사")
+                                      (h! "input" {:type "text" :name "publisher" :value (or (get bk "publisher") "")
+                                                   :placeholder "출판사명"
+                                                   :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))
+                                  (h "div" {}
+                                    (str
+                                      (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "출판연도")
+                                      (h! "input" {:type "number" :name "pub_year"
+                                                   :value (if (> (or (get bk "pub_year") 0) 0) (str (get bk "pub_year")) "")
+                                                   :placeholder "2024"
+                                                   :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))))
+                              (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:10px"}
+                                (str
+                                  (h "div" {}
+                                    (str
+                                      (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "ISBN")
+                                      (h! "input" {:type "text" :name "isbn" :value (or (get bk "isbn") "")
+                                                   :placeholder "978-..."
+                                                   :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))
+                                  (h "div" {}
+                                    (str
+                                      (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "장르")
+                                      (h! "input" {:type "text" :name "genre" :value (or (get bk "genre") "")
+                                                   :placeholder "소설·에세이·…"
+                                                   :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;background:var(--c-surface);color:var(--c-text)"})))))))
+
+                          ; 서평
+                          (h "div" {:style "margin-bottom:14px"}
+                            (str
+                              (h "label" {:style "font-size:.78rem;color:var(--c-muted);display:block;margin-bottom:3px"} "서평")
+                              (h "textarea" {:name "review" :rows "4"
+                                             :style "width:100%;padding:8px 10px;border:1px solid var(--c-border);border-radius:7px;font-size:.9rem;resize:none;background:var(--c-surface);color:var(--c-text)"}
+                                (get bk "review"))))
+
+                          (h "button" {:type "submit"
+                                       :style "width:100%;background:#7c3aed;color:white;border:none;border-radius:8px;padding:10px;font-weight:700;cursor:pointer;transition:all .2s"}
+                            "저장")))))))))
+          req)))))
+
+(defn render_post [req]
+  (let [id          (server-req-param req "id")
+        bk          (reading-by-id id)]
+    (if (= bk nil)
+      (server-redirect "/reading")
+      (let [pages-read  (form-get req "pages_read")
+            status      (form-get req "status")
+            rating      (form-get req "rating")
+            review      (form-get req "review")
+            finished-at (form-get req "finished_at")
+            publisher   (form-get req "publisher")
+            isbn        (form-get req "isbn")
+            pub-year    (form-get req "pub_year")
+            genre       (form-get req "genre")
+            started-at  (get bk "started_at")]
+        (do
+          (reading-update-progress id pages-read status started-at finished-at)
+          (reading-update-review id rating review)
+          (reading-update-meta id publisher isbn pub-year genre)
+          (server-redirect (str "/reading/" id)))))))

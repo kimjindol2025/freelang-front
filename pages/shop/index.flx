@@ -1,0 +1,108 @@
+; pages/shop/index.flx — 쇼핑몰 메인 (상품 목록)
+; GET /shop
+
+(load "pages/shop/_shared.flx")
+
+(defn fetch-products [category kw]
+  (let [base (str (shop-api-base) "/api/products?size=30")
+        url  (cond
+               (not (or (nil? kw) (= kw "")))            (str base "&q=" kw)
+               (not (or (nil? category) (= category ""))) (str base "&category=" category)
+               true                                       base)
+        res    (http-get url)
+        parsed (json_parse (get res "body"))]
+    (if (get parsed "ok")
+      (?? (get (get parsed "data") "data") (get parsed "data"))
+      [])))
+
+(defn category-badge [cat active]
+  (let [on  "background:#6366f1;color:#fff;border:1px solid #6366f1"
+        off "background:#fff;color:#374151;border:1px solid #e5e7eb"]
+    (h "a"
+      {"href"  (str "/shop?category=" cat)
+       "style" (str "display:inline-block;padding:6px 14px;border-radius:20px;font-size:.82rem;font-weight:600;text-decoration:none;margin:0 4px 8px 0;cursor:pointer;" (if active on off))}
+      cat)))
+
+
+(defn product-card [p]
+  (let [price (str (get p "price"))
+        pid   (str (get p "id"))]
+    (h "a"
+      {"href"  (str "/shop/products/" pid)
+       "style" "background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;text-decoration:none;color:inherit;cursor:pointer"}
+      (h "div"
+        {"style" "background:linear-gradient(135deg,#f3f4f6,#e5e7eb);height:160px;display:flex;align-items:center;justify-content:center;font-size:3rem"}
+        (shop-product-emoji (get p "category")))
+      (h "div" {"style" "padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:6px"}
+        (h "span"
+          {"style" "font-size:.72rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.05em"}
+          (get p "category"))
+        (h "p"
+          {"style" "font-size:.92rem;font-weight:600;color:#111827;line-height:1.4;flex:1"}
+          (get p "name"))
+        (h "p"
+          {"style" "font-size:.8rem;color:#9ca3af;line-height:1.4"}
+          (?? (get p "description") ""))
+        (h "div"
+          {"style" "display:flex;align-items:center;justify-content:space-between;margin-top:8px"}
+          (h "span"
+            {"style" "font-size:1.05rem;font-weight:700;color:#111827"}
+            (str "₩" price))
+          (h "span"
+            {"style" (str "font-size:.75rem;font-weight:600;padding:3px 8px;border-radius:99px;"
+                          (if (> (get p "stock") 0)
+                            "background:#dcfce7;color:#166534"
+                            "background:#fee2e2;color:#991b1b"))}
+            (if (> (get p "stock") 0)
+              (str "재고 " (get p "stock") "개")
+              "품절")))))))
+
+(defn render [req]
+  (let [q        (get req "query")
+        category (?? (get q "category") "")
+        kw       (?? (get q "q") "")
+        products (fetch-products category kw)
+        cats     ["전자제품" "의류" "식품" "생활용품" "스포츠" "뷰티"]]
+    (layout-html "🛍 쇼핑몰"
+      (str
+        """
+<style>
+body{background:#f9fafb}
+.shop-wrap{max-width:1100px;margin:0 auto;padding:32px 20px}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px}
+.header h1{font-size:1.6rem;font-weight:800;color:#111827}
+.header nav a{margin-left:16px;font-size:.875rem;font-weight:600;color:#6b7280;text-decoration:none}
+.header nav a:hover{color:#6366f1}
+.search-box{display:flex;gap:8px;margin-bottom:20px}
+.search-box input{flex:1;padding:10px 16px;border:1px solid #e5e7eb;border-radius:8px;font-size:.9rem;outline:none}
+.search-box input:focus{border-color:#6366f1}
+.search-box button{background:#6366f1;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-weight:600;cursor:pointer;font-size:.9rem}
+.cats{margin-bottom:24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.empty{text-align:center;padding:60px;color:#9ca3af;font-size:1rem}
+.count{font-size:.85rem;color:#6b7280;margin-bottom:16px}
+</style>
+"""
+        (h "div" {"class" "shop-wrap"}
+          (h "div" {"class" "header"}
+            (h "h1" {} "🛍 FreeLang 쇼핑몰")
+            (h "nav" {}
+              (h "a" {"href" "/shop"} "전체상품")
+              (h "a" {"href" "/shop/cart"} "🛒 장바구니")
+              (h "a" {"href" "/shop/orders"} "📦 주문내역")))
+          (h "form" {"method" "get" "action" "/shop" "class" "search-box"}
+            (h "input"
+              {"type" "text" "name" "q" "placeholder" "상품 검색..." "value" kw})
+            (h "button" {"type" "submit"} "검색"))
+          (h "div" {"class" "cats"}
+            (category-badge "전체" (and (or (nil? category) (= category "")) (or (nil? kw) (= kw ""))))
+            (str-join (map (fn [c] (category-badge c (= category c))) cats) ""))
+          (h "p" {"class" "count"}
+            (str (length products) "개 상품"
+                 (if (not (or (nil? kw) (= kw ""))) (str " — \"" kw "\" 검색결과") "")
+                 (if (not (or (nil? category) (= category ""))) (str " — " category) "")))
+          (if (empty? products)
+            (h "div" {"class" "empty"} "상품이 없습니다")
+            (h "div" {"class" "grid"}
+              (str-join (map product-card products) "")))))
+      req)))
