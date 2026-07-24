@@ -22,7 +22,14 @@ fl:<ns>:item:<id>    → { "id", ..., "updated" }
 | `afldb-coll-all` / `get` / `history` | 조회 |
 | `afldb-coll-known` | 등록 ns의 index·item 키 (Events용) |
 
-등록 ns: `afldb_coll_namespaces` (`scratch`, `notes`, `todo`, …). 새 앱이면 **`_afldb_coll.flx` 맨 위 define에만 append**.
+등록 ns: `afldb_coll_namespaces` (`scratch`, `notes`, `todo`, `bookmarks`, `clips`, …). 새 앱이면 **`_afldb_coll.flx` 맨 위 define에만 append** — 또는 `node fl-scaffold.js --ns <ns> --fields content`.
+
+스캐폴드:
+```bash
+node fl-scaffold.js --ns clips --fields content --dry
+node fl-scaffold.js --ns clips --fields content
+```
+금지 필드: `text`/`body`/`action`/`id` (req body 충돌).
 
 ## 페이지 스캐폴드 (콜드스타트)
 

@@ -1,0 +1,27 @@
+; pages/clips/index.flx — list + add + delete SSR form
+
+(load "pages/clips/_db.flx")
+
+(defn clips-row [it]
+  (let [id (str (get it "id"))
+        content (str (or (get it "content") ""))]
+    (h "li" {}
+      (h "span" {} (str " " content))
+      (h "form" {:method "POST" :action "/clips/api" :style "display:inline"}
+        (h! "input" {:type "hidden" :name "action" :value "delete"})
+        (h! "input" {:type "hidden" :name "id" :value id})
+        (h! "button" {:type "submit"} "del")))))
+
+(defn render [req]
+  (let [items (clips-all)]
+    (layout-html "Clips"
+      (h "div" {:style "max-width:40rem;margin:2rem auto;font-family:sans-serif"}
+        (h "h1" {} "Clips")
+        (h "p" {} "afl-db coll scaffold")
+        (h "form" {:method "POST" :action "/clips/api"}
+          (h! "input" {:type "hidden" :name "action" :value "add"})
+          (h! "input" {:type "text" :name "content" :placeholder "content"})
+          (h! "button" {:type "submit"} "add"))
+        (h "ul" {}
+          (arr-join (map clips-row items) "")))
+      req)))

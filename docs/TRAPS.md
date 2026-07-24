@@ -25,7 +25,7 @@
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
 | **fl-loop 계약** | `converged` = **machine-applicable 0건** (자동으로 더 고칠 것 없음). `humanShare`/`humanShareItems` = 사람 몫. **converged ≠ humanShare 0**. |
-| **reserved-word / let** | `let` 바인딩의 `act`도 검사·fix (`topLevelLetBindings`). 기존 `reserved-word` 코드 확장(19 신설 아님). FL_RESERVED 현재 `act`만. |
+| **scaffold 필드명** | `text`/`body`/`action`/`id` 는 req body와 충돌 가능 — `content`/`title` 등 사용 (`fl-scaffold.js` BLOCKED_FIELDS). |
 
 ## 관련 규칙
 - 상수: **소문자 + underscore** (`afl_db_base`). `AFL-DB-BASE` 금지.

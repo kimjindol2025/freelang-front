@@ -1,0 +1,16 @@
+; pages/clips/_db.flx — scaffold (afldb-coll thin)
+; ns: clips · fields: content
+
+(define clips_ns "clips")
+
+(defn clips-all []
+  (afldb-coll-all clips_ns))
+
+(defn clips-add [content]
+  (afldb-coll-create clips_ns {"content" content}))
+
+(defn clips-delete [id]
+  (afldb-coll-delete clips_ns id))
+
+(defn clips-history [id]
+  (afldb-coll-history clips_ns id))

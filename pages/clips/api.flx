@@ -1,0 +1,34 @@
+; pages/clips/api.flx — GET list / POST add|delete|history
+
+(load "pages/clips/_db.flx")
+
+(defn render [req]
+  (server-json {"ok" true
+                "backend" "afl-db"
+                "coll" clips_ns
+                "items" (clips-all)
+                "status" (afldb-status)}))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        action (str (or (get body "action") ""))]
+    (cond
+      (= action "add")
+      (let [content (str-trim (str (or (get body "content") "")))]
+        (if (= content "")
+          (server-json {"ok" false "error" "content 필요"})
+          (do
+            (clips-add content)
+            (server-json {"ok" true "items" (clips-all)}))))
+
+      (= action "delete")
+      (let [id (str (get body "id"))]
+        (clips-delete id)
+        (server-json {"ok" true "items" (clips-all)}))
+
+      (= action "history")
+      (let [id (str (get body "id"))]
+        (server-json {"ok" true "id" id "events" (clips-history id)}))
+
+      true
+      (server-json {"ok" false "error" "unknown action — add|delete|history"}))))
