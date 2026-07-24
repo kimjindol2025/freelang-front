@@ -24,7 +24,7 @@
 | **afl-db 지연** | GET/POST 왕복 ~1–2초 체감 가능. Trap 아님 — UX/타임아웃 참고만. |
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
-| **fl-loop 계약** | `fl-front-loop.js` 수렴 = **machine-applicable 0건**. 사람 몫(upper-hyphen·undefined-fn 등)은 남아 있어도 converged. 리포트에 humanShare 목록 없음(현행). |
+| **fl-loop 계약** | `converged` = **machine-applicable 0건** (자동으로 더 고칠 것 없음). `humanShare`/`humanShareItems` = 사람 몫. **converged ≠ humanShare 0**. |
 | **reserved-word / let** | `let` 바인딩의 `act`도 검사·fix (`topLevelLetBindings`). 기존 `reserved-word` 코드 확장(19 신설 아님). FL_RESERVED 현재 `act`만. |
 
 ## 관련 규칙

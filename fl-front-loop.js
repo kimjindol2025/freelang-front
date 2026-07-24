@@ -8,7 +8,11 @@
  *   node fl-front-loop.js --dry     # 진단만 (수정 없음)
  *   FL_LOOP_MAX=3 node fl-front-loop.js
  *
- * schema: fl-loop/1
+ * schema: fl-loop/1  (필드 추가만 — 기존 키 제거·개명 금지)
+ *
+ * 의미:
+ *   converged = machine-applicable 잔여 0 ("더 이상 자동으로 고칠 게 없음")
+ *   humanShare > 0 이면 사람 판단 필요 진단이 남아 있음 (converged와 독립)
  */
 
 'use strict';
@@ -72,18 +76,58 @@ function buildJson() {
   }
 }
 
+function isMachineApplicableDiag(d, allowed) {
+  if (!d || !d.code) return false;
+  if (allowed.has(d.code)) return true;
+  if (d.applicability === 'machine-applicable') return true;
+  if (d.fixable === true && allowed.has(d.code)) return true;
+  return false;
+}
+
 function collectFixable(diagnostics, allowed) {
-  const list = diagnostics || [];
-  return list.filter(d => {
-    if (allowed.has(d.code)) return true;
-    if (d.applicability === 'machine-applicable') return true;
-    if (d.fixable === true && allowed.has(d.code)) return true;
-    return false;
-  });
+  return (diagnostics || []).filter(d => isMachineApplicableDiag(d, allowed));
+}
+
+/** 사람 몫 — MA가 아닌 진단 (converged와 독립) */
+function collectHumanShare(diagnostics, allowed) {
+  return (diagnostics || [])
+    .filter(d => d && d.code && !isMachineApplicableDiag(d, allowed))
+    .map(d => ({
+      code: d.code,
+      file: d.file || '',
+      line: d.line || 0,
+      message: d.message || '',
+      reason:
+        d.hint ||
+        (d.applicability === 'has-suggestions'
+          ? 'has-suggestions — 자동적용 위험, 사람 판단'
+          : d.applicability === 'manual'
+            ? 'manual — 사람·에이전트 판단 필요'
+            : 'not machine-applicable'),
+    }));
 }
 
 function uniqueCodes(diags) {
   return [...new Set(diags.map(d => d.code))].sort();
+}
+
+function summarizeAutoFixed(rounds) {
+  const codes = new Set();
+  let filesChanged = 0;
+  for (const r of rounds) {
+    const fix = r.fix;
+    if (!fix || fix.dry || !fix.results) continue;
+    filesChanged += fix.filesChanged || 0;
+    for (const file of fix.results) {
+      for (const a of file.applied || []) {
+        if (a.code) codes.add(a.code);
+      }
+    }
+  }
+  return {
+    filesChanged,
+    codes: [...codes].sort(),
+  };
 }
 
 function runLoop() {
@@ -101,12 +145,15 @@ function runLoop() {
   for (let i = 0; i < MAX; i++) {
     lastDiag = buildJson();
     const fixable = collectFixable(lastDiag.diagnostics, allowed);
+    const human = collectHumanShare(lastDiag.diagnostics, allowed);
     const round = {
       n: i + 1,
       ok: !!lastDiag.ok,
       summary: lastDiag.summary || null,
       fixableCount: fixable.length,
       fixableCodes: uniqueCodes(fixable),
+      humanShare: human.length,
+      humanShareCodes: uniqueCodes(human),
     };
 
     if (fixable.length === 0) {
@@ -140,12 +187,15 @@ function runLoop() {
   if (!converged && reason !== 'dry-run') {
     lastDiag = buildJson();
     const fixable = collectFixable(lastDiag.diagnostics, allowed);
+    const human = collectHumanShare(lastDiag.diagnostics, allowed);
     const finalRound = {
       n: 'final',
       ok: !!lastDiag.ok,
       summary: lastDiag.summary || null,
       fixableCount: fixable.length,
       fixableCodes: uniqueCodes(fixable),
+      humanShare: human.length,
+      humanShareCodes: uniqueCodes(human),
     };
     rounds.push(finalRound);
     if (fixable.length === 0) {
@@ -157,6 +207,8 @@ function runLoop() {
   }
 
   const remaining = collectFixable((lastDiag && lastDiag.diagnostics) || [], allowed);
+  const humanItems = collectHumanShare((lastDiag && lastDiag.diagnostics) || [], allowed);
+  const autoFixed = summarizeAutoFixed(rounds);
 
   return {
     schema: 'fl-loop/1',
@@ -168,6 +220,15 @@ function runLoop() {
     machineApplicable: [...allowed].sort(),
     remainingFixable: uniqueCodes(remaining),
     remainingFixableCount: remaining.length,
+    // ── 추가 필드 (fl-loop/1 호환) ──
+    humanShare: humanItems.length,
+    humanShareItems: humanItems,
+    autoFixed,
+    meaning: {
+      converged: 'no remaining machine-applicable fixes (자동으로 더 고칠 것 없음)',
+      humanShare: 'diagnostics requiring human judgment (사람 몫; converged와 독립)',
+      note: 'converged ≠ humanShare 0',
+    },
     buildOk: !!(lastDiag && lastDiag.ok),
     lastSummary: (lastDiag && lastDiag.summary) || null,
     rounds,
@@ -182,4 +243,4 @@ const report = runLoop();
 process.stdout.write(JSON.stringify(report, null, 2) + '\n');
 process.exit(report.converged || report.dry ? 0 : 1);
 
-module.exports = { runLoop, collectFixable };
+module.exports = { runLoop, collectFixable, collectHumanShare };
