@@ -156,6 +156,7 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
   </p>
   <div class="btns">
     <a href="/intro" class="btn-fill">AI-Native 선언문 →</a>
+    <a href="/check" class="btn-line">사용 가능 점검</a>
     <a href="/dashboard" class="btn-line">운영 대시보드</a>
     <a href="/freelang" class="btn-line">FreeLang 소개</a>
     <a href="/counter" class="btn-line">Island 예제</a>

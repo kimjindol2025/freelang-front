@@ -158,6 +158,16 @@ const FL_FRONT_HELPERS = new Set([
   'http_get','http-get','http_post','http-post',
   'http_get_bearer','http-get-bearer',
   'http_request','http-request',
+  // afl-db 헬퍼 (pages/_afldb.flx)
+  'afldb-get','afldb_get','afldb-put','afldb_put',
+  'afldb-verify','afldb_verify','afldb-stats','afldb_stats',
+  'afldb-status','afldb_status','afldb-kv-url','afldb_kv_url',
+  'afldb-response-body','afldb_response_body',
+  'afldb-http-error','afldb_http_error',
+  'afldb-resp-field','afldb_resp_field',
+  'afldb-field','afldb_field',
+  'afldb-not-found?','afldb_not_found',
+  'afldb-unwrap-value','afldb_unwrap_value',
   // ── 문자열 ──────────────────────────────────────────────
   'str_contains','str-contains',
   'str_trim','str-trim','trim',
@@ -613,7 +623,7 @@ function scanPages(dir, base = '') {
 
 // _ 접두사 헬퍼 파일 스캔 (최상위 pages/ 만 — 하위 폴더 헬퍼는 불필요)
 // 헬퍼 의존성 순서: layout → db → auth → error → charts → 나머지
-const HELPER_ORDER = ['_layout', '_db', '_auth', '_error', '_charts'];
+const HELPER_ORDER = ['_layout', '_db', '_afldb', '_auth', '_error', '_charts'];
 
 function scanHelpers(dir) {
   const helpers = [];
@@ -1203,6 +1213,14 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
   }
   // 와일드카드 404 핸들러 — 마지막에 등록
   lines.push('(server-get "/*" "not_found_handler")');
+  lines.push('');
+  // 서브도메인 리다이렉트 미들웨어
+  lines.push('(defn subdomain-redirect [req]');
+  lines.push('  (let [host (get (get req "headers") "host")]');
+  lines.push('    (if (= host "subs.skl.kr")');
+  lines.push('      (server-redirect "https://subscriptions.skl.kr/")');
+  lines.push('      nil)))');
+  lines.push('(server_use "/*" "subdomain-redirect")');
   lines.push('');
   lines.push(`(println "FL-Front v0.1 — http://localhost:${PORT}")`);
   lines.push(`(server-start ${PORT})`);

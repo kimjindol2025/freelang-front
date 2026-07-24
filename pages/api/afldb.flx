@@ -1,0 +1,35 @@
+; /api/afldb — freelang-front ↔ afl-db 연결 API
+; GET  → 상태
+; POST → {"action":"put"|"get"|"probe", ...}
+
+(defn render [req]
+  (server-json (afldb-status)))
+
+(defn render_post [req]
+  (let [payload (form-data req)
+        action  (str (get payload "action"))]
+    (cond
+      (= action "put")
+      (let [key (str (get payload "key"))
+            val (get payload "value")
+            res (afldb-put key val)]
+        (server-json {"ok" true "action" "put" "key" key "result" res}))
+
+      (= action "get")
+      (let [key (str (get payload "key"))
+            val (afldb-get key nil)]
+        (server-json {"ok" true "action" "get" "key" key "value" val}))
+
+      (= action "probe")
+      (let [key (str "freelang-front:probe:" (now-ms))
+            put-res (afldb-put key {"hello" "afldb" "from" "freelang-front"})
+            got (afldb-get key nil)]
+        (server-json {"ok" true
+                      "action" "probe"
+                      "key" key
+                      "put" put-res
+                      "value" got
+                      "roundtrip" (= (get got "hello") "afldb")}))
+
+      true
+      (server-json {"ok" false "error" "unknown action — put|get|probe"}))))

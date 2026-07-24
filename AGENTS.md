@@ -136,6 +136,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | 경로 | 파일 |
 |------|------|
 | `/about` | pages/about.flx |
+| `/api/afldb` | pages/api/afldb.flx |
 | `/api/alerts/stream` | pages/api/alerts/stream.flx |
 | `/api/alerts` | pages/api/alerts.flx |
 | `/api/custom-metrics` | pages/api/custom-metrics.flx |
@@ -155,10 +156,12 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/app/api-init` | pages/app/api-init.flx |
 | `/app/api` | pages/app/api.flx |
 | `/app` | pages/app/index.flx |
+| `/check` | pages/check.flx |
 | `/contact/thanks` | pages/contact/thanks.flx |
 | `/contact` | pages/contact.flx |
 | `/contacts/api` | pages/contacts/api.flx |
 | `/contacts` | pages/contacts/index.flx |
+| `/contacts/remind` | pages/contacts/remind.flx |
 | `/counter` | pages/counter.flx |
 | `/dashboard/alerts` | pages/dashboard/alerts.flx |
 | `/dashboard/charts` | pages/dashboard/charts.flx |
@@ -281,6 +284,22 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 |------|----------|------|
 | `db-migrate` | `[]` | 마이그레이션 — 서버 시작 시 자동 실행 |
 | `db-fetch-stats` | `[]` | DB에서 대시보드 통계 조회 |
+
+### `_afldb.flx`
+
+| 함수 | 파라미터 | 설명 |
+|------|----------|------|
+| `afldb-kv-url` | `[key]` |  |
+| `afldb-resp-field` | `[resp k-str k-kw]` |  |
+| `afldb-field` | `[obj k-str k-kw]` |  |
+| `afldb-response-body` | `[resp]` |  |
+| `afldb-http-error` | `[resp]` |  |
+| `afldb-unwrap-value` | `[key parsed]` |  |
+| `afldb-get` | `[key fallback]` |  |
+| `afldb-put` | `[key value]` |  |
+| `afldb-verify` | `[]` |  |
+| `afldb-stats` | `[]` |  |
+| `afldb-status` | `[]` |  |
 
 ### `_auth.flx`
 

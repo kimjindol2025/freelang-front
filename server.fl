@@ -3,8 +3,17 @@
 
 (define PORT 40860)
 
+; subs.skl.kr → subscriptions.skl.kr 리다이렉트
+(defn subdomain-redirect [req]
+  (let [host (get (get req "headers") "host")]
+    (if (= host "subs.skl.kr")
+      (server-redirect "https://subscriptions.skl.kr/")
+      nil)))
+
 ; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
 (load "_app.fl")
+
+(server_use "/*" "subdomain-redirect")
 
 ; 서버 시작
 (println (str "FL-Front v0.1 — http://localhost:" PORT))

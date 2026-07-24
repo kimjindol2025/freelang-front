@@ -1,0 +1,227 @@
+; /check — FreeLang Front 사용 가능 점검 / 홍보 페이지
+; afl-db 연결 상태를 실시간으로 표시
+
+(defn render [req]
+  (let [db     (afldb-status)
+        db-ok  (= (get db "ok") true)
+        badge  (if db-ok "사용 가능" "연결 실패")
+        badge-cls (if db-ok "ok" "warn")
+        records (if db-ok (str (get db "records")) "-")
+        keys    (if db-ok (str (get db "keys")) "-")
+        base    (if (= (get db "base") nil) "http://127.0.0.1:40610" (get db "base"))]
+    (layout-html "FreeLang Front 사용 가능 점검"
+      (str
+        """
+<style>
+:root{
+  --bg:#09090f;--panel:#12131c;--panel2:#171925;--line:rgba(139,92,246,.18);
+  --ink:#eef2ff;--muted:#98a2b3;--violet:#8b5cf6;--indigo:#6366f1;--cyan:#22d3ee;
+  --ok:#22c55e;--warn:#f59e0b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#09090f,#0d1020 40%,#09090f);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+a{text-decoration:none}
+.wrap{max-width:1120px;margin:0 auto;padding:36px 22px 80px}
+.hero{
+  position:relative;overflow:hidden;margin-bottom:18px;padding:44px 34px;border-radius:24px;
+  border:1px solid var(--line);background:
+    radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 28%),
+    radial-gradient(circle at left center, rgba(139,92,246,.18), transparent 30%),
+    linear-gradient(135deg,#131726,#0f1220 55%,#12182c);
+  box-shadow:0 30px 80px rgba(0,0,0,.45);
+}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;
+  border:1px solid rgba(139,92,246,.3);background:rgba(139,92,246,.12);
+  color:#d8ccff;font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 4px rgba(34,197,94,.14)}
+.hero h1{margin:20px 0 14px;font-size:clamp(2rem,4vw,3.7rem);line-height:1.05;letter-spacing:-.04em}
+.hero p{margin:0;max-width:680px;color:var(--muted);font-size:1.02rem;line-height:1.8}
+.hero p strong{color:var(--ink)}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.btn{
+  display:inline-block;padding:12px 18px;border-radius:12px;font-size:.92rem;font-weight:800;
+  transition:transform .18s ease,opacity .18s ease
+}
+.btn:hover{transform:translateY(-2px)}
+.btn-fill{background:linear-gradient(135deg,var(--violet),var(--indigo));color:white}
+.btn-line{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));
+  border:1px solid var(--line);border-radius:18px;padding:22px 20px;box-shadow:0 12px 34px rgba(0,0,0,.18)
+}
+.label{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:#c4b5fd;font-weight:800;margin-bottom:10px}
+.value{font-size:1.9rem;font-weight:900;letter-spacing:-.04em}
+.sub{margin-top:8px;color:var(--muted);font-size:.84rem;line-height:1.6}
+.section{margin-top:34px}
+.section h2{margin:0 0 14px;font-size:1.25rem;letter-spacing:-.03em}
+.section p.lead{margin:0 0 16px;color:var(--muted);line-height:1.7}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.check{
+  background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:20px;
+}
+.check-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.check-title{font-size:1rem;font-weight:800}
+.badge{
+  display:inline-block;padding:6px 10px;border-radius:999px;font-size:.72rem;font-weight:900;letter-spacing:.05em
+}
+.ok{background:rgba(34,197,94,.14);color:#86efac;border:1px solid rgba(34,197,94,.22)}
+.warn{background:rgba(245,158,11,.14);color:#fcd34d;border:1px solid rgba(245,158,11,.22)}
+.fixed{background:rgba(34,211,238,.12);color:#67e8f9;border:1px solid rgba(34,211,238,.18)}
+.check p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.7}
+.demo-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.demo{
+  display:block;background:var(--panel2);border:1px solid var(--line);border-radius:18px;
+  padding:20px;color:inherit
+}
+.demo-k{font-size:.72rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#c4b5fd;margin-bottom:8px}
+.demo-t{font-size:1.05rem;font-weight:800;margin-bottom:8px}
+.demo-d{color:var(--muted);font-size:.86rem;line-height:1.65}
+.foot{
+  margin-top:34px;padding:22px;border-radius:18px;border:1px solid rgba(34,211,238,.16);
+  background:linear-gradient(135deg,rgba(34,211,238,.07),rgba(139,92,246,.06))
+}
+.foot strong{display:block;margin-bottom:8px;font-size:1rem}
+.foot p{margin:0;color:var(--muted);line-height:1.75}
+@media(max-width:860px){
+  .grid,.demo-grid{grid-template-columns:1fr}
+  .checks{grid-template-columns:1fr}
+  .hero{padding:34px 24px}
+}
+</style>
+"""
+        (str
+          """
+<div class="wrap">
+  <section class="hero">
+    <div class="eyebrow"><span class="dot"></span>FreeLang Front Readiness</div>
+    <h1>지금 바로 써볼 수 있는지<br>한 화면에서 점검합니다</h1>
+    <p>
+      이 페이지는 <strong>프리랭 프론트가 실제로 앱을 만들고 운영할 수 있는지</strong>를
+      설명용 문구가 아니라, 현재 제공 중인 화면과 기능 기준으로 보여주는 홍보용 점검 페이지입니다.
+      언어는 한국어 고정으로 두었습니다. 백엔드 저장소는 <strong>afl-db</strong> 입니다.
+    </p>
+    <div class="hero-actions">
+      <a href="/api/afldb" class="btn btn-fill">afl-db 상태 JSON →</a>
+      <a href="/dashboard" class="btn btn-line">운영 대시보드</a>
+      <a href="/intro" class="btn btn-line">선언문 보기</a>
+    </div>
+  </section>
+
+  <section class="grid">
+    <div class="card">
+      <div class="label">afl-db</div>
+      <div class="value">"""
+          badge
+          """</div>
+      <div class="sub">백엔드 """
+          base
+          """ · 체인 검증 """
+          (if db-ok "ok=true" "실패")
+          """</div>
+    </div>
+    <div class="card">
+      <div class="label">Records</div>
+      <div class="value">"""
+          records
+          """</div>
+      <div class="sub">append-only 이벤트 레코드 수</div>
+    </div>
+    <div class="card">
+      <div class="label">Keys</div>
+      <div class="value">"""
+          keys
+          """</div>
+      <div class="sub">현재 살아있는 키 개수</div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>무엇을 점검하나</h2>
+    <p class="lead">홍보용 페이지지만, “예쁘다”보다 “지금 바로 써볼 수 있다”에 초점을 맞췄습니다.</p>
+    <div class="checks">
+      <div class="check">
+        <div class="check-top">
+          <div class="check-title">afl-db 백엔드 연결</div>
+          <span class="badge """
+          badge-cls
+          """">"""
+          badge
+          """</span>
+        </div>
+        <p>프론트 언어 헬퍼 <code>afldb-get</code> / <code>afldb-put</code> / <code>afldb-verify</code> 로 :40610 저장소에 붙습니다. API는 <code>/api/afldb</code>.</p>
+      </div>
+      <div class="check">
+        <div class="check-top">
+          <div class="check-title">서버 렌더링 페이지</div>
+          <span class="badge ok">사용 가능</span>
+        </div>
+        <p>소개 페이지, 관리형 목록 페이지, 문서형 페이지를 FreeLang만으로 바로 구성할 수 있습니다.</p>
+      </div>
+      <div class="check">
+        <div class="check-top">
+          <div class="check-title">부분 상호작용 UI</div>
+          <span class="badge ok">사용 가능</span>
+        </div>
+        <p>전체 SPA로 가지 않아도 버튼, 폼, 카드, 실시간 갱신 같은 상호작용을 Island로 붙일 수 있습니다.</p>
+      </div>
+      <div class="check">
+        <div class="check-top">
+          <div class="check-title">언어 정책</div>
+          <span class="badge fixed">한국어 고정</span>
+        </div>
+        <p>이 페이지는 다국어 토글 없이 한국어 메시지로만 구성했습니다. 홍보 문구도 같은 톤으로 유지합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>바로 확인할 데모</h2>
+    <p class="lead">말로 설명하지 않고 바로 눌러볼 수 있는 화면들입니다.</p>
+    <div class="demo-grid">
+      <a href="/api/afldb" class="demo">
+        <div class="demo-k">Backend</div>
+        <div class="demo-t">afl-db 상태</div>
+        <div class="demo-d">프론트가 백엔드 DB에 붙었는지 JSON으로 바로 확인합니다.</div>
+      </a>
+      <a href="/dashboard" class="demo">
+        <div class="demo-k">Operations</div>
+        <div class="demo-t">운영 대시보드</div>
+        <div class="demo-d">메트릭, 상태, 카드형 정보 구조를 한 번에 확인할 수 있는 대표 화면입니다.</div>
+      </a>
+      <a href="/subs" class="demo">
+        <div class="demo-k">App</div>
+        <div class="demo-t">구독 관리</div>
+        <div class="demo-d">폼 입력, 상태 초기화, 목록 렌더링, Island 상호작용이 들어간 실사용형 예제입니다.</div>
+      </a>
+      <a href="/counter" class="demo">
+        <div class="demo-k">Island</div>
+        <div class="demo-t">카운터 예제</div>
+        <div class="demo-d">가장 짧은 형태로 Island 반응형 동작을 확인할 수 있습니다.</div>
+      </a>
+      <a href="/notes" class="demo">
+        <div class="demo-k">CRUD</div>
+        <div class="demo-t">노트 앱</div>
+        <div class="demo-d">데이터 입력과 목록 관리 흐름을 FreeLang 프론트 안에서 어떻게 풀었는지 볼 수 있습니다.</div>
+      </a>
+      <a href="/intro" class="demo">
+        <div class="demo-k">Narrative</div>
+        <div class="demo-t">AI-Native 선언문</div>
+        <div class="demo-d">왜 이런 구조를 만들었는지 철학과 포지셔닝을 긴 문서형 화면으로 설명합니다.</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="foot">
+    <strong>한 줄 요약</strong>
+    <p>
+      프론트는 <strong style="color:#eef2ff">freelang-front</strong>,
+      백엔드 저장은 <strong style="color:#eef2ff">afl-db</strong>,
+      구현 언어는 AFJ/FreeLang 입니다. 이 페이지의 숫자도 afl-db를 직접 조회한 값입니다.
+    </p>
+  </section>
+</div>
+"""))
+      req)))

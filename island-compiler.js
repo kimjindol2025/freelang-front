@@ -207,10 +207,13 @@ function emitIsland(args, ctx) {
     }
 
     if (stateDecls.length > 0) {
-      const bodyJs = letBody.map(n => emit(n, ctx)).join(';\n      ');
+      // 마지막 표현식만 return — 앞 표현식은 side-effect (fetch! 등)
+      const bodyJs = letBody.map((n, i) =>
+        i === letBody.length - 1 ? `return ${emit(n, ctx)}` : emit(n, ctx)
+      ).join(';\n      ');
       const inner  = renderDecls.length > 0
-        ? `${renderDecls.join('; ')}; return ${bodyJs};`
-        : `return ${bodyJs};`;
+        ? `${renderDecls.join('; ')}; ${bodyJs};`
+        : `${bodyJs};`;
       return `(() => { ${stateDecls.join('; ')};\n  return (update) => { ${inner} };\n})()`;
     }
   }
@@ -388,6 +391,7 @@ function _fl_str(...xs){
   xs.forEach(col);
   return flat.some(x=>x instanceof Node)?flat:flat.join('');
 }
+const floor=Math.floor,ceil=Math.ceil,round=Math.round,abs=Math.abs;
 window._fl=_fl;
 // ── Island 전역 헬퍼 (arr-join, concat, str-* 등) ──
 const arr_join=(arr,sep)=>{const a=arr||[];return a.some(x=>x instanceof Node)?a:a.join(sep??'');};

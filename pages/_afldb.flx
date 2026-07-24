@@ -1,0 +1,88 @@
+; pages/_afldb.flx — afl-db HTTP 클라이언트 헬퍼
+; 백엔드: http://127.0.0.1:40610 (append-only event KV)
+; GET /kv/:key 응답은 {key,value,seq} 래퍼 → value만 꺼내 씀
+; 주의:
+;  - 상수명은 underscore (하이픈+대문자 = 뺄셈 파싱)
+;  - 지역 변수명 s 금지 (전역 style 헬퍼 s 와 충돌)
+;  - http 응답 맵 키는 "body"/:body 둘 다 시도
+
+(define afl_db_base "http://127.0.0.1:40610")
+
+(defn afldb-kv-url [key]
+  (str afl_db_base "/kv/" key))
+
+(defn afldb-resp-field [resp k-str k-kw]
+  (let [a (get resp k-str)]
+    (if (= a nil)
+      (get resp k-kw)
+      a)))
+
+(defn afldb-field [obj k-str k-kw]
+  (let [a (get obj k-str)]
+    (if (= a nil)
+      (get obj k-kw)
+      a)))
+
+(defn afldb-response-body [resp]
+  (let [err  (afldb-resp-field resp "error" :error)
+        body (afldb-resp-field resp "body" :body)]
+    (if (and (not (= err nil)) (not (= err "")))
+      nil
+      (if (or (= body nil) (= body ""))
+        nil
+        (json_parse body)))))
+
+(defn afldb-http-error [resp]
+  (let [err (afldb-resp-field resp "error" :error)]
+    (if (or (= err nil) (= err ""))
+      nil
+      err)))
+
+(defn afldb-not-found? [resp parsed]
+  (or (= (afldb-resp-field resp "status" :status) 404)
+      (= (afldb-field parsed "error" :error) "not found")))
+
+(defn afldb-unwrap-value [key parsed]
+  (if (= (afldb-field parsed "key" :key) key)
+    (afldb-field parsed "value" :value)
+    parsed))
+
+(defn afldb-get [key fallback]
+  (let [resp (http_get (afldb-kv-url key))
+        parsed (afldb-response-body resp)]
+    (if (afldb-not-found? resp parsed)
+      fallback
+      (afldb-unwrap-value key parsed))))
+
+(defn afldb-put [key value]
+  (afldb-response-body
+    (http_post (afldb-kv-url key) (json-stringify value))))
+
+(defn afldb-verify []
+  (afldb-response-body (http_get (str afl_db_base "/verify"))))
+
+(defn afldb-stats []
+  (afldb-response-body (http_get (str afl_db_base "/stats"))))
+
+(defn afldb-status []
+  (let [vr (http_get (str afl_db_base "/verify"))
+        sr (http_get (str afl_db_base "/stats"))
+        ve (afldb-http-error vr)
+        se (afldb-http-error sr)
+        verify-body (afldb-response-body vr)
+        stats-body  (afldb-response-body sr)]
+    (if (or (not (= ve nil)) (not (= se nil)))
+      {"ok" false
+       "base" afl_db_base
+       "error" (if (= ve nil) se ve)}
+      (if (or (= verify-body nil) (= stats-body nil))
+        {"ok" false
+         "base" afl_db_base
+         "error" "afl-db 응답 없음"}
+        {"ok" (or (= (afldb-field verify-body "ok" :ok) true)
+                  (= (str (afldb-field verify-body "ok" :ok)) "true"))
+         "base" afl_db_base
+         "records" (afldb-field stats-body "records" :records)
+         "keys" (afldb-field stats-body "keys" :keys)
+         "head_hash" (afldb-field verify-body "head_hash" :head_hash)
+         "log_sha256" (afldb-field verify-body "log_sha256" :log_sha256)}))))
