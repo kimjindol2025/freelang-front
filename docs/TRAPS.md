@@ -6,6 +6,7 @@
 
 | code | 증상 | 올바른 패턴 | fix |
 |------|------|-------------|-----|
+| `reserved-word` | `act` 등 예약어를 식별자로 사용 | `action` 등 | machine |
 | `json-parse-hyphen` | `(json-parse …)`가 서버에서 `s` 등 헬퍼와 충돌·오염 | `(json_parse …)` underscore만 | machine |
 | `upper-hyphen` | `FOO-BAR-BAZ`처럼 하이픈 **2개 이상** 대문자 심볼 → 뺄셈 파싱 | `foo_bar_baz` / `afl_db_base` | — |
 | `let-shadow` | `let [s …]` / `h` / `h!`가 주입 헬퍼를 가림 | 다른 이름 (`sess`, `html`, …) | machine |
@@ -24,7 +25,7 @@
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
 | **fl-loop 계약** | `fl-front-loop.js` 수렴 = **machine-applicable 0건**. 사람 몫(upper-hyphen·undefined-fn 등)은 남아 있어도 converged. 리포트에 humanShare 목록 없음(현행). |
-| **reserved let** | `(defn act`는 fix되지만 복잡 let 벡터의 `act` 바인딩은 진단/fix가 빗나갈 수 있음 — 단순 식별자만 신뢰. |
+| **reserved-word / let** | `let` 바인딩의 `act`도 검사·fix (`topLevelLetBindings`). 기존 `reserved-word` 코드 확장(19 신설 아님). FL_RESERVED 현재 `act`만. |
 
 ## 관련 규칙
 - 상수: **소문자 + underscore** (`afl_db_base`). `AFL-DB-BASE` 금지.

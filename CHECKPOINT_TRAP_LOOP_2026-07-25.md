@@ -27,6 +27,16 @@ N=1 (공통 CSS) — TRAPS 문서화 완료, 추가 checker 승격 없음.
 
 → **졸업** (2·3 연속 0/0)
 
+### 졸업 마감 사유 (DIAG-BLINDSPOT 단계1)
+
+1. **교차 반복 N=1(공통 CSS) 승격 예외**: 공통 CSS 부재는 단일 `.flx` 문법 오류가 아니라
+   **앱 간 스타일 자산 부재**라서 빌드 Trap이 파일 단위로 기계 검출하기 어렵다
+   (오탐·강제 스타일 규정화 위험). → **문서화(TRAPS.md)로 처리**, checker 승격 안 함.
+2. **CYCLE3 보류 1의 정체**: 보류 1 = **`fl-loop` dry-run에 사람몫 목록 미표시**
+   (계약상 MA만 수렴). **아님** — reserved-word/`let` 사각지대.
+   let 예약어 미진단은 CYCLE3에서 **문서화(#2)** 로 남겼고,
+   **`WORK_ORDER_2026-07-25-DIAG-BLINDSPOT.md`에서 해소**한다.
+
 ## 3사이클 루프 실전
 
 **픽스처 정책**: `pages/` 임시 주입 → 종료 후 삭제·커밋 미포함 (`fixtures/` 미채택).
@@ -45,5 +55,11 @@ N=1 (공통 CSS) — TRAPS 문서화 완료, 추가 checker 승격 없음.
 - MA 성공/주입: **4/4** (reserved는 진단분 기준 성공; let act는 미진단 잔존)
 - 오수정(비픽스처): **0** · 제거 후 기준선 124r/13h/18c/ok
 
-## fl-loop 계약 메모
-수렴 = machine-applicable 0. 사람 몫 잔존해도 `converged`.
+## DIAG-BLINDSPOT (졸업 마감 + reserved-word/let)
+
+- 미진단 증거: LOOP-3 픽스처에서 `(let [… act …])` 잔존·미진단 확인됨.
+- 택: **기존 `reserved-word` 확장** (19 신설 아님) — 동일 오류 클래스, 파서만 교체(`topLevelLetBindings`).
+- fix: machine-applicable 유지 · apply 후 재빌드 ok · 루프 축소판 2라운드 수렴.
+- 오검출: 정상 let·문자열 `"act"`·주석 속 `(let [act` → 진단 0·fix 0.
+- 픽스처: pages 임시·커밋 미포함·삭제 원복 (124r/13h/18c).
+- 분류(본 지시서): `Trap 0 / fix 1 / 문서화 2 / 보류 0` — fix=reserved let 해소, 문서=졸업마감+로드맵.

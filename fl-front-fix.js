@@ -101,8 +101,8 @@ function fixJsonParse(code) {
 
 function fixReservedAct(code) {
   let n = 0;
-  const next = mapOutsideStrings(code, chunk => {
-    // (defn act …) (define act …) 파라미터/let 바인딩 토큰 act
+  // defn/define 이름 · 파라미터 벡터 선두/내부 act (문자열·주석 바깥)
+  let src = mapOutsideStrings(code, chunk => {
     return chunk
       .replace(/(\((?:defn|define)\s+)act\b/g, (_, p) => {
         n++;
@@ -111,17 +111,216 @@ function fixReservedAct(code) {
       .replace(/(\[\s*)act(\s+)/g, (_, a, b) => {
         n++;
         return `${a}action${b}`;
-      })
-      .replace(/(\[\s*[^\]]*?\s)act(\s+)/g, (m, a, b) => {
-        // 바인딩 벡터 중간 — 과도한 매칭 위험 있어 위에서 1차만; 여기 보조
-        if (/\bact\b/.test(m)) {
-          n++;
-          return `${a}action${b}`;
-        }
-        return m;
       });
   });
-  return { code: next, count: n };
+
+  // let 바인딩 — 전체 소스에서 브래킷 매칭 (문자열로 끊기면 중간의 act를 놓침)
+  function topLevelLetBindings(inner) {
+    const names = [];
+    let i = 0, phase = true;
+    const skipWs = () => { while (i < inner.length && /\s/.test(inner[i])) i++; };
+    while (i < inner.length) {
+      skipWs();
+      if (i >= inner.length) break;
+      if (phase) {
+        if (!/[a-zA-Z_$]/.test(inner[i])) { i++; continue; }
+        let j = i;
+        while (j < inner.length && /[\w$!?-]/.test(inner[j])) j++;
+        names.push(inner.slice(i, j).replace(/^\$/, ''));
+        i = j;
+        phase = false;
+      } else {
+        skipWs();
+        if (i >= inner.length) break;
+        const ch = inner[i];
+        if (ch === '(' || ch === '[' || ch === '{') {
+          const open = ch, close = ch === '(' ? ')' : ch === '[' ? ']' : '}';
+          let d = 0;
+          while (i < inner.length) {
+            const c = inner[i];
+            if (c === '"') {
+              i++;
+              while (i < inner.length && inner[i] !== '"') { if (inner[i] === '\\') i++; i++; }
+              i++;
+              continue;
+            }
+            if (c === open) d++;
+            else if (c === close) { d--; i++; if (d === 0) break; continue; }
+            i++;
+          }
+        } else if (ch === '"') {
+          i++;
+          while (i < inner.length && inner[i] !== '"') { if (inner[i] === '\\') i++; i++; }
+          i++;
+        } else {
+          while (i < inner.length && !/\s/.test(inner[i])) i++;
+        }
+        phase = true;
+      }
+    }
+    return names;
+  }
+
+  function findMatchingBracket(s, openIdx) {
+    let d = 0;
+    for (let i = openIdx; i < s.length; i++) {
+      const c = s[i];
+      if (c === '"') {
+        i++;
+        while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; }
+        continue;
+      }
+      if (c === '[') d++;
+      else if (c === ']') {
+        d--;
+        if (d === 0) return i;
+      }
+    }
+    return -1;
+  }
+
+  function findMatchingParen(s, openParenIdx) {
+    let d = 0;
+    for (let i = openParenIdx; i < s.length; i++) {
+      const c = s[i];
+      if (c === '"') {
+        i++;
+        while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; }
+        continue;
+      }
+      if (c === '(') d++;
+      else if (c === ')') {
+        d--;
+        if (d === 0) return i;
+      }
+    }
+    return -1;
+  }
+
+  // 바인딩 이름 act → action (벡터 안 name 자리만)
+  function renameActInBindingVector(inner) {
+    let i = 0, phase = true, out = '', changed = 0;
+    const skipWs = () => {
+      const start = i;
+      while (i < inner.length && /\s/.test(inner[i])) i++;
+      out += inner.slice(start, i);
+    };
+    while (i < inner.length) {
+      skipWs();
+      if (i >= inner.length) break;
+      if (phase) {
+        if (!/[a-zA-Z_$]/.test(inner[i])) { out += inner[i++]; continue; }
+        let j = i;
+        while (j < inner.length && /[\w$!?-]/.test(inner[j])) j++;
+        const name = inner.slice(i, j);
+        if (name === 'act' || name === '$act') {
+          out += name.startsWith('$') ? '$action' : 'action';
+          changed++;
+        } else out += name;
+        i = j;
+        phase = false;
+      } else {
+        skipWs();
+        if (i >= inner.length) break;
+        const ch = inner[i];
+        if (ch === '(' || ch === '[' || ch === '{') {
+          const open = ch, close = ch === '(' ? ')' : ch === '[' ? ']' : '}';
+          const start = i;
+          let d = 0;
+          while (i < inner.length) {
+            const c = inner[i];
+            if (c === '"') {
+              i++;
+              while (i < inner.length && inner[i] !== '"') { if (inner[i] === '\\') i++; i++; }
+              i++;
+              continue;
+            }
+            if (c === open) d++;
+            else if (c === close) { d--; i++; if (d === 0) break; continue; }
+            i++;
+          }
+          out += inner.slice(start, i);
+        } else if (ch === '"') {
+          const start = i;
+          i++;
+          while (i < inner.length && inner[i] !== '"') { if (inner[i] === '\\') i++; i++; }
+          i++;
+          out += inner.slice(start, i);
+        } else {
+          const start = i;
+          while (i < inner.length && !/\s/.test(inner[i])) i++;
+          out += inner.slice(start, i);
+        }
+        phase = true;
+      }
+    }
+    return { inner: out, changed };
+  }
+
+  function findNextLet(s, from) {
+    let i = from;
+    while (i < s.length) {
+      if (s[i] === ';') {
+        while (i < s.length && s[i] !== '\n') i++;
+        continue;
+      }
+      if (s.startsWith('#|', i)) {
+        const end = s.indexOf('|#', i + 2);
+        i = end === -1 ? s.length : end + 2;
+        continue;
+      }
+      if (s[i] === '"') {
+        i++;
+        while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; }
+        i++;
+        continue;
+      }
+      if (s.startsWith('(let', i)) {
+        const after = i + 4;
+        if (after >= s.length || !/[\w$!?-]/.test(s[after])) return i;
+      }
+      i++;
+    }
+    return -1;
+  }
+
+  let guard = 0;
+  while (guard++ < 50) {
+    let found = false;
+    let searchFrom = 0;
+    while (searchFrom < src.length) {
+      const idx = findNextLet(src, searchFrom);
+      if (idx === -1) break;
+      const afterLet = idx + 4;
+      let i = afterLet;
+      while (i < src.length && /\s/.test(src[i])) i++;
+      if (src[i] !== '[') { searchFrom = afterLet; continue; }
+      const closeBr = findMatchingBracket(src, i);
+      if (closeBr < 0) { searchFrom = afterLet; continue; }
+      const parenEnd = findMatchingParen(src, idx);
+      if (parenEnd < 0) { searchFrom = afterLet; continue; }
+      const inner = src.slice(i + 1, closeBr);
+      const names = topLevelLetBindings(inner);
+      if (!names.includes('act')) { searchFrom = afterLet; continue; }
+      const { inner: neuInner, changed } = renameActInBindingVector(inner);
+      if (!changed) { searchFrom = afterLet; continue; }
+      // 본문 식별자 act → action (문자열·주석 바깥)
+      let body = src.slice(closeBr + 1, parenEnd);
+      body = mapOutsideStrings(body, chunk =>
+        chunk.replace(/(^|[^a-zA-Z0-9_$!?-])act(?![a-zA-Z0-9_$!?-])/g, (_, a) => {
+          n++;
+          return `${a}action`;
+        })
+      );
+      n += changed;
+      src = src.slice(0, i + 1) + neuInner + ']' + body + ')' + src.slice(parenEnd + 1);
+      found = true;
+      break;
+    }
+    if (!found) break;
+  }
+
+  return { code: src, count: n };
 }
 
 /**

@@ -31,3 +31,8 @@
 | 5 | dry에 사람몫 없음 | 보류 | 계약상 MA만 |
 
 **미분류: 0** · **신규 Trap/fix: 없음**
+
+### 졸업 마감 연결 (DIAG-BLINDSPOT)
+
+- 보류 1 = dry-run 사람몫 미표시 (위 #5). reserved let은 문서화 #2.
+- reserved-word/`let` 사각지대 → `WORK_ORDER_2026-07-25-DIAG-BLINDSPOT.md`에서 해소.

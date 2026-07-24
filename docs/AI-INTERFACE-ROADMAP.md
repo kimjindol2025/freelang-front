@@ -75,14 +75,22 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 
 (상세: 메모리 `project_freelang_v12`.)
 
-## 즉시 다음 행동 (갱신 2026-07-25 LOOP-3)
+## 즉시 다음 행동 (갱신 2026-07-25 DIAG-BLINDSPOT)
 
-**수집 루프 졸업** (2026-07-25): 신규 Trap 0 + 신규 fix 0이 **2사이클 연속**(CYCLE2·CYCLE3).
-실사용 FEEDBACK→Trap/fix 수집 단계는 종료. 루프 도구 실전 검증 완료.
+**수집 루프 졸업 확정** + **reserved-word/let 사각지대 해소** (`reserved-word` 코드 확장, 18 유지).
 
-**다음 단계 후보 (착수 없음 — 다음 지시서에서):**
-- 무인 스캐폴드 → `fl-front-loop` 완주 실험
-- 진단 커버리지 확대 (사람 몫 humanShare 리포트 등)
-- afl-db / SSR 성능
+### 졸업 이후 운영 규칙 (사이클 의무 해제 · 상시만 유지)
+- FEEDBACK 상시 수집 (막히면 즉시 한 줄)
+- 같은 아픔 **2회** → Trap/문서 승격
+- 매 보고 보류 카운트: **`APP-DB rename 0/3` · `undefined-fn/route-shadow 실장애 0/1`**
+- 정기 “N사이클 지시서” 의무는 **해제** — 다음 착수는 감독 지시서에서
+
+### 다음 단계 후보 (착수 없음 — 감독 선택)
+| 후보 | 근거 (한 줄) |
+|------|----------------|
+| 무인 스캐폴드 → `fl-front-loop` 완주 | 콜드스타트+루프를 한 파이프라인으로 닫으면 AI 작성 루프가 완성됨 |
+| 진단 humanShare 리포트 | converged와 사람몫 잔존을 리포트에 분리해야 오해가 사라짐 |
+| 진단 커버리지 확대 | reserved let 외에도 let-벡터 파서 의존 사각이 더 있을 수 있음 |
+| afl-db / SSR 성능 | 실측 ~1–2초는 UX 병목 후보 (Trap 아님) |
 
 조회: `npm run manifest` · `npm run loop:dry` · `npm run loop`.

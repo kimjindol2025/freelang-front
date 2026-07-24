@@ -34,7 +34,7 @@ const DIAGNOSTIC_CODES = [
     severity: 'error',
     fixable: true,
     applicability: 'machine-applicable',
-    hint: '예약어 대신 다른 식별자 사용 (예: act → action)',
+    hint: '예약어 대신 다른 식별자 사용 (예: act → action). let 바인딩·defn·파라미터 모두 검사',
   },
   {
     code: 'island-boundary',

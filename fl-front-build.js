@@ -1850,12 +1850,40 @@ function checkReservedWords(routes, helpers) {
         const bare = p.replace(/^\$/, '');
         if (FL_RESERVED.has(bare)) hits.push({ base, word: bare, line: lineAtIdx(code, m.index), where: '파라미터' });
       }
-    for (const m of code.matchAll(/\(let\s+\[([^\]]*)\]/g)) {
-      const toks = m[1].split(/\s+/).filter(Boolean);
-      for (let k = 0; k < toks.length; k += 2) {
-        const bare = toks[k].replace(/^\$/, '');
-        if (FL_RESERVED.has(bare)) hits.push({ base, word: bare, line: lineAtIdx(code, m.index), where: 'let 바인딩' });
+    // let 바인딩 — 공백 split 금지(값 sexpr이 토큰을 깨뜨림). topLevelLetBindings 사용.
+    let searchFrom = 0;
+    while (true) {
+      const idx = code.indexOf('(let', searchFrom);
+      if (idx === -1) break;
+      const afterLet = idx + 4;
+      if (afterLet < code.length && /[\w$!?-]/.test(code[afterLet])) {
+        searchFrom = afterLet;
+        continue; // let-xxx 아님
       }
+      let i = afterLet;
+      while (i < code.length && /\s/.test(code[i])) i++;
+      if (code[i] !== '[') { searchFrom = afterLet; continue; }
+      const open = i;
+      let d = 0, j = open;
+      for (; j < code.length; j++) {
+        const c = code[j];
+        if (c === '"') {
+          j++;
+          while (j < code.length && code[j] !== '"') { if (code[j] === '\\') j++; j++; }
+          continue;
+        }
+        if (c === '[') d++;
+        else if (c === ']') {
+          d--;
+          if (d === 0) { j++; break; }
+        }
+      }
+      const inner = code.slice(open + 1, j - 1);
+      for (const bare of topLevelLetBindings(inner)) {
+        if (FL_RESERVED.has(bare))
+          hits.push({ base, word: bare, line: lineAtIdx(code, idx), where: 'let 바인딩' });
+      }
+      searchFrom = idx + 4; // 중첩 let (바인딩 값 안)도 이어서 스캔
     }
   }
   if (hits.length === 0) { console.log('  \x1b[32m✅ 예약어 충돌 없음\x1b[0m'); return; }
