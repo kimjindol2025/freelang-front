@@ -23,7 +23,7 @@ AI → ① manifest 조회(작성 전 이해) → 코드 생성 → ② check --
 ## 단계 (각 단계 검증 후 다음 — 기능→검증→기록→머지)
 
 ### Phase 0 — 기반 (완료/진행)
-- Trap Checker ✅ · fl-manifest 🟡(6/8 검증) · AGENTS.md "작성 전 manifest 조회" 안내 ✅
+- Trap Checker ✅ · fl-manifest ✅(**8/8 검증**, 2026-07-25 LOOP-2) · AGENTS.md "작성 전 manifest 조회" 안내 ✅
 
 ### Phase 1 — 구조화 진단 `fl-build --json` ⭐⭐⭐ (노력 낮음·ROI 최고)
 - 빌드 체커가 사람 텍스트 대신 기계 JSON 출력. `issue(level, check, file, line, msg)` 데이터가 *이미 있음* → emitter만.

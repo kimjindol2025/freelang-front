@@ -21,6 +21,8 @@
 | **PM2 / npm start** | `npm start` = 빌드+기동. `pm2 restart freelang-front` 직후 즉시 curl하면 실패할 수 있음 — `:40860` LISTEN·빌드 완료까지 대기. |
 | **괄호** | 중첩 `h()` 편집 전 `check-parens.py` (또는 동등 검증). header에 링크 끼울 때 중복 태그 주의. |
 | **afl-db 지연** | GET/POST 왕복 ~1–2초 체감 가능. Trap 아님 — UX/타임아웃 참고만. |
+| **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
+| **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
 
 ## 관련 규칙
 - 상수: **소문자 + underscore** (`afl_db_base`). `AFL-DB-BASE` 금지.

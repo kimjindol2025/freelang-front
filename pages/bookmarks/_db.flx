@@ -1,0 +1,17 @@
+; pages/bookmarks/_db.flx — Bookmarks 도메인 (저장은 _afldb_coll)
+; ns: bookmarks · 필드: title, url
+; 콜드스타트: docs/AFLDB-COLL.md + fl-manifest.afldbColl 만 참고
+
+(define bookmarks_ns "bookmarks")
+
+(defn bookmarks-all []
+  (afldb-coll-all bookmarks_ns))
+
+(defn bookmarks-add [title url]
+  (afldb-coll-create bookmarks_ns {"title" title "url" url}))
+
+(defn bookmarks-delete [id]
+  (afldb-coll-delete bookmarks_ns id))
+
+(defn bookmarks-history [id]
+  (afldb-coll-history bookmarks_ns id))

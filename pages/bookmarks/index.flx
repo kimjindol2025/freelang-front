@@ -1,0 +1,31 @@
+; pages/bookmarks/index.flx — 목록 + 추가 + 삭제 (SSR form, Island 없음)
+; 콜드스타트 UI 레시피: docs/AFLDB-COLL.md
+
+(load "pages/bookmarks/_db.flx")
+
+(defn bookmarks-row [it]
+  (let [id (str (get it "id"))
+        title (str (or (get it "title") ""))
+        url (str (or (get it "url") ""))]
+    (h "li" {}
+      (h "a" {:href url :target "_blank"} title)
+      (h "span" {} (str " · " url " "))
+      (h "form" {:method "POST" :action "/bookmarks/api" :style "display:inline"}
+        (h! "input" {:type "hidden" :name "action" :value "delete"})
+        (h! "input" {:type "hidden" :name "id" :value id})
+        (h! "button" {:type "submit"} "삭제")))))
+
+(defn render [req]
+  (let [items (bookmarks-all)]
+    (layout-html "Bookmarks"
+      (h "div" {:style "max-width:40rem;margin:2rem auto;font-family:sans-serif"}
+        (h "h1" {} "Bookmarks")
+        (h "p" {} "afl-db coll · ns=bookmarks (cold-start)")
+        (h "form" {:method "POST" :action "/bookmarks/api"}
+          (h! "input" {:type "hidden" :name "action" :value "add"})
+          (h! "input" {:type "text" :name "title" :placeholder "title" :required "required"})
+          (h! "input" {:type "text" :name "url" :placeholder "https://…" :required "required"})
+          (h! "button" {:type "submit"} "추가"))
+        (h "ul" {}
+          (arr-join (map bookmarks-row items) "")))
+      req)))

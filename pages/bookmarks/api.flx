@@ -1,0 +1,35 @@
+; pages/bookmarks/api.flx — GET 목록 / POST add|delete|history
+
+(load "pages/bookmarks/_db.flx")
+
+(defn render [req]
+  (server-json {"ok" true
+                "backend" "afl-db"
+                "coll" bookmarks_ns
+                "items" (bookmarks-all)
+                "status" (afldb-status)}))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        action (str (or (get body "action") ""))]
+    (cond
+      (= action "add")
+      (let [title (str-trim (str (or (get body "title") "")))
+            url   (str-trim (str (or (get body "url") "")))]
+        (if (or (= title "") (= url ""))
+          (server-json {"ok" false "error" "title·url 필요"})
+          (do
+            (bookmarks-add title url)
+            (server-json {"ok" true "items" (bookmarks-all)}))))
+
+      (= action "delete")
+      (let [id (str (get body "id"))]
+        (bookmarks-delete id)
+        (server-json {"ok" true "items" (bookmarks-all)}))
+
+      (= action "history")
+      (let [id (str (get body "id"))]
+        (server-json {"ok" true "id" id "events" (bookmarks-history id)}))
+
+      true
+      (server-json {"ok" false "error" "unknown action — add|delete|history"}))))

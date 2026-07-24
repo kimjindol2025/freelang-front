@@ -60,11 +60,58 @@ const manifest = {
     ok: extras.lastBuildOk,
     summary: extras.lastBuildSummary,
   },
-  traps: ['json-parse-hyphen', 'upper-hyphen', 'let-shadow', 'fl-http-allow'],
+  traps: [
+    'json-parse-hyphen',
+    'upper-hyphen',
+    'let-shadow',
+    'fl-http-allow',
+    'helper-load-order',
+  ],
+  // afl-db 컬렉션 앱 작성 전 계약 (콜드스타트용 — 기존 앱 소스 불필요)
+  afldbColl: {
+    docs: 'docs/AFLDB-COLL.md',
+    namespacesDefine: 'pages/_afldb_coll.flx → afldb_coll_namespaces (append only)',
+    keys: {
+      index: 'fl:<ns>:index',
+      item: 'fl:<ns>:item:<id>',
+    },
+    api: [
+      'afldb-coll-create',
+      'afldb-coll-update',
+      'afldb-coll-delete',
+      'afldb-coll-all',
+      'afldb-coll-get',
+      'afldb-coll-history',
+      'afldb-coll-known',
+      'afldb-status',
+    ],
+    scaffold: {
+      dir: 'pages/<name>/',
+      files: ['_db.flx', 'api.flx', 'index.flx'],
+      routes: ['/<name>', '/<name>/api'],
+      note: '기존 라우트와 충돌하면 /<name>-afldb (docs/TRAPS.md). manifest.routes 로 충돌 확인.',
+    },
+    thinDbRule: '인덱스·키 조립 금지 — afldb-coll-* 만 호출. 도메인 필드만 _db에.',
+  },
   docs: {
     traps: 'docs/TRAPS.md',
+    afldbColl: 'docs/AFLDB-COLL.md',
     roadmap: 'docs/AI-INTERFACE-ROADMAP.md',
     checkpoint: 'CHECKPOINT_2026-07-25.md',
+  },
+  verification: {
+    // Phase0 fl-manifest 검증 체크리스트 (8/8)
+    items: [
+      'schema fl-manifest/1',
+      'diagnosticCodes + codesSchema',
+      'summary (count / machineApplicable)',
+      'routes snapshot',
+      'helpers snapshot',
+      'store_keys + lastBuild',
+      'traps == 활성 Trap 목록',
+      'docs.afldbColl + afldbColl 계약 블록',
+    ],
+    score: '8/8',
   },
 };
 
