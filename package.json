@@ -13,6 +13,11 @@
   },
   "scripts": {
     "build": "node fl-front-build.js",
+    "build:json": "node fl-front-build.js --json",
+    "manifest": "node fl-manifest.js",
+    "codes": "node fl-front-build.js --codes",
+    "fix": "node fl-front-fix.js",
+    "fix:dry": "node fl-front-fix.js --dry",
     "start": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js && PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node runtime/bootstrap.js run _app.fl",
     "dev": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node dev-server.js",
     "init": "node fl-front-init.js"

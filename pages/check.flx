@@ -7,10 +7,11 @@
               nil
               (json_parse raw))]
     (if (= st nil)
-      {"ok" false "errors" "-" "warnings" "-" "schema" "-"}
+      {"ok" false "errors" "-" "warnings" "-" "schema" "-" "codes" "-"}
       {"ok" (= (get st "ok") true)
        "errors" (str (get (get st "summary") "errors"))
        "warnings" (str (get (get st "summary") "warnings"))
+       "codes" (str (get (get st "summary") "diagnosticCodeCount"))
        "schema" (if (= (get st "schema") nil) "-" (get st "schema"))})))
 
 (defn render [req]
@@ -25,7 +26,8 @@
         diag-badge (if (= (get diag "ok") true) "빌드 OK" "진단 없음")
         diag-cls (if (= (get diag "ok") true) "ok" "warn")
         err-n (get diag "errors")
-        warn-n (get diag "warnings")]
+        warn-n (get diag "warnings")
+        code-n (get diag "codes")]
     (layout-html "FreeLang Front 사용 가능 점검"
       (str
         """
@@ -161,6 +163,8 @@ a{text-decoration:none}
           err-n
           """ · warnings """
           warn-n
+          """ · codes """
+          code-n
           """ · """
           (get diag "schema")
           """</div>
@@ -191,7 +195,7 @@ a{text-decoration:none}
           diag-badge
           """</span>
         </div>
-        <p>빌드가 json-parse·다중하이픈·let[s]·FL_HTTP_ALLOW 함정을 잡습니다. <code>--json</code> → fl-diagnostics/1.</p>
+        <p>빌드가 Trap을 잡고 <code>--json</code> → fl-diagnostics/1. 카탈로그: <code>node fl-manifest.js</code> / <code>--codes</code>.</p>
       </div>
       <div class="check">
         <div class="check-top">

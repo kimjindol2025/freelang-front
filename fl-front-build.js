@@ -8,10 +8,25 @@ const cp             = require('child_process');
 const crypto         = require('crypto');
 const styleCompiler  = require('./style-compiler');
 const islandCompiler = require('./island-compiler');
+const { DIAGNOSTIC_CODES, hints: diagHints } = require('./fl-diagnostic-codes');
 
 const CACHE_FILE  = path.join(__dirname, '.build-cache.json');
 const JSON_MODE   = process.argv.includes('--json');
+const CODES_MODE  = process.argv.includes('--codes');
+const FIX_MODE    = process.argv.includes('--fix');
+const FIX_DRY     = process.argv.includes('--fix-dry');
 const BUILD_ISSUES = [];
+
+// --codes: 카탈로그만 출력 (빌드 스킵) — P5
+if (CODES_MODE) {
+  process.stdout.write(JSON.stringify({
+    schema: 'fl-diagnostic-codes/1',
+    tool: 'freelang-front',
+    count: DIAGNOSTIC_CODES.length,
+    diagnosticCodes: DIAGNOSTIC_CODES,
+  }, null, 2) + '\n');
+  process.exit(0);
+}
 
 // ── 유틸리티 CSS 자동 주입 (skl-utils.css 또는 utils.css 존재 시) ────
 const SKL_UTILS_PATH = [path.join(__dirname, "skl-utils.css"), path.join(__dirname, "utils.css")].find(p => fs.existsSync(p));
@@ -25,6 +40,25 @@ function issue(level, check, file, line, message) {
 // JSON_MODE 에서 텍스트 출력 억제
 const _log = console.log.bind(console);
 if (JSON_MODE) console.log = () => {};
+
+// --fix / --fix-dry: machine-applicable 자동수정 — P6
+if (FIX_MODE || FIX_DRY) {
+  const { runFix } = require('./fl-front-fix');
+  const dryOnly = FIX_DRY && !FIX_MODE;
+  const report = runFix({ dry: dryOnly });
+  if (dryOnly) {
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    process.exit(0);
+  }
+  if (!JSON_MODE) {
+    _log(`\n🔧 [fl-fix] applied — ${report.filesChanged} file(s)`);
+    for (const r of report.results) {
+      _log(`  · ${r.file}: ${r.applied.map(a => `${a.code}×${a.count}`).join(', ')}`);
+    }
+  } else {
+    process.stderr.write(`[fl-fix] dry=false filesChanged=${report.filesChanged}\n`);
+  }
+}
 
 // 빌드 캐시 로드/저장
 function loadCache() {
@@ -2416,29 +2450,24 @@ const errors  = BUILD_ISSUES.filter(i => i.level === 'error');
 const warns   = BUILD_ISSUES.filter(i => i.level === 'warn');
 
 // fl-diagnostics/1 — AI-Interface Phase 1 (Klar klar-diagnostics/1 정렬)
-const DIAG_HINTS = {
-  'reserved-word': '예약어 대신 다른 식별자 사용',
-  'json-parse-hyphen': '(json_parse …) 로 교체',
-  'upper-hyphen': '소문자 snake_case 로 rename (예: afl_db_base)',
-  'let-shadow': 'let 바인딩을 긴 이름으로 (예: sess, stats-body)',
-  'global-shadow': '파라미터를 긴 이름으로',
-  'fl-http-allow': 'FL_HTTP_ALLOW=127.0.0.1,localhost 설정',
-  'route-shadow': '정적 라우트가 동적보다 먼저 등록되는지 확인',
-  'undefined-fn': '함수 정의 또는 stdlib/헬퍼 이름 확인',
-  'island-boundary': '서버 전용 호출을 island 밖으로 이동',
-  'island-test': 'tests/*.test.flx 기대값 확인',
-};
+// hints / diagnosticCodes — Phase 2 (P5) fl-diagnostic-codes.js 단일 소스
+const DIAG_HINTS = diagHints();
 
 function toDiagnostics(issues) {
-  return issues.map(i => ({
-    code: i.check || 'unknown',
-    severity: i.level === 'error' ? 'error' : 'warning',
-    file: i.file || '',
-    line: i.line || 0,
-    column: 0,
-    message: i.message || '',
-    hint: DIAG_HINTS[i.check] || '',
-  }));
+  return issues.map(i => {
+    const meta = DIAGNOSTIC_CODES.find(c => c.code === (i.check || '')) || null;
+    return {
+      code: i.check || 'unknown',
+      severity: i.level === 'error' ? 'error' : 'warning',
+      file: i.file || '',
+      line: i.line || 0,
+      column: 0,
+      message: i.message || '',
+      hint: (meta && meta.hint) || DIAG_HINTS[i.check] || '',
+      fixable: meta ? !!meta.fixable : false,
+      applicability: meta ? meta.applicability : 'manual',
+    };
+  });
 }
 
 const diagnostics = toDiagnostics(BUILD_ISSUES);
@@ -2457,7 +2486,13 @@ const buildState = {
   version: '0.2.5',
   positions: '1-based',
   diagnostics,
-  summary: { errors: errors.length, warnings: warns.length },
+  // Phase 2 / P5 — 작성 전·후 공통 카탈로그
+  diagnosticCodes: DIAGNOSTIC_CODES,
+  summary: {
+    errors: errors.length,
+    warnings: warns.length,
+    diagnosticCodeCount: DIAGNOSTIC_CODES.length,
+  },
   sourceMap,
 };
 try {

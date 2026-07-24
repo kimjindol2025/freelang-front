@@ -40,15 +40,12 @@ curl -sS -X POST http://127.0.0.1:40860/api/afldb \
 
 ## 진행방향 (다음 세션부터 — 묻지 말고 이 순서로)
 
-### 즉시: P5 오류 코드 카탈로그 → manifest
-- `docs/AI-INTERFACE-ROADMAP.md` Phase 2
-- 각 diagnostic `code`에 `{title, severity, fixable, applicability}` 메타
-- 산출을 manifest(`diagnosticCodes`)에 붙이거나 `fl-diagnostics`와 같은 계약으로 export
-- 완료 기준: 에이전트가 **작성 전**에 가능한 에러 + 자동수정 가능 여부를 조회 가능
+### 완료: P5–P6
+- 카탈로그 17코드 · manifest · `--fix` (json-parse / act / let s|h|h!)
 
-### 그다음: P6 안전 자동수정
-- `applicability: machine-applicable`만 (hyphen↔underscore, 예약어 rename 등)
-- opt-in, 좁게
+### 다음 (선택)
+1. Phase 4 자가수정 루프 (manifest → 생성 → `--json` → `--fix` → 재검사)
+2. 실사용 페이지·afl-db 앱 축적 (DX 피드백)
 
 ### 보류 (의도적)
 - `APP-DB` 등 upper-hyphen 1개 대량 rename
