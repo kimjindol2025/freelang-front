@@ -1,29 +1,49 @@
 # CHECKPOINT — Trap loop (2026-07-25)
 
-**지시서**: `WORK_ORDER_2026-07-25-TRAP-LOOP.md` · `WORK_ORDER_2026-07-25-TRAP-LOOP-2.md`
+**지시서**: LOOP · LOOP-2 · `WORK_ORDER_2026-07-25-TRAP-LOOP-3.md`
 
-## 1사이클 완료
-- `/todo-afldb` · FEEDBACK 10 · `helper-load-order` Trap+fix
-- 분류: `Trap 1 / fix 1 / 문서화 5 / 보류 3 (합계 10)`
+## 보류 트리거 카운트 (공개 형식)
 
-## LOOP-2 단계1 잔검증
-| 항목 | 결과 |
-|------|------|
-| fix apply 후 재빌드 | ✅ 1사이클(~01:14) + 재확인 ok·err0·hlo0 · 122→124r(bookmarks) / 13h / 18codes |
-| FEEDBACK 숫자화 | ✅ 상단 한 줄 |
+**`APP-DB rename 지적 0/3` · `undefined-fn/route-shadow 실장애 0/1`**
 
-## 2사이클 (콜드스타트)
-- 앱: `/bookmarks` (ns `bookmarks`) — 기존 scratch/notes/todo **소스 0회**
-- 분류: `Trap 0 / fix 0 / 문서화 7 / 보류 3 (합계 10)`
-- fl-manifest **8/8** (부족했던 2: traps 최신화, docs.afldbColl+afldbColl 계약)
+| 항목 | 해제 트리거 | 누적 | 표기 |
+|------|-------------|------|------|
+| APP-DB 대량 rename | 지적 ≥3 | 0 | **0/3** |
+| undefined-fn / route-shadow | 실장애 1 | 0 | **0/1** |
+| Next/bootstrap/코어 | 해제 없음 | — | — |
 
-## 보류 트리거 카운트 (단계4)
+## 교차 반복 (1×2)
+N=1 (공통 CSS) — TRAPS 문서화 완료, 추가 checker 승격 없음.
 
-| 항목 | 해제 트리거 | 이번 사이클 Trap 지적 | 누적 | 실장애 |
-|------|-------------|----------------------|------|--------|
-| APP-DB 대량 rename | upper-hyphen 등 레거시 지적 ≥3 | 0 (`upper-hyphen` 0건) | **0** | — |
-| undefined-fn 일괄 | 실장애 1회 | 지적 2건 (경고만) | 지적 2 | **0** |
-| route-shadow 일괄 | 실장애 1회 | 지적 6건 (경고만) | 지적 6 | **0** |
-| Next/bootstrap/코어 | 해제 없음 | — | — | — |
+## 졸업 규칙 (정식)
+신규 Trap 0 + 신규 fix 0이 **2사이클 연속**이면 수집 루프 졸업.
 
-→ 해제 조건 미충족. 일괄 정리·rename 여전히 보류.
+## 사이클 요약
+| 사이클 | 분류 | Trap/fix |
+|--------|------|----------|
+| 1 | Trap 1 / fix 1 / 문서화 5 / 보류 3 | helper-load-order |
+| 2 | Trap 0 / fix 0 / 문서화 7 / 보류 3 | 문서만 |
+| 3 | Trap 0 / fix 0 / 문서화 4 / 보류 1 | 루프 실전·문서만 |
+
+→ **졸업** (2·3 연속 0/0)
+
+## 3사이클 루프 실전
+
+**픽스처 정책**: `pages/` 임시 주입 → 종료 후 삭제·커밋 미포함 (`fixtures/` 미채택).
+
+| 주입 코드 | 자동수정/사람몫 | 비고 |
+|-----------|-----------------|------|
+| json-parse-hyphen | 자동 | 1라운드 수정 |
+| let-shadow | 자동 | apply count=3(본문 포함) |
+| reserved-word | 자동(부분) | defn act→action; let act 잔존·미진단 |
+| helper-load-order | 자동 | rename → `_afldb_loopfix.flx` |
+| upper-hyphen | 사람몫 | 오수정 0 |
+| undefined-fn | 사람몫 | 오수정 0 |
+| comment-defn | 사람몫(의도) | 오수정 0 |
+
+- 반복: **2** (round1 fix → round2 clean) · 무한루프 0
+- MA 성공/주입: **4/4** (reserved는 진단분 기준 성공; let act는 미진단 잔존)
+- 오수정(비픽스처): **0** · 제거 후 기준선 124r/13h/18c/ok
+
+## fl-loop 계약 메모
+수렴 = machine-applicable 0. 사람 몫 잔존해도 `converged`.

@@ -23,6 +23,8 @@
 | **afl-db 지연** | GET/POST 왕복 ~1–2초 체감 가능. Trap 아님 — UX/타임아웃 참고만. |
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
+| **fl-loop 계약** | `fl-front-loop.js` 수렴 = **machine-applicable 0건**. 사람 몫(upper-hyphen·undefined-fn 등)은 남아 있어도 converged. 리포트에 humanShare 목록 없음(현행). |
+| **reserved let** | `(defn act`는 fix되지만 복잡 let 벡터의 `act` 바인딩은 진단/fix가 빗나갈 수 있음 — 단순 식별자만 신뢰. |
 
 ## 관련 규칙
 - 상수: **소문자 + underscore** (`afl_db_base`). `AFL-DB-BASE` 금지.

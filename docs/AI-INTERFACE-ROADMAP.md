@@ -17,8 +17,8 @@ AI → ① manifest 조회(작성 전 이해) → 코드 생성 → ② check --
 | ① Manifest (작성 전 이해) | ✅ `node fl-manifest.js` → `fl-manifest/1` (P5, 2026-07-25) |
 | ② 구조화 진단 `--json` | ✅ `fl-diagnostics/1` (2026-07-25, P2) |
 | ③ 오류 코드 카탈로그 | ✅ 17코드 · `fl-diagnostic-codes.js` · `--codes` |
-| ④ 자동수정 | ✅ P6 `fl-front-fix.js` (machine-applicable 3종) |
-| ⑤ 자가수정 루프 | ✅ Phase 4 `fl-front-loop.js` (`fl-loop/1`) |
+| ④ 자동수정 | ✅ P6 `fl-front-fix.js` (machine-applicable 4종) |
+| ⑤ 자가수정 루프 | ✅ Phase 4 `fl-front-loop.js` (`fl-loop/1`) · **실전 검증 2026-07-25 LOOP-3** |
 
 ## 단계 (각 단계 검증 후 다음 — 기능→검증→기록→머지)
 
@@ -75,7 +75,14 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 
 (상세: 메모리 `project_freelang_v12`.)
 
-## 즉시 다음 행동 (갱신 2026-07-25)
-**AI-Interface Phase 0–4 완료** (Trap→진단→카탈로그→fix→loop).
-다음 축: **실사용 페이지·afl-db 앱 축적** (DX 피드백).  
+## 즉시 다음 행동 (갱신 2026-07-25 LOOP-3)
+
+**수집 루프 졸업** (2026-07-25): 신규 Trap 0 + 신규 fix 0이 **2사이클 연속**(CYCLE2·CYCLE3).
+실사용 FEEDBACK→Trap/fix 수집 단계는 종료. 루프 도구 실전 검증 완료.
+
+**다음 단계 후보 (착수 없음 — 다음 지시서에서):**
+- 무인 스캐폴드 → `fl-front-loop` 완주 실험
+- 진단 커버리지 확대 (사람 몫 humanShare 리포트 등)
+- afl-db / SSR 성능
+
 조회: `npm run manifest` · `npm run loop:dry` · `npm run loop`.
