@@ -1,0 +1,22 @@
+; pages/todo-afldb/_db.flx — Todo 도메인 (저장은 _afldb_coll)
+; ns: todo · 필드: title, done
+
+(define todo_ns "todo")
+
+(defn todo-afldb-all []
+  (afldb-coll-all todo_ns))
+
+(defn todo-afldb-add [title]
+  (afldb-coll-create todo_ns {"title" title "done" false}))
+
+(defn todo-afldb-toggle [id]
+  (let [prev (afldb-coll-get todo_ns id)]
+    (if (= prev nil)
+      nil
+      (afldb-coll-update todo_ns id {"done" (not (get prev "done"))}))))
+
+(defn todo-afldb-delete [id]
+  (afldb-coll-delete todo_ns id))
+
+(defn todo-afldb-history [id]
+  (afldb-coll-history todo_ns id))

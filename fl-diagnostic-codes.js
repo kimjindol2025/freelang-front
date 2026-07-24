@@ -86,6 +86,14 @@ const DIAGNOSTIC_CODES = [
     applicability: 'manual',
     hint: 'FL_HTTP_ALLOW=127.0.0.1,localhost 설정 (ecosystem/env)',
   },
+  {
+    code: 'helper-load-order',
+    title: '헬퍼 파일명이 부모보다 먼저 정렬',
+    severity: 'warning',
+    fixable: true,
+    applicability: 'machine-applicable',
+    hint: '_afldb-coll.flx → _afldb_coll.flx (하이픈을 underscore로)',
+  },
 
   // ── 기존 체커 ───────────────────────────────────────────
   {

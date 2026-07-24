@@ -1742,6 +1742,7 @@ checkRouteShadow(routes);             // #6 동적 라우트 가로채기
 checkJsonParseHyphen(routes, helpers); // #7 json-parse → json_parse
 checkUpperHyphenIdent(routes, helpers); // #8 AFL-DB-BASE 식 대문자+하이픈
 checkFlHttpAllow(routes, helpers);    // #9 FL_HTTP_ALLOW (localhost HTTP)
+checkHelperLoadOrder(helpers);        // #10 _afldb-x 가 _afldb.flx 보다 먼저 로드
 
 // ── 휴리스틱 검사 (오탐 가능 — 항상 warn, 빌드 차단 안 함) ──
 console.log('\n\x1b[1m🔬 휴리스틱 검사\x1b[0m');
@@ -2129,6 +2130,32 @@ function checkFlHttpAllow(routes, helpers) {
   console.log('  \x1b[90m→ FL_HTTP_ALLOW=127.0.0.1,localhost  (package.json start / PM2 env)\x1b[0m');
   issue('warn', 'fl-http-allow', evidence, 0,
     'private HTTP(afldb/127.0.0.1) 사용 — FL_HTTP_ALLOW=127.0.0.1,localhost 설정 필요');
+}
+
+// #10 헬퍼 파일명 로드 순서 — `_foo-bar.flx` 가 `_foo.flx` 보다 먼저 정렬되면 미정의
+function checkHelperLoadOrder(helpers) {
+  const bases = helpers.map(h => path.basename(h));
+  const set = new Set(bases);
+  const hits = [];
+  for (const b of bases) {
+    const m = /^(_[a-z][a-z0-9]*)-(.+)\.flx$/.exec(b);
+    if (!m) continue;
+    const parent = `${m[1]}.flx`;
+    if (!set.has(parent)) continue;
+    if (b < parent) {
+      hits.push({ base: b, parent, suggest: `${m[1]}_${m[2]}.flx` });
+    }
+  }
+  if (hits.length === 0) {
+    console.log('  \x1b[32m✅ 헬퍼 로드 순서 OK (_prefix-child 없음)\x1b[0m');
+    return;
+  }
+  console.log('\n\x1b[33m⚠️  [helper-load-order] 하이픈 헬퍼가 부모보다 먼저 로드됨\x1b[0m');
+  for (const h of hits) {
+    console.log(`  \x1b[33m⚠\x1b[0m ${h.base} < ${h.parent} — rename → ${h.suggest}`);
+    issue('warn', 'helper-load-order', h.base, 0,
+      `'${h.base}' 가 '${h.parent}' 보다 먼저 로드됨 — '${h.suggest}' 로 rename`);
+  }
 }
 
 // #6 동적 라우트가 정적 형제를 가로챌 여지 (정적 우선 등록 필요)

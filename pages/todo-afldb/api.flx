@@ -1,0 +1,41 @@
+; pages/todo-afldb/api.flx — GET 목록 / POST add|toggle|delete|history
+
+(load "pages/todo-afldb/_db.flx")
+
+(defn render [req]
+  (server-json {"ok" true
+                "backend" "afl-db"
+                "coll" todo_ns
+                "items" (todo-afldb-all)
+                "status" (afldb-status)}))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        action (str (or (get body "action") ""))]
+    (cond
+      (= action "add")
+      (let [title (str-trim (str (or (get body "title") "")))]
+        (if (= title "")
+          (server-json {"ok" false "error" "title 필요"})
+          (do
+            (todo-afldb-add title)
+            (server-json {"ok" true "items" (todo-afldb-all)}))))
+
+      (= action "toggle")
+      (let [id (str (get body "id"))
+            item (todo-afldb-toggle id)]
+        (if (= item nil)
+          (server-json {"ok" false "error" "not found"})
+          (server-json {"ok" true "items" (todo-afldb-all)})))
+
+      (= action "delete")
+      (let [id (str (get body "id"))]
+        (todo-afldb-delete id)
+        (server-json {"ok" true "items" (todo-afldb-all)}))
+
+      (= action "history")
+      (let [id (str (get body "id"))]
+        (server-json {"ok" true "id" id "events" (todo-afldb-history id)}))
+
+      true
+      (server-json {"ok" false "error" "unknown action — add|toggle|delete|history"}))))

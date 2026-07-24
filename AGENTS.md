@@ -241,6 +241,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/subs` | pages/subs/index.flx |
 | `/tasks` | pages/tasks.flx |
 | `/test-helpers` | pages/test-helpers.flx |
+| `/todo-afldb/api` | pages/todo-afldb/api.flx |
+| `/todo-afldb` | pages/todo-afldb/index.flx |
 | `/todo` | pages/todo.flx |
 | `/upload` | pages/upload.flx |
 | `/vault/api` | pages/vault/api.flx |

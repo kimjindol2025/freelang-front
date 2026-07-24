@@ -6,7 +6,7 @@
 ; 다음 앱은 scratch/notes 처럼 CRUD를 다시 쓰지 말고 이 모듈만 호출한다.
 ; 도메인 필드(title/body, content/pinned …)만 앱 _db 에서 채운다.
 
-(define afldb_coll_namespaces ["scratch" "notes"])
+(define afldb_coll_namespaces ["scratch" "notes" "todo"])
 
 (defn afldb-coll-index-key [ns]
   (str "fl:" ns ":index"))

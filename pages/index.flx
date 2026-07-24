@@ -308,6 +308,7 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
   <h2>🗂️ 내 앱 <span style="font-size:.72rem;font-weight:500;color:var(--dim);background:rgba(139,92,246,.12);padding:2px 8px;border-radius:4px">afl-db 포함</span></h2>
   <div class="apps-grid">
     <a href="/scratch" class="app-card"><span class="icon">📝</span><span class="name">Scratch</span><span class="desc">afl-db 스크래치</span></a>
+    <a href="/todo-afldb" class="app-card"><span class="icon">✅</span><span class="name">Todo·DB</span><span class="desc">coll 패턴 todo</span></a>
     <a href="/events"  class="app-card"><span class="icon">📜</span><span class="name">Events</span><span class="desc">append history</span></a>
     <a href="/notes-afldb" class="app-card"><span class="icon">🗒️</span><span class="name">Notes·DB</span><span class="desc">메모 afl-db 이관</span></a>
     <a href="/files"   class="app-card"><span class="icon">📁</span><span class="name">파일</span><span class="desc">드라이브·첨부</span></a>

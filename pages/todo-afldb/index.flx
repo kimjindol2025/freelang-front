@@ -1,0 +1,99 @@
+; pages/todo-afldb/index.flx — afl-db todo (Trap 수집용 초소형)
+
+(island TodoAfldbApp []
+  (let [items (atom nil)
+        draft (atom "")
+        err   (atom "")
+
+        reload (fn [res]
+                 (reset! items (get res "items"))
+                 (reset! draft "")
+                 (reset! err ""))
+
+        add (fn []
+              (if (= (str-trim @draft) "")
+                (reset! err "제목을 입력하세요")
+                (fetch-post! "/todo-afldb/api"
+                  {"action" "add" "title" @draft}
+                  reload)))
+
+        tog (fn [id]
+              (fetch-post! "/todo-afldb/api"
+                {"action" "toggle" "id" id}
+                reload))
+
+        del (fn [id]
+              (fetch-post! "/todo-afldb/api"
+                {"action" "delete" "id" id}
+                reload))]
+
+    (fetch! "/todo-afldb/api" (fn [res] (reset! items (get res "items"))))
+    (h "div" {:class "afldb-app"}
+      (str
+        (h "div" {:class "afldb-form"}
+          (str
+            (h "input" {:class "afldb-input" :placeholder "할 일"
+                        :value @draft
+                        :on-input (fn [e] (reset! draft (.-value (.-target e))))
+                        :on-keydown (fn [e] (when (= (.-key e) "Enter") (add)))})
+            (h "button" {:class "afldb-btn" :on-click (fn [] (add))} "추가")
+            (if (= @err "") "" (h "p" {:class "afldb-err"} @err))))
+        (if (= @items nil)
+          (h "p" {:class "afldb-muted"} "불러오는 중…")
+          (if (= (length @items) 0)
+            (h "p" {:class "afldb-muted"} "비어 있음 — coll 패턴 첫 todo를 추가하세요.")
+            (h "div" {:class "afldb-list"}
+              (map
+                (fn [it]
+                  (h "div" {:class "afldb-item"}
+                    (str
+                      (h "div" {:class "afldb-item-top"}
+                        (str
+                          (h "button" {:class "afldb-link"
+                                       :on-click (fn [] (tog (get it "id")))}
+                            (if (get it "done") "[x]" "[ ]"))
+                          (h "span" {:style (if (get it "done") "text-decoration:line-through;color:#94a3b8" "")}
+                            (get it "title"))))
+                      (h "div" {:class "afldb-actions"}
+                        (h "button" {:class "afldb-danger"
+                                     :on-click (fn [] (del (get it "id")))} "삭제")))))
+                @items))))))))
+
+(defn render [req]
+  (layout-html "Todo · afl-db"
+    (str
+      """
+<style>
+.afldb-wrap{max-width:640px;margin:0 auto;padding:36px 20px 80px}
+.afldb-wrap h1{font-size:1.7rem;margin:0 0 6px}
+.afldb-lead{color:#64748b;margin:0 0 22px;line-height:1.5}
+.afldb-app{display:flex;flex-direction:column;gap:18px}
+.afldb-form{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+.afldb-input{flex:1;min-width:180px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+.afldb-btn{background:#0369a1;color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600}
+.afldb-list{display:flex;flex-direction:column;gap:8px}
+.afldb-item{padding:12px 14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff}
+.afldb-item-top{display:flex;gap:12px;align-items:center}
+.afldb-actions{margin-top:8px}
+.afldb-link,.afldb-danger{background:none;border:none;cursor:pointer;padding:0;font:inherit}
+.afldb-link{color:#0369a1}
+.afldb-danger{color:#dc2626}
+.afldb-muted{color:#94a3b8;font-size:.85rem}
+.afldb-err{color:#dc2626;margin:0;width:100%}
+.afldb-nav{display:flex;gap:14px;margin-top:28px;flex-wrap:wrap}
+.afldb-nav a{color:#0369a1;text-decoration:none}
+</style>
+<div class="afldb-wrap">
+  <h1>Todo</h1>
+  <p class="afldb-lead">afl-db coll 패턴 검증용 초소형 todo. Trap/fix 수집 수단.</p>
+  ISLAND_PLACEHOLDER
+  <div class="afldb-nav">
+    <a href="/scratch" data-spa="1">Scratch</a>
+    <a href="/events" data-spa="1">Events</a>
+    <a href="/notes-afldb" data-spa="1">Notes·DB</a>
+    <a href="/" data-spa="1">홈</a>
+  </div>
+</div>
+"""
+      "ISLAND_SCRIPTS")
+    req))

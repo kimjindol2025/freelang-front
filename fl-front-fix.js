@@ -311,6 +311,31 @@ function fixFile(filePath, dry) {
   return { file: path.relative(__dirname, filePath), applied, changed: code !== raw };
 }
 
+/** `_foo-bar.flx` → `_foo_bar.flx` when `_foo.flx` exists and hyphen sorts first */
+function fixHelperLoadOrder(dry) {
+  const files = fs.readdirSync(PAGES_DIR).filter(f => f.startsWith('_') && f.endsWith('.flx'));
+  const set = new Set(files);
+  const results = [];
+  for (const b of files) {
+    const m = /^(_[a-z][a-z0-9]*)-(.+)\.flx$/.exec(b);
+    if (!m) continue;
+    const parent = `${m[1]}.flx`;
+    if (!set.has(parent)) continue;
+    if (!(b < parent)) continue;
+    const neu = `${m[1]}_${m[2]}.flx`;
+    if (set.has(neu)) continue;
+    const from = path.join(PAGES_DIR, b);
+    const to = path.join(PAGES_DIR, neu);
+    if (!dry) fs.renameSync(from, to);
+    results.push({
+      file: path.relative(__dirname, from),
+      applied: [{ code: 'helper-load-order', count: 1, to: neu }],
+      changed: true,
+    });
+  }
+  return results;
+}
+
 function runFix(opts = {}) {
   const dry = !!opts.dry;
   const allowed = new Set(machineApplicable().map(c => c.code));
@@ -319,6 +344,9 @@ function runFix(opts = {}) {
   for (const f of files) {
     const r = fixFile(f, dry);
     if (r.changed) results.push(r);
+  }
+  if (allowed.has('helper-load-order')) {
+    results.push(...fixHelperLoadOrder(dry));
   }
   return {
     schema: 'fl-fix/1',
@@ -329,7 +357,7 @@ function runFix(opts = {}) {
   };
 }
 
-module.exports = { runFix, fixJsonParse, fixReservedAct, fixLetShadow };
+module.exports = { runFix, fixJsonParse, fixReservedAct, fixLetShadow, fixHelperLoadOrder };
 
 if (require.main === module) {
   const dry = process.argv.includes('--dry') || process.argv.includes('--fix-dry');
