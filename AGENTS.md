@@ -159,6 +159,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/bookmarks/api` | pages/bookmarks/api.flx |
 | `/bookmarks` | pages/bookmarks/index.flx |
 | `/check` | pages/check.flx |
+| `/clips/api` | pages/clips/api.flx |
+| `/clips` | pages/clips/index.flx |
 | `/contact/thanks` | pages/contact/thanks.flx |
 | `/contact` | pages/contact.flx |
 | `/contacts/api` | pages/contacts/api.flx |

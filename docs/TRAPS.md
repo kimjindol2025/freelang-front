@@ -12,6 +12,8 @@
 | `let-shadow` | `let [s …]` / `h` / `h!`가 주입 헬퍼를 가림 | 다른 이름 (`sess`, `html`, …) | machine |
 | `fl-http-allow` | localhost/127.0.0.1 HTTP가 SSRF로 차단 | env `FL_HTTP_ALLOW=127.0.0.1,localhost` | manual |
 | `helper-load-order` | `_afldb-coll.flx`가 `_afldb.flx`보다 **먼저** 정렬·로드 → 미정의 | `_afldb_coll.flx` (하이픈→underscore) | machine |
+| `req-key-collision` | `(get body "text")` / `form-get "text"` / `:name "text"` — raw body와 충돌 | `content`/`title` 등 | machine |
+| `comment-defn` | 주석이 `; (defn …`처럼 **비활성 코드**로 보일 때 스캔 오인 | 설명 문장만 쓰거나 코드 블록 분리 | — |
 
 ## 문서화 규칙 (자동화 불가 / 1회성)
 
@@ -25,7 +27,7 @@
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
 | **fl-loop 계약** | `converged` = **machine-applicable 0건** (자동으로 더 고칠 것 없음). `humanShare`/`humanShareItems` = 사람 몫. **converged ≠ humanShare 0**. |
-| **scaffold 필드명** | `text`/`body`/`action`/`id` 는 req body와 충돌 가능 — `content`/`title` 등 사용 (`fl-scaffold.js` BLOCKED_FIELDS). |
+| **scaffold 필드명** | `text`/`body`/`action`/`id` 는 req body와 충돌 가능 — `content`/`title` 등 (`fl-scaffold.js` BLOCKED_FIELDS). **손코드 `text`는 Trap `req-key-collision`.** `action`/`id`는 API 프로토콜이라 Trap 제외. |
 
 ## 관련 규칙
 - 상수: **소문자 + underscore** (`afl_db_base`). `AFL-DB-BASE` 금지.

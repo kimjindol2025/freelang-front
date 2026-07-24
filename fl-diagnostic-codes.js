@@ -94,6 +94,14 @@ const DIAGNOSTIC_CODES = [
     applicability: 'machine-applicable',
     hint: '_afldb-coll.flx → _afldb_coll.flx (하이픈을 underscore로)',
   },
+  {
+    code: 'req-key-collision',
+    title: 'req body 예약 키 text 사용',
+    severity: 'warning',
+    fixable: true,
+    applicability: 'machine-applicable',
+    hint: '(get body "text") / :name "text" → content 등 (raw body 충돌)',
+  },
 
   // ── 기존 체커 ───────────────────────────────────────────
   {

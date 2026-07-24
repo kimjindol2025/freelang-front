@@ -66,6 +66,7 @@ const manifest = {
     'let-shadow',
     'fl-http-allow',
     'helper-load-order',
+    'req-key-collision',
   ],
   // afl-db 컬렉션 앱 작성 전 계약 (콜드스타트용 — 기존 앱 소스 불필요)
   afldbColl: {

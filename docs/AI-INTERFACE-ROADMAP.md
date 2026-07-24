@@ -63,7 +63,7 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 |------|-----|------|
 | `builtin-arity`·`nullable-consume` | A(인자순서)·B(HTTP req-*) | 🔴 겹침 — v12가 언어 에러로 흡수 → 해당 체크는 이관 |
 | `db-row-mutation` | D(DB 시그니처) | 🟡 부분 — db-row 직접은 우리가 더 커버 |
-| `reserved-word`·`global-shadow`·`route-shadow`·`comment-defn`·`str-loop-concat`·`island-*` | (없음) | 🟢 **우리 고유**(lexer·front·SSR·perf) |
+| `reserved-word`·`global-shadow`·`route-shadow`·`comment-defn`·`str-loop-concat`·`island-*`·`req-key-collision` | (없음) | 🟢 **우리 고유**(lexer·front·SSR·perf·req body) |
 | fl-manifest(언어 API) | KPM(패키지 메타) | 🟢 보완 — 합쳐 발견 표면 |
 | JSON 진단(기계 포맷) | v12 hint-error(메시지 품질) | 🟢 보완 — 층 다름 |
 

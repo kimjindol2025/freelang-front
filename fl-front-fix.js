@@ -11,6 +11,8 @@
  *   json-parse-hyphen — (json-parse → (json_parse
  *   reserved-word     — 식별자 act → action (defn/define/파라미터/let)
  *   let-shadow        — let 바인딩 s/h/h! → sess/html-el/h-bang + 본문 식별자
+ *   helper-load-order — _foo-bar.flx → _foo_bar.flx (부모보다 먼저 정렬될 때)
+ *   req-key-collision — body/form "text" · :name "text" → content
  */
 
 'use strict';
@@ -505,9 +507,34 @@ function fixFile(filePath, dry) {
     code = c.code;
     applied.push({ code: 'let-shadow', count: c.count });
   }
+  const d = fixReqKeyCollision(code);
+  if (d.count) {
+    code = d.code;
+    applied.push({ code: 'req-key-collision', count: d.count });
+  }
 
   if (code !== raw && !dry) fs.writeFileSync(filePath, code, 'utf8');
   return { file: path.relative(__dirname, filePath), applied, changed: code !== raw };
+}
+
+/** body/form 키 "text" · :name "text" → content (raw body 충돌)
+ *  주의: mapOutsideStrings 는 "…" 내부를 건너뛰므로 이 패턴에는 쓰면 안 됨.
+ */
+function fixReqKeyCollision(code) {
+  let n = 0;
+  let next = code.replace(/\(\s*get\s+body\s+"text"\s*\)/g, () => {
+    n++;
+    return '(get body "content")';
+  });
+  next = next.replace(/\(\s*form-get\s+req\s+"text"\s*\)/g, () => {
+    n++;
+    return '(form-get req "content")';
+  });
+  next = next.replace(/:name\s+"text"/g, () => {
+    n++;
+    return ':name "content"';
+  });
+  return { code: next, count: n };
 }
 
 /** `_foo-bar.flx` → `_foo_bar.flx` when `_foo.flx` exists and hyphen sorts first */
@@ -556,7 +583,7 @@ function runFix(opts = {}) {
   };
 }
 
-module.exports = { runFix, fixJsonParse, fixReservedAct, fixLetShadow, fixHelperLoadOrder };
+module.exports = { runFix, fixJsonParse, fixReservedAct, fixLetShadow, fixHelperLoadOrder, fixReqKeyCollision };
 
 if (require.main === module) {
   const dry = process.argv.includes('--dry') || process.argv.includes('--fix-dry');

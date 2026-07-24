@@ -1743,6 +1743,7 @@ checkJsonParseHyphen(routes, helpers); // #7 json-parse → json_parse
 checkUpperHyphenIdent(routes, helpers); // #8 AFL-DB-BASE 식 대문자+하이픈
 checkFlHttpAllow(routes, helpers);    // #9 FL_HTTP_ALLOW (localhost HTTP)
 checkHelperLoadOrder(helpers);        // #10 _afldb-x 가 _afldb.flx 보다 먼저 로드
+checkReqKeyCollision(routes, helpers); // #11 get body "text" / :name "text"
 
 // ── 휴리스틱 검사 (오탐 가능 — 항상 warn, 빌드 차단 안 함) ──
 console.log('\n\x1b[1m🔬 휴리스틱 검사\x1b[0m');
@@ -1956,7 +1957,10 @@ function checkCommentedDefn(routes, helpers) {
       if (c === ';') {
         const start = i;
         while (i < src.length && src[i] !== '\n') i++;
-        if (/\((?:defn|define|server-fn)\b/.test(src.slice(start, i))) hits.push({ base, line });
+        const commentBody = src.slice(start, i).replace(/^\s*;\s*/, '').trim();
+        // 문장 중간 언급은 제외 — `; (defn …` 처럼 비활성 코드로 보이는 경우만
+        if (/^\((?:defn|define|server-fn)\b/.test(commentBody))
+          hits.push({ base, line });
         continue;
       }
       i++;
@@ -2183,6 +2187,43 @@ function checkHelperLoadOrder(helpers) {
     console.log(`  \x1b[33m⚠\x1b[0m ${h.base} < ${h.parent} — rename → ${h.suggest}`);
     issue('warn', 'helper-load-order', h.base, 0,
       `'${h.base}' 가 '${h.parent}' 보다 먼저 로드됨 — '${h.suggest}' 로 rename`);
+  }
+}
+
+// #11 req body 키 "text" — 원시 body/텍스트와 충돌 (AUTOPILOT 실측)
+// action/id 는 API 프로토콜이라 제외. text 만 고신뢰.
+function checkReqKeyCollision(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  const patterns = [
+    { re: /\(\s*get\s+body\s+"text"\s*\)/g, kind: 'get body "text"' },
+    { re: /\(\s*form-get\s+req\s+"text"\s*\)/g, kind: 'form-get "text"' },
+    { re: /:name\s+"text"/g, kind: ':name "text"' },
+  ];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const { re, kind } of patterns) {
+      re.lastIndex = 0;
+      for (const m of code.matchAll(re)) {
+        hits.push({ base, kind, line: lineAtIdx(code, m.index) });
+      }
+    }
+  }
+  if (hits.length === 0) {
+    console.log('  \x1b[32m✅ req-key-collision OK (body "text" 없음)\x1b[0m');
+    return;
+  }
+  console.log('\n\x1b[33m⚠️  [req-key-collision] req body 키 "text" — raw body 충돌\x1b[0m');
+  const seen = new Set();
+  for (const h of hits) {
+    const k = `${h.base}:${h.line}:${h.kind}`;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${h.base}:${h.line} — ${h.kind} → content/title 권장`);
+    issue('warn', 'req-key-collision', h.base, h.line,
+      `${h.kind} 는 req body raw 텍스트와 충돌 — content/title 등 사용`);
   }
 }
 
