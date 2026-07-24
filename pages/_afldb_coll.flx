@@ -1,0 +1,60 @@
+; pages/_afldb-coll.flx — afl-db 인덱스 컬렉션 공통 패턴
+; 키 계약 (고정):
+;   fl:<ns>:index      → [id...]
+;   fl:<ns>:item:<id>  → {id, ..., updated}
+;
+; 다음 앱은 scratch/notes 처럼 CRUD를 다시 쓰지 말고 이 모듈만 호출한다.
+; 도메인 필드(title/body, content/pinned …)만 앱 _db 에서 채운다.
+
+(define afldb_coll_namespaces ["scratch" "notes"])
+
+(defn afldb-coll-index-key [ns]
+  (str "fl:" ns ":index"))
+
+(defn afldb-coll-item-key [ns id]
+  (str "fl:" ns ":item:" id))
+
+(defn afldb-coll-ids [ns]
+  (afldb-index-get (afldb-coll-index-key ns)))
+
+(defn afldb-coll-item-keys [ns]
+  (map (fn [id] (afldb-coll-item-key ns id)) (afldb-coll-ids ns)))
+
+(defn afldb-coll-all [ns]
+  (let [vals (afldb-load-values (afldb-coll-item-keys ns))]
+    (filter (fn [v] (not (= v nil))) vals)))
+
+(defn afldb-coll-get [ns id]
+  (afldb-get (afldb-coll-item-key ns id) nil))
+
+(defn afldb-coll-create [ns item]
+  (let [id (str (now-ms))
+        full (obj-merge item {"id" id "updated" (now-ms)})]
+    (afldb-put (afldb-coll-item-key ns id) full)
+    (afldb-index-add-id (afldb-coll-index-key ns) id)
+    full))
+
+(defn afldb-coll-update [ns id patch]
+  (let [prev (afldb-coll-get ns id)]
+    (if (= prev nil)
+      nil
+      (let [full (obj-merge prev (obj-merge patch {"id" id "updated" (now-ms)}))]
+        (afldb-put (afldb-coll-item-key ns id) full)
+        full))))
+
+(defn afldb-coll-delete [ns id]
+  (afldb-index-remove-id (afldb-coll-index-key ns) id)
+  (afldb-delete (afldb-coll-item-key ns id))
+  true)
+
+(defn afldb-coll-history [ns id]
+  (afldb-history (afldb-coll-item-key ns id)))
+
+; Events / 점검용 — 등록된 ns 목록의 index·item 키
+(defn afldb-coll-known []
+  (map
+    (fn [ns]
+      {"ns" ns
+       "index" (afldb-coll-index-key ns)
+       "items" (afldb-coll-item-keys ns)})
+    afldb_coll_namespaces))

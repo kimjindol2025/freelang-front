@@ -1,43 +1,28 @@
-; pages/scratch/_db.flx — afl-db 스크래치 메모 저장소
-; index: fl:scratch:index → [id...]
-; item:  fl:scratch:item:<id> → {id,title,body,updated}
+; pages/scratch/_db.flx — Scratch 도메인 (저장은 _afldb-coll)
+; ns: scratch
 
-(define scratch_index_key "fl:scratch:index")
-
-(defn scratch-item-key [id]
-  (str "fl:scratch:item:" id))
+(define scratch_ns "scratch")
 
 (defn scratch-all []
-  (let [ids (afldb-index-get scratch_index_key)
-        keys (map scratch-item-key ids)
-        vals (afldb-load-values keys)]
-    (filter (fn [v] (not (= v nil))) vals)))
+  (afldb-coll-all scratch_ns))
 
 (defn scratch-get [id]
-  (afldb-get (scratch-item-key id) nil))
+  (afldb-coll-get scratch_ns id))
 
 (defn scratch-add [title body]
-  (let [id (str (now-ms))
-        item {"id" id
-              "title" title
-              "body" body
-              "updated" (now-ms)}]
-    (afldb-put (scratch-item-key id) item)
-    (afldb-index-add-id scratch_index_key id)
-    item))
+  (afldb-coll-create scratch_ns {"title" title "body" body}))
 
 (defn scratch-update [id title body]
-  (let [prev (scratch-get id)]
-    (if (= prev nil)
-      nil
-      (let [item {"id" id
-                  "title" title
-                  "body" body
-                  "updated" (now-ms)}]
-        (afldb-put (scratch-item-key id) item)
-        item))))
+  (afldb-coll-update scratch_ns id {"title" title "body" body}))
 
 (defn scratch-delete [id]
-  (afldb-index-remove-id scratch_index_key id)
-  (afldb-delete (scratch-item-key id))
-  true)
+  (afldb-coll-delete scratch_ns id))
+
+(defn scratch-history [id]
+  (afldb-coll-history scratch_ns id))
+
+; 하위 호환 — events 등에서 쓰던 이름
+(define scratch_index_key (afldb-coll-index-key scratch_ns))
+
+(defn scratch-item-key [id]
+  (afldb-coll-item-key scratch_ns id))

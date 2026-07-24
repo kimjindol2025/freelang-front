@@ -315,6 +315,22 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `afldb-load-values` | `[keys]` |  |
 | `afldb-status` | `[]` |  |
 
+### `_afldb_coll.flx`
+
+| 함수 | 파라미터 | 설명 |
+|------|----------|------|
+| `afldb-coll-index-key` | `[ns]` |  |
+| `afldb-coll-item-key` | `[ns id]` |  |
+| `afldb-coll-ids` | `[ns]` |  |
+| `afldb-coll-item-keys` | `[ns]` |  |
+| `afldb-coll-all` | `[ns]` |  |
+| `afldb-coll-get` | `[ns id]` |  |
+| `afldb-coll-create` | `[ns item]` |  |
+| `afldb-coll-update` | `[ns id patch]` |  |
+| `afldb-coll-delete` | `[ns id]` |  |
+| `afldb-coll-history` | `[ns id]` |  |
+| `afldb-coll-known` | `[]` | Events / 점검용 — 등록된 ns 목록의 index·item 키 |
+
 ### `_auth.flx`
 
 | 함수 | 파라미터 | 설명 |

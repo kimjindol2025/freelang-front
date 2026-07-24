@@ -5,6 +5,7 @@
 (defn render [req]
   (server-json {"ok" true
                 "backend" "afl-db"
+                "coll" notes_ns
                 "notes" (notes-afldb-all)
                 "legacy" "/notes"
                 "status" (afldb-status)}))
@@ -35,9 +36,7 @@
 
       (= action "history")
       (let [id (str (get body "id"))]
-        (server-json {"ok" true
-                      "id" id
-                      "events" (afldb-history (notes-afldb-key id))}))
+        (server-json {"ok" true "id" id "events" (notes-afldb-history id)}))
 
       true
       (server-json {"ok" false "error" "unknown action — add|pin|delete|history"}))))

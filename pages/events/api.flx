@@ -1,17 +1,15 @@
-; pages/events/api.flx — 알려진 fl:* 키 + 임의 키 history (B)
-
-(load "pages/scratch/_db.flx")
-(load "pages/notes-afldb/_db.flx")
+; pages/events/api.flx — 등록 컬렉션 + 임의 키 history
+; 알려진 키는 afldb_coll_namespaces 레지스트리에서만 옴 (앱 _db load 불필요)
 
 (defn events-known-keys []
-  (let [scratch-ids (afldb-index-get scratch_index_key)
-        note-ids (afldb-index-get notes_afldb_index)
-        scratch-keys (map scratch-item-key scratch-ids)
-        note-keys (map notes-afldb-key note-ids)]
-    {"scratch_index" scratch_index_key
-     "notes_index" notes_afldb_index
-     "scratch_items" scratch-keys
-     "notes_items" note-keys}))
+  (let [cols (afldb-coll-known)
+        scratch (first (filter (fn [c] (= (get c "ns") "scratch")) cols))
+        notes (first (filter (fn [c] (= (get c "ns") "notes")) cols))]
+    {"collections" cols
+     "scratch_index" (if (= scratch nil) "" (get scratch "index"))
+     "notes_index" (if (= notes nil) "" (get notes "index"))
+     "scratch_items" (if (= scratch nil) [] (get scratch "items"))
+     "notes_items" (if (= notes nil) [] (get notes "items"))}))
 
 (defn render [req]
   (let [st (afldb-status)

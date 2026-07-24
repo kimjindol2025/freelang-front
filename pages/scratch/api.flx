@@ -5,6 +5,7 @@
 (defn render [req]
   (server-json {"ok" true
                 "backend" "afl-db"
+                "coll" scratch_ns
                 "items" (scratch-all)
                 "status" (afldb-status)}))
 
@@ -36,9 +37,8 @@
         (server-json {"ok" true "items" (scratch-all)}))
 
       (= action "history")
-      (let [id (str (get body "id"))
-            events (afldb-history (scratch-item-key id))]
-        (server-json {"ok" true "id" id "events" events}))
+      (let [id (str (get body "id"))]
+        (server-json {"ok" true "id" id "events" (scratch-history id)}))
 
       true
       (server-json {"ok" false "error" "unknown action — add|update|delete|history"}))))

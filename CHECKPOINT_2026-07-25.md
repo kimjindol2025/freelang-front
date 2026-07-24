@@ -44,8 +44,8 @@ curl -sS -X POST http://127.0.0.1:40860/api/afldb \
 - 카탈로그 · manifest · `--fix` · **`fl-front-loop.js` (`fl-loop/1`)**
 
 ### 다음
-실사용 앱 3종 추가됨 — `/scratch` · `/events` · `/notes-afldb`  
-(문서: `FIX_2026-07-25-AFLDB-APPS.md`)
+실사용 앱 3종 + **공통 컬렉션 모듈** (`_afldb_coll.flx`, `docs/AFLDB-COLL.md`)
+새 afl-db 앱은 ns 등록 + thin `_db`만.
 
 ### 보류 (의도적)
 - `APP-DB` 등 upper-hyphen 1개 대량 rename
