@@ -18,7 +18,7 @@ AI → ① manifest 조회(작성 전 이해) → 코드 생성 → ② check --
 | ② 구조화 진단 `--json` | ✅ `fl-diagnostics/1` (2026-07-25, P2) |
 | ③ 오류 코드 카탈로그 | ✅ 17코드 · `fl-diagnostic-codes.js` · `--codes` |
 | ④ 자동수정 | ✅ P6 `fl-front-fix.js` (machine-applicable 3종) |
-| ⑤ 자가수정 루프 | ❌ 선택 (Phase 4) |
+| ⑤ 자가수정 루프 | ✅ Phase 4 `fl-front-loop.js` (`fl-loop/1`) |
 
 ## 단계 (각 단계 검증 후 다음 — 기능→검증→기록→머지)
 
@@ -38,8 +38,10 @@ AI → ① manifest 조회(작성 전 이해) → 코드 생성 → ② check --
 - FL은 동적 → **증명 가능한 것만**: manifest 사전 기반 오타→실존 이름 rename, 하이픈↔언더스코어 정규화, `act` 예약어 rename. 전부 `applicability:"machine-applicable"`.
 - 틀린 자동수정은 위험 → 좁게, opt-in. (사용자 우선순위상 마지막.)
 
-### Phase 4 — 자가수정 루프 (capstone) ⭐⭐ (P1~3 의존)
-- manifest 조회 → 생성 → `fl-build --json` → safe fix 적용 → 재검사 → 수렴. Klar `fix`가 증명한 루프의 FL판.
+### Phase 4 — 자가수정 루프 (capstone) ✅ 2026-07-25
+- `node fl-front-loop.js` · `--dry` · `FL_LOOP_MAX`
+- 흐름: manifest → `fl-build --json` → `runFix` (machine-applicable) → 재검사 → 수렴
+- 스키마: `fl-loop/1`
 
 ## 횡단 원칙
 - **FL 코어 불변** — 새 문법·타입·런타임 변경 0. (44k bootstrap.js = esbuild 번들, 건드리지 않음.)
@@ -74,5 +76,6 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 (상세: 메모리 `project_freelang_v12`.)
 
 ## 즉시 다음 행동 (갱신 2026-07-25)
-**P0–P6 / Phase 1–3 완료.** 선택지: **Phase 4 자가수정 루프** 또는 실앱 페이지 축적.
-조회: `node fl-manifest.js` · `node fl-front-build.js --codes` · `npm run fix:dry`.
+**AI-Interface Phase 0–4 완료** (Trap→진단→카탈로그→fix→loop).
+다음 축: **실사용 페이지·afl-db 앱 축적** (DX 피드백).  
+조회: `npm run manifest` · `npm run loop:dry` · `npm run loop`.

@@ -272,6 +272,8 @@ document.getElementById('search-inp')?.addEventListener('input',function(){var q
         (h "div" {:class note-header}
           (h "div" {}
             (str (h "h2" {:class note-title} "📝 Notes")
+                 (h "p" {:style "margin:0 0 8px;font-size:.85rem"}
+                   (h "a" {:href "/notes-afldb" :data-spa "1" :style "color:#6366f1"} "afl-db 버전 →"))
                  (h "p" {:class note-count}
                    (str (str count) "개 메모"
                         (if (> pin-c 0) (str " · 📌 " (str pin-c) "개 고정") ""))))))

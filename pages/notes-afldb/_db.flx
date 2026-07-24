@@ -1,0 +1,39 @@
+; pages/notes-afldb/_db.flx — SQLite /notes 의 초소형 afl-db 이관본
+; index: fl:notes:index
+; item:  fl:notes:item:<id>
+
+(define notes_afldb_index "fl:notes:index")
+
+(defn notes-afldb-key [id]
+  (str "fl:notes:item:" id))
+
+(defn notes-afldb-all []
+  (let [ids (afldb-index-get notes_afldb_index)
+        vals (afldb-load-values (map notes-afldb-key ids))]
+    (filter (fn [v] (not (= v nil))) vals)))
+
+(defn notes-afldb-add [content]
+  (let [id (str (now-ms))
+        item {"id" id
+              "content" content
+              "pinned" false
+              "updated" (now-ms)}]
+    (afldb-put (notes-afldb-key id) item)
+    (afldb-index-add-id notes_afldb_index id)
+    item))
+
+(defn notes-afldb-toggle-pin [id]
+  (let [prev (afldb-get (notes-afldb-key id) nil)]
+    (if (= prev nil)
+      nil
+      (let [item {"id" id
+                  "content" (get prev "content")
+                  "pinned" (not (get prev "pinned"))
+                  "updated" (now-ms)}]
+        (afldb-put (notes-afldb-key id) item)
+        item))))
+
+(defn notes-afldb-delete [id]
+  (afldb-index-remove-id notes_afldb_index id)
+  (afldb-delete (notes-afldb-key id))
+  true)

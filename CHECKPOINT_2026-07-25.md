@@ -40,12 +40,12 @@ curl -sS -X POST http://127.0.0.1:40860/api/afldb \
 
 ## 진행방향 (다음 세션부터 — 묻지 말고 이 순서로)
 
-### 완료: P5–P6
-- 카탈로그 17코드 · manifest · `--fix` (json-parse / act / let s|h|h!)
+### 완료: P5–P7 / Phase 1–4
+- 카탈로그 · manifest · `--fix` · **`fl-front-loop.js` (`fl-loop/1`)**
 
-### 다음 (선택)
-1. Phase 4 자가수정 루프 (manifest → 생성 → `--json` → `--fix` → 재검사)
-2. 실사용 페이지·afl-db 앱 축적 (DX 피드백)
+### 다음
+실사용 앱 3종 추가됨 — `/scratch` · `/events` · `/notes-afldb`  
+(문서: `FIX_2026-07-25-AFLDB-APPS.md`)
 
 ### 보류 (의도적)
 - `APP-DB` 등 upper-hyphen 1개 대량 rename

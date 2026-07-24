@@ -1,0 +1,109 @@
+; pages/events/index.flx — afl-db 이벤트/history 뷰어 (B)
+
+(island EventsApp []
+  (let [known (atom nil)
+        status (atom nil)
+        keyin (atom "")
+        events (atom nil)
+        err (atom "")
+        selected (atom "")
+
+        boot (fn [res]
+               (reset! known (get res "known"))
+               (reset! status (get res "status")))
+
+        load-hist (fn [key]
+                    (reset! selected key)
+                    (reset! keyin key)
+                    (reset! err "")
+                    (fetch-post! "/events/api"
+                      {"action" "history" "key" key}
+                      (fn [res]
+                        (if (= (get res "ok") true)
+                          (reset! events (get res "events"))
+                          (reset! err (or (get res "error") "history 실패"))))))]
+
+    (fetch! "/events/api" boot)
+    (h "div" {:class "afldb-app"}
+      (str
+        (if (= @status nil)
+          (h "p" {:class "afldb-muted"} "상태 불러오는 중…")
+          (h "div" {:class "afldb-status"}
+            (str
+              (h "span" {} (if (get @status "ok") "afl-db OK" "afl-db 문제"))
+              (h "span" {:class "afldb-muted"}
+                (str " records " (str (get @status "records"))
+                     " · keys " (str (get @status "keys")))))))
+        (h "div" {:class "afldb-form"}
+          (str
+            (h "input" {:class "afldb-input" :placeholder "키 (예: fl:scratch:item:…)"
+                        :value @keyin
+                        :on-input (fn [e] (reset! keyin (.-value (.-target e))))})
+            (h "button" {:class "afldb-btn"
+                         :on-click (fn [] (load-hist @keyin))} "history 조회")
+            (if (= @err "") "" (h "p" {:class "afldb-err"} @err))))
+        (if (= @known nil)
+          ""
+          (h "div" {:class "afldb-known"}
+            (str
+              (h "h3" {} "알려진 키")
+              (h "button" {:class "afldb-chip"
+                           :on-click (fn [] (load-hist (get @known "scratch_index")))}
+                (get @known "scratch_index"))
+              (h "button" {:class "afldb-chip"
+                           :on-click (fn [] (load-hist (get @known "notes_index")))}
+                (get @known "notes_index"))
+              (h "div" {:class "afldb-chips"}
+                (map
+                  (fn [k]
+                    (h "button" {:class "afldb-chip" :on-click (fn [] (load-hist k))} k))
+                  (or (get @known "scratch_items") [])))
+              (h "div" {:class "afldb-chips"}
+                (map
+                  (fn [k]
+                    (h "button" {:class "afldb-chip" :on-click (fn [] (load-hist k))} k))
+                  (or (get @known "notes_items") []))))))
+        (if (= @events nil)
+          (h "p" {:class "afldb-muted"} "키를 고르거나 입력해 append history를 봅니다.")
+          (h "div" {:class "afldb-hist"}
+            (str
+              (h "h3" {} (str "events · " @selected))
+              (h "pre" {:class "afldb-pre"} (json-stringify @events)))))))))
+
+(defn render [req]
+  (layout-html "Events · afl-db"
+    (str
+      """
+<style>
+.afldb-wrap{max-width:820px;margin:0 auto;padding:36px 20px 80px}
+.afldb-wrap h1{font-size:1.7rem;margin:0 0 6px}
+.afldb-lead{color:#64748b;margin:0 0 22px;line-height:1.5}
+.afldb-app{display:flex;flex-direction:column;gap:18px}
+.afldb-status{display:flex;gap:14px;align-items:baseline;flex-wrap:wrap}
+.afldb-form{display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+.afldb-input{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+.afldb-btn{align-self:flex-start;background:#b45309;color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600}
+.afldb-known h3{margin:0 0 10px;font-size:1rem}
+.afldb-chips{display:flex;flex-wrap:wrap;gap:8px}
+.afldb-chip{border:1px solid #e2e8f0;background:#fff;border-radius:999px;padding:6px 12px;cursor:pointer;font-size:.78rem;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.afldb-hist{padding:14px;border-radius:12px;background:#0f172a;color:#e2e8f0}
+.afldb-pre{white-space:pre-wrap;word-break:break-word;font-size:.8rem}
+.afldb-muted{color:#94a3b8;font-size:.85rem}
+.afldb-err{color:#dc2626;margin:0}
+.afldb-nav{display:flex;gap:14px;margin-top:28px;flex-wrap:wrap}
+.afldb-nav a{color:#b45309;text-decoration:none}
+</style>
+<div class="afldb-wrap">
+  <h1>Events</h1>
+  <p class="afldb-lead">afl-db append-only history 뷰어. Scratch/Notes 키를 모아 타임라인을 봅니다.</p>
+  ISLAND_PLACEHOLDER
+  <div class="afldb-nav">
+    <a href="/scratch" data-spa="1">Scratch</a>
+    <a href="/notes-afldb" data-spa="1">Notes (afl-db)</a>
+    <a href="/check" data-spa="1">/check</a>
+    <a href="/" data-spa="1">홈</a>
+  </div>
+</div>
+"""
+      "ISLAND_SCRIPTS")
+    req))

@@ -85,6 +85,36 @@
 (defn afldb-stats []
   (afldb-response-body (http_get (str afl_db_base "/stats"))))
 
+(defn afldb-delete [key]
+  (afldb-response-body (http_delete (afldb-kv-url key))))
+
+(defn afldb-index-get [index-key]
+  (let [ids (afldb-get index-key [])]
+    (if (= ids nil) [] ids)))
+
+(defn afldb-index-add-id [index-key id]
+  (let [ids (afldb-index-get index-key)
+        sid (str id)
+        exists (filter (fn [x] (= (str x) sid)) ids)]
+    (if (> (length exists) 0)
+      ids
+      (let [next-ids (push ids sid)]
+        (afldb-put index-key next-ids)
+        next-ids))))
+
+(defn afldb-index-remove-id [index-key id]
+  (let [ids (afldb-index-get index-key)
+        sid (str id)
+        next-ids (filter (fn [x] (not (= (str x) sid))) ids)]
+    (afldb-put index-key next-ids)
+    next-ids))
+
+(defn afldb-load-values [keys]
+  (let [items (afldb-batch-get keys)]
+    (if (= items nil)
+      []
+      (map (fn [it] (afldb-field it "value" :value)) items))))
+
 (defn afldb-status []
   (let [vr (http_get (str afl_db_base "/verify"))
         sr (http_get (str afl_db_base "/stats"))

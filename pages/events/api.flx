@@ -1,0 +1,39 @@
+; pages/events/api.flx — 알려진 fl:* 키 + 임의 키 history (B)
+
+(load "pages/scratch/_db.flx")
+(load "pages/notes-afldb/_db.flx")
+
+(defn events-known-keys []
+  (let [scratch-ids (afldb-index-get scratch_index_key)
+        note-ids (afldb-index-get notes_afldb_index)
+        scratch-keys (map scratch-item-key scratch-ids)
+        note-keys (map notes-afldb-key note-ids)]
+    {"scratch_index" scratch_index_key
+     "notes_index" notes_afldb_index
+     "scratch_items" scratch-keys
+     "notes_items" note-keys}))
+
+(defn render [req]
+  (let [st (afldb-status)
+        known (events-known-keys)]
+    (server-json {"ok" (get st "ok")
+                  "status" st
+                  "known" known})))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        action (str (or (get body "action") ""))]
+    (cond
+      (= action "history")
+      (let [key (str-trim (str (or (get body "key") "")))]
+        (if (= key "")
+          (server-json {"ok" false "error" "key 필요"})
+          (server-json {"ok" true
+                        "key" key
+                        "events" (afldb-history key)})))
+
+      (= action "known")
+      (server-json {"ok" true "known" (events-known-keys) "status" (afldb-status)})
+
+      true
+      (server-json {"ok" false "error" "unknown action — history|known"}))))

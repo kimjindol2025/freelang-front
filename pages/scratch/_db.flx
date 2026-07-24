@@ -1,0 +1,43 @@
+; pages/scratch/_db.flx — afl-db 스크래치 메모 저장소
+; index: fl:scratch:index → [id...]
+; item:  fl:scratch:item:<id> → {id,title,body,updated}
+
+(define scratch_index_key "fl:scratch:index")
+
+(defn scratch-item-key [id]
+  (str "fl:scratch:item:" id))
+
+(defn scratch-all []
+  (let [ids (afldb-index-get scratch_index_key)
+        keys (map scratch-item-key ids)
+        vals (afldb-load-values keys)]
+    (filter (fn [v] (not (= v nil))) vals)))
+
+(defn scratch-get [id]
+  (afldb-get (scratch-item-key id) nil))
+
+(defn scratch-add [title body]
+  (let [id (str (now-ms))
+        item {"id" id
+              "title" title
+              "body" body
+              "updated" (now-ms)}]
+    (afldb-put (scratch-item-key id) item)
+    (afldb-index-add-id scratch_index_key id)
+    item))
+
+(defn scratch-update [id title body]
+  (let [prev (scratch-get id)]
+    (if (= prev nil)
+      nil
+      (let [item {"id" id
+                  "title" title
+                  "body" body
+                  "updated" (now-ms)}]
+        (afldb-put (scratch-item-key id) item)
+        item))))
+
+(defn scratch-delete [id]
+  (afldb-index-remove-id scratch_index_key id)
+  (afldb-delete (scratch-item-key id))
+  true)

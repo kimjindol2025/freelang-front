@@ -24,6 +24,7 @@ Next 전환 없음. 문법 대량 추가 없음.
 | P4 | `/check`를 “프론트 readiness” 고정 허브 | ✅ | afl-db + build diagnostics 카드 |
 | P5 | 오류 코드 카탈로그 → manifest (Phase 2) | ✅ | 17코드 + fl-manifest/1 + --codes |
 | P6 | 안전 자동수정 (Phase 3) | ✅ | fl-front-fix.js · --fix / --fix-dry |
+| P7 | 자가수정 루프 (Phase 4) | ✅ | fl-front-loop.js · fl-loop/1 |
 
 ## P1 범위 (이번 진행)
 - `json-parse` 잔여 → `json_parse` (완료에 가깝게)
@@ -53,6 +54,5 @@ curl -sS http://127.0.0.1:40860/api/afldb
 ```
 
 ## 체크포인트 (2026-07-25)
-- P0–P6 완료 · 증거: CHECKPOINT / TRAPS / FIX_2026-07-25-P5.md
-- **다음(선택):** Phase 4 자가수정 루프 — 또는 실사용 페이지 축적
-- 세션: 묻지 말고 실사용·루프 중 우선순위 높은 것부터
+- P0–P7 / Phase 0–4 완료 · 루프: `npm run loop`
+- **다음:** 실사용 페이지·afl-db 앱 축적 (DX 피드백)

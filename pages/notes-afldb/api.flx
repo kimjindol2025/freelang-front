@@ -1,0 +1,43 @@
+; pages/notes-afldb/api.flx
+
+(load "pages/notes-afldb/_db.flx")
+
+(defn render [req]
+  (server-json {"ok" true
+                "backend" "afl-db"
+                "notes" (notes-afldb-all)
+                "legacy" "/notes"
+                "status" (afldb-status)}))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        action (str (or (get body "action") ""))]
+    (cond
+      (= action "add")
+      (let [content (str-trim (str (or (get body "content") "")))]
+        (if (= content "")
+          (server-json {"ok" false "error" "내용 필요"})
+          (do
+            (notes-afldb-add content)
+            (server-json {"ok" true "notes" (notes-afldb-all)}))))
+
+      (= action "pin")
+      (let [id (str (get body "id"))
+            item (notes-afldb-toggle-pin id)]
+        (if (= item nil)
+          (server-json {"ok" false "error" "not found"})
+          (server-json {"ok" true "notes" (notes-afldb-all)})))
+
+      (= action "delete")
+      (let [id (str (get body "id"))]
+        (notes-afldb-delete id)
+        (server-json {"ok" true "notes" (notes-afldb-all)}))
+
+      (= action "history")
+      (let [id (str (get body "id"))]
+        (server-json {"ok" true
+                      "id" id
+                      "events" (afldb-history (notes-afldb-key id))}))
+
+      true
+      (server-json {"ok" false "error" "unknown action — add|pin|delete|history"}))))

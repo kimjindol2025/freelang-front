@@ -1,0 +1,44 @@
+; pages/scratch/api.flx — GET 목록 / POST add|update|delete|history
+
+(load "pages/scratch/_db.flx")
+
+(defn render [req]
+  (server-json {"ok" true
+                "backend" "afl-db"
+                "items" (scratch-all)
+                "status" (afldb-status)}))
+
+(defn render_post [req]
+  (let [body (get req "body")
+        action (str (or (get body "action") ""))]
+    (cond
+      (= action "add")
+      (let [title (str-trim (str (or (get body "title") "")))
+            text  (str-trim (str (or (get body "body") "")))]
+        (if (and (= title "") (= text ""))
+          (server-json {"ok" false "error" "제목 또는 내용 필요"})
+          (do
+            (scratch-add (if (= title "") "untitled" title) text)
+            (server-json {"ok" true "items" (scratch-all)}))))
+
+      (= action "update")
+      (let [id (str (get body "id"))
+            title (str-trim (str (or (get body "title") "")))
+            text  (str-trim (str (or (get body "body") "")))
+            item (scratch-update id title text)]
+        (if (= item nil)
+          (server-json {"ok" false "error" "not found"})
+          (server-json {"ok" true "item" item "items" (scratch-all)})))
+
+      (= action "delete")
+      (let [id (str (get body "id"))]
+        (scratch-delete id)
+        (server-json {"ok" true "items" (scratch-all)}))
+
+      (= action "history")
+      (let [id (str (get body "id"))
+            events (afldb-history (scratch-item-key id))]
+        (server-json {"ok" true "id" id "events" events}))
+
+      true
+      (server-json {"ok" false "error" "unknown action — add|update|delete|history"}))))

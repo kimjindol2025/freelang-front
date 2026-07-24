@@ -170,6 +170,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/dashboard/operations` | pages/dashboard/operations.flx |
 | `/dashboard/sla` | pages/dashboard/sla.flx |
 | `/demo` | pages/demo.flx |
+| `/events/api` | pages/events/api.flx |
+| `/events` | pages/events/index.flx |
 | `/examples/01-hello` | pages/examples/01-hello.flx |
 | `/examples/02-card-grid` | pages/examples/02-card-grid.flx |
 | `/examples/03-list-filter` | pages/examples/03-list-filter.flx |
@@ -220,6 +222,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/login` | pages/login.flx |
 | `/logout` | pages/logout.flx |
 | `/logs` | pages/logs.flx |
+| `/notes-afldb/api` | pages/notes-afldb/api.flx |
+| `/notes-afldb` | pages/notes-afldb/index.flx |
 | `/notes-island` | pages/notes-island.flx |
 | `/notes` | pages/notes.flx |
 | `/photos/api` | pages/photos/api.flx |
@@ -227,6 +231,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/playground` | pages/playground.flx |
 | `/reading/api` | pages/reading/api.flx |
 | `/reading` | pages/reading/index.flx |
+| `/scratch/api` | pages/scratch/api.flx |
+| `/scratch` | pages/scratch/index.flx |
 | `/shop/cart` | pages/shop/cart.flx |
 | `/shop` | pages/shop/index.flx |
 | `/shop/orders` | pages/shop/orders.flx |
@@ -302,6 +308,11 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `afldb-history` | `[key]` |  |
 | `afldb-verify` | `[]` |  |
 | `afldb-stats` | `[]` |  |
+| `afldb-delete` | `[key]` |  |
+| `afldb-index-get` | `[index-key]` |  |
+| `afldb-index-add-id` | `[index-key id]` |  |
+| `afldb-index-remove-id` | `[index-key id]` |  |
+| `afldb-load-values` | `[keys]` |  |
 | `afldb-status` | `[]` |  |
 
 ### `_auth.flx`

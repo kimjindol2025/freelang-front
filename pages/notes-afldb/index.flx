@@ -1,0 +1,98 @@
+; pages/notes-afldb/index.flx — /notes SQLite 대비 afl-db 초소형 이관 (C)
+
+(island NotesAfldbApp []
+  (let [notes (atom nil)
+        draft (atom "")
+        err   (atom "")
+
+        reload (fn [res]
+                 (reset! notes (get res "notes"))
+                 (reset! draft "")
+                 (reset! err ""))
+
+        add (fn []
+              (if (= (str-trim @draft) "")
+                (reset! err "내용을 입력하세요")
+                (fetch-post! "/notes-afldb/api"
+                  {"action" "add" "content" @draft}
+                  reload)))
+
+        pin (fn [id]
+              (fetch-post! "/notes-afldb/api"
+                {"action" "pin" "id" id}
+                reload))
+
+        del (fn [id]
+              (fetch-post! "/notes-afldb/api"
+                {"action" "delete" "id" id}
+                reload))]
+
+    (fetch! "/notes-afldb/api" (fn [res] (reset! notes (get res "notes"))))
+    (h "div" {:class "afldb-app"}
+      (str
+        (h "div" {:class "afldb-form"}
+          (str
+            (h "textarea" {:class "afldb-area" :placeholder "메모 내용"
+                           :value @draft
+                           :on-input (fn [e] (reset! draft (.-value (.-target e))))})
+            (h "button" {:class "afldb-btn" :on-click (fn [] (add))} "추가")
+            (if (= @err "") "" (h "p" {:class "afldb-err"} @err))))
+        (if (= @notes nil)
+          (h "p" {:class "afldb-muted"} "불러오는 중…")
+          (if (= (length @notes) 0)
+            (h "p" {:class "afldb-muted"} "afl-db notes가 비어 있습니다.")
+            (h "div" {:class "afldb-list"}
+              (map
+                (fn [n]
+                  (h "div" {:class "afldb-item"}
+                    (str
+                      (h "div" {:class "afldb-item-top"}
+                        (str
+                          (h "strong" {} (if (get n "pinned") "📌 " ""))
+                          (h "span" {:class "afldb-muted"} (str (get n "id")))))
+                      (h "p" {} (get n "content"))
+                      (h "div" {:class "afldb-actions"}
+                        (str
+                          (h "button" {:class "afldb-link" :on-click (fn [] (pin (get n "id")))} "핀")
+                          (h "button" {:class "afldb-danger" :on-click (fn [] (del (get n "id")))} "삭제"))))))
+                @notes))))))))
+
+(defn render [req]
+  (layout-html "Notes · afl-db"
+    (str
+      """
+<style>
+.afldb-wrap{max-width:720px;margin:0 auto;padding:36px 20px 80px}
+.afldb-wrap h1{font-size:1.7rem;margin:0 0 6px}
+.afldb-lead{color:#64748b;margin:0 0 22px;line-height:1.5}
+.afldb-app{display:flex;flex-direction:column;gap:18px}
+.afldb-form{display:flex;flex-direction:column;gap:10px;padding:16px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
+.afldb-area{width:100%;min-height:96px;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;resize:vertical}
+.afldb-btn{align-self:flex-start;background:#4f46e5;color:#fff;border:none;border-radius:8px;padding:10px 16px;cursor:pointer;font-weight:600}
+.afldb-list{display:flex;flex-direction:column;gap:10px}
+.afldb-item{padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+.afldb-item-top{display:flex;justify-content:space-between;gap:12px;margin-bottom:6px}
+.afldb-actions{display:flex;gap:10px;margin-top:10px}
+.afldb-link,.afldb-danger{background:none;border:none;cursor:pointer;padding:0;font:inherit}
+.afldb-link{color:#4f46e5}
+.afldb-danger{color:#dc2626}
+.afldb-muted{color:#94a3b8;font-size:.85rem}
+.afldb-err{color:#dc2626;margin:0}
+.afldb-nav{display:flex;gap:14px;margin-top:28px;flex-wrap:wrap}
+.afldb-nav a{color:#4f46e5;text-decoration:none}
+.afldb-badge{display:inline-block;font-size:.72rem;padding:2px 8px;border-radius:999px;background:#eef2ff;color:#4338ca;margin-left:8px}
+</style>
+<div class="afldb-wrap">
+  <h1>Notes <span class="afldb-badge">afl-db</span></h1>
+  <p class="afldb-lead">기존 <code>/notes</code>(SQLite)와 별도로, 같은 메모 UX를 afl-db에 초소형 이관한 버전입니다.</p>
+  ISLAND_PLACEHOLDER
+  <div class="afldb-nav">
+    <a href="/notes" data-spa="1">레거시 /notes (SQLite)</a>
+    <a href="/scratch" data-spa="1">Scratch</a>
+    <a href="/events" data-spa="1">이벤트 뷰어</a>
+    <a href="/" data-spa="1">홈</a>
+  </div>
+</div>
+"""
+      "ISLAND_SCRIPTS")
+    req))
