@@ -319,7 +319,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `afldb-index-add-id` | `[index-key id]` |  |
 | `afldb-index-remove-id` | `[index-key id]` |  |
 | `afldb-load-values` | `[keys]` |  |
-| `afldb-status` | `[]` |  |
+| `afldb-status` | `[]` | 무결성 검사는 (afldb-verify) / /check 에서만. |
 
 ### `_afldb_coll.flx`
 

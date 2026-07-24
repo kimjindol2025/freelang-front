@@ -16,8 +16,11 @@
 
 (defn render [req]
   (let [db     (afldb-status)
+        ver    (afldb-verify)
         diag   (check-build-diag)
-        db-ok  (= (get db "ok") true)
+        db-ok  (and (= (get db "ok") true)
+                    (or (= (get ver "ok") true)
+                        (= (str (get ver "ok")) "true")))
         badge  (if db-ok "사용 가능" "연결 실패")
         badge-cls (if db-ok "ok" "warn")
         records (if db-ok (str (get db "records")) "-")

@@ -110,30 +110,34 @@
     next-ids))
 
 (defn afldb-load-values [keys]
-  (let [items (afldb-batch-get keys)]
-    (if (= items nil)
-      []
-      (map (fn [it] (afldb-field it "value" :value)) items))))
+  ; 빈 키면 HTTP 생략 — 빈 컬렉션 list가 불필요 round-trip (~수백 ms) 내는 것 방지
+  (if (= (length keys) 0)
+    []
+    (let [items (afldb-batch-get keys)]
+      (if (= items nil)
+        []
+        (map (fn [it] (afldb-field it "value" :value)) items)))))
 
+; 핫패스용 상태 — /stats 만 (records·keys·head_hash).
+; 전체 로그 재스캔 /verify 는 ~800ms+ (records 5k·log 18MB) 이므로 목록 API에 넣지 않는다.
+; 무결성 검사는 (afldb-verify) / /check 에서만.
 (defn afldb-status []
-  (let [vr (http_get (str afl_db_base "/verify"))
-        sr (http_get (str afl_db_base "/stats"))
-        ve (afldb-http-error vr)
+  (let [sr (http_get (str afl_db_base "/stats"))
         se (afldb-http-error sr)
-        verify-body (afldb-response-body vr)
-        stats-body  (afldb-response-body sr)]
-    (if (or (not (= ve nil)) (not (= se nil)))
+        stats-body (afldb-response-body sr)]
+    (if (not (= se nil))
       {"ok" false
        "base" afl_db_base
-       "error" (if (= ve nil) se ve)}
-      (if (or (= verify-body nil) (= stats-body nil))
+       "verified" false
+       "error" se}
+      (if (= stats-body nil)
         {"ok" false
          "base" afl_db_base
+         "verified" false
          "error" "afl-db 응답 없음"}
-        {"ok" (or (= (afldb-field verify-body "ok" :ok) true)
-                  (= (str (afldb-field verify-body "ok" :ok)) "true"))
+        {"ok" true
          "base" afl_db_base
+         "verified" false
          "records" (afldb-field stats-body "records" :records)
          "keys" (afldb-field stats-body "keys" :keys)
-         "head_hash" (afldb-field verify-body "head_hash" :head_hash)
-         "log_sha256" (afldb-field verify-body "log_sha256" :log_sha256)}))))
+         "head_hash" (afldb-field stats-body "head_hash" :head_hash)}))))

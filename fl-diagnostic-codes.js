@@ -126,7 +126,7 @@ const DIAGNOSTIC_CODES = [
     severity: 'warning',
     fixable: false,
     applicability: 'manual',
-    hint: '호출부·정의부 인자 개수 맞추기',
+    hint: '호출 인자 수를 정의와 맞추기 — (defn f [a b])면 (f x y). 가변인자 없음. 자동 rename 위험 → 사람 확인',
   },
   {
     code: 'builtin-arity',
@@ -134,7 +134,7 @@ const DIAGNOSTIC_CODES = [
     severity: 'warning',
     fixable: false,
     applicability: 'has-suggestions',
-    hint: 'stdlib arity 힌트 확인',
+    hint: 'stdlib 시그니처 확인 — 인자 수·순서 고정. --codes / hint 참고',
   },
   {
     code: 'comment-defn',

@@ -91,6 +91,6 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 | 무인 스캐폴드 → `fl-front-loop` 완주 | ✅ `RUN-FL-AUTOPILOT-001` — `fl-scaffold.js` + clips 실험 |
 | 진단 humanShare 리포트 | ✅ `RUN-FL-HUMANSHARE-001` — `fl-loop/1`에 humanShare·Items·meaning 추가 |
 | 진단 커버리지 확대 | reserved let 외에도 let-벡터 파서 의존 사각이 더 있을 수 있음 |
-| afl-db / SSR 성능 | 실측 ~1–2초는 UX 병목 후보 (Trap 아님) |
+| afl-db / SSR 성능 | ✅ PERF-001: 측정 스크립트 + status에서 verify 분리 — `/clips/api` 2568→810ms |
 
 조회: `npm run manifest` · `npm run loop:dry` · `npm run loop`.

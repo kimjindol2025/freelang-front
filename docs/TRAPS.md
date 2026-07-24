@@ -23,7 +23,7 @@
 | **라우트 접미사** | 기존 atom/로컬 앱과 이름 겹치면 `/foo-afldb` (예: `/todo` vs `/todo-afldb`). 신규 afl-db 앱은 충돌 시 `*-afldb` 접미사. |
 | **PM2 / npm start** | `npm start` = 빌드+기동. `pm2 restart freelang-front` 직후 즉시 curl하면 실패할 수 있음 — `:40860` LISTEN·빌드 완료까지 대기. |
 | **괄호** | 중첩 `h()` 편집 전 `check-parens.py` (또는 동등 검증). header에 링크 끼울 때 중복 태그 주의. |
-| **afl-db 지연** | GET/POST 왕복 ~1–2초 체감 가능. Trap 아님 — UX/타임아웃 참고만. |
+| **afl-db 지연** | `/verify`는 전체 로그 재스캔(~800ms+, records↑). **목록 API의 `afldb-status`는 `/stats`만** — 무결성은 `(afldb-verify)`·`/check`. 측정: `node scripts/perf-afldb.js`. |
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
 | **fl-loop 계약** | `converged` = **machine-applicable 0건** (자동으로 더 고칠 것 없음). `humanShare`/`humanShareItems` = 사람 몫. **converged ≠ humanShare 0**. |
