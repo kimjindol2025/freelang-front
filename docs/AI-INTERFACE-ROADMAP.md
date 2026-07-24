@@ -13,11 +13,11 @@ AI → ① manifest 조회(작성 전 이해) → 코드 생성 → ② check --
 
 | 단계 | FL 현재 상태 |
 |------|------|
-| Trap Checker (작성 후 잡기) | ✅ master 통합 (fl-front-build.js) |
+| Trap Checker (작성 후 잡기) | ✅ master 통합 (fl-front-build.js) + `docs/TRAPS.md` |
 | ① Manifest (작성 전 이해) | 🟡 `node fl-manifest.js` (feat/fl-manifest, **6/8 검증 대기**) |
-| ② 구조화 진단 `--json` | ❌ |
-| ③ 오류 코드 카탈로그 | 🟡 코드 13개 존재, 메타 미정 |
-| ④ 자동수정 | ❌ |
+| ② 구조화 진단 `--json` | ✅ `fl-diagnostics/1` (2026-07-25, P2) |
+| ③ 오류 코드 카탈로그 | 🟡 **다음(P5)** — 코드 존재, 메타 미정 |
+| ④ 자동수정 | ❌ (P6) |
 | ⑤ 자가수정 루프 | ❌ |
 
 ## 단계 (각 단계 검증 후 다음 — 기능→검증→기록→머지)
@@ -73,6 +73,7 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 
 (상세: 메모리 `project_freelang_v12`.)
 
-## 즉시 다음 행동
-**~2026-06-08: fl-manifest 검증** (환각 감소 실측) → 통과 시 **Phase 1 (`fl-build --json`)** — 단, **MISTAKES-100 코드 네임스페이스에 정렬**해서.
-관련 메모리: `project_freelang_v12` · `project_fl_manifest_pending` · `project_fl_trap_checker` · `feedback_research_before_implement`.
+## 즉시 다음 행동 (갱신 2026-07-25)
+**Phase 1 완료.** 다음 = **Phase 2 / P5: 오류 코드 카탈로그 → manifest `diagnosticCodes`**.
+그다음 Phase 3 / P6 안전 자동수정. 세션 핸드오프: `CHECKPOINT_2026-07-25.md`.
+관련 메모리: `project_freelang_v12` · `project_fl_manifest_pending` · `project_fl_trap_checker`.

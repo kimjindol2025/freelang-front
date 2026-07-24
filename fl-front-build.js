@@ -128,6 +128,8 @@ const FL_FRONT_HELPERS = new Set([
   // INJECTED_HELPERS에서 자동 주입되는 함수들
   'round','str-slice','str_slice','map-indexed','map_indexed',
   'empty?','h!','h-attrs','arr-join','arr_join',
+  // pages/_styles.flx — 1글자 style 헬퍼 (let [s …] 가림 사고 방지)
+  's',
   // _app.fl.out.js 상단에 const로 주입되는 math 헬퍼
   'floor','ceil','ceil-val','ceil_val','abs','min-val','min_val','max-val','max_val',
   // FL v11 stdlib — ls-fns 미등록이지만 런타임 동작
@@ -160,6 +162,8 @@ const FL_FRONT_HELPERS = new Set([
   'http_request','http-request',
   // afl-db 헬퍼 (pages/_afldb.flx)
   'afldb-get','afldb_get','afldb-put','afldb_put',
+  'afldb-batch-get','afldb_batch_get','afldb-batch-put','afldb_batch_put',
+  'afldb-history','afldb_history',
   'afldb-verify','afldb_verify','afldb-stats','afldb_stats',
   'afldb-status','afldb_status','afldb-kv-url','afldb_kv_url',
   'afldb-response-body','afldb_response_body',
@@ -1698,8 +1702,12 @@ detectNameCollisions(routes, helpers);
 console.log('\n\x1b[1m🛡  FL Trap Checker\x1b[0m');
 checkBuiltinArity(routes, helpers);   // #3 range 등 builtin 인자 수
 checkCommentedDefn(routes, helpers);  // #4 주석 속 (defn ...)
-checkSingleCharShadow(routes, helpers); // #5 1글자 전역 가림
+checkSingleCharShadow(routes, helpers); // #5 1글자 전역 가림 (param)
+checkHelperLetShadow(routes, helpers);  // #5b let 이 전역 헬퍼(s 등) 가림
 checkRouteShadow(routes);             // #6 동적 라우트 가로채기
+checkJsonParseHyphen(routes, helpers); // #7 json-parse → json_parse
+checkUpperHyphenIdent(routes, helpers); // #8 AFL-DB-BASE 식 대문자+하이픈
+checkFlHttpAllow(routes, helpers);    // #9 FL_HTTP_ALLOW (localhost HTTP)
 
 // ── 휴리스틱 검사 (오탐 가능 — 항상 warn, 빌드 차단 안 함) ──
 console.log('\n\x1b[1m🔬 휴리스틱 검사\x1b[0m');
@@ -1767,7 +1775,11 @@ function detectNameCollisions(routes, helpers) {
 //   #3 핵심 builtin 인자 수 오류 (range 등)    (warn)
 //   #4 주석 속 (defn ...) — 스캔/rename 오탐 유발 (warn)
 //   #5 1글자 파라미터가 전역 헬퍼를 가림 ($h vs h) (warn)
+//   #5b let 이 전역 헬퍼(s 등)를 가림              (warn)
 //   #6 동적 라우트가 정적 형제를 가로챌 여지     (warn)
+//   #7 json-parse 하이픈 → json_parse             (warn)
+//   #8 대문자+하이픈 식별자 (AFL-DB-BASE)         (warn)
+//   #9 FL_HTTP_ALLOW 미설정 + private HTTP         (warn)
 // ══════════════════════════════════════════════════════════════
 
 // (FL Trap Checker 상수 FL_RESERVED / BUILTIN_ARITY / lineAtIdx 는
@@ -1897,9 +1909,22 @@ function checkCommentedDefn(routes, helpers) {
   }
 }
 
+// 헬퍼 파일에서 정의된 짧은 전역 이름 수집 (s, h, …)
+function collectShortHelperNames(helpers) {
+  const names = new Set([...KNOWN_STDLIB].filter(n => /^[a-z]$/i.test(n) || n === 'h!'));
+  for (const f of helpers) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    for (const m of src.matchAll(/\(defn\s+([a-zA-Z!$][\w$!?-]*)/g)) {
+      const n = m[1];
+      if (/^[a-z]$/i.test(n) || n === 'h!' || n === 's') names.add(n);
+    }
+  }
+  return names;
+}
+
 // #5 1글자 파라미터가 전역 헬퍼를 가림 ($h vs 전역 h)
 function checkSingleCharShadow(routes, helpers) {
-  const oneCharGlobals = new Set([...KNOWN_STDLIB].filter(n => /^[a-z]$/i.test(n)));
+  const oneCharGlobals = collectShortHelperNames(helpers);
   if (oneCharGlobals.size === 0) { console.log('  \x1b[32m✅ 1글자 전역 가림 없음\x1b[0m'); return; }
   const allFiles = [...helpers, ...routes.map(r => r.file)];
   const hits = [];
@@ -1921,6 +1946,155 @@ function checkSingleCharShadow(routes, helpers) {
     console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — 파라미터 '${raw}' 가 전역 '${name}' 를 가림. 긴 이름 사용`);
     issue('warn', 'global-shadow', base, line, `파라미터 '${raw}' 가 전역 헬퍼 '${name}' 를 가림 — 1글자 변수명 금지`);
   }
+}
+
+// let [ ... ] 안쪽의 바인딩 이름만 (중첩 sexpr 값은 건너뜀)
+function topLevelLetBindings(inner) {
+  const names = [];
+  let i = 0, phase = true; // true = name, false = skip value
+  const skipWs = () => { while (i < inner.length && /\s/.test(inner[i])) i++; };
+  while (i < inner.length) {
+    skipWs();
+    if (i >= inner.length) break;
+    if (phase) {
+      if (!/[a-zA-Z_$]/.test(inner[i])) { i++; continue; }
+      let j = i;
+      while (j < inner.length && /[\w$!?-]/.test(inner[j])) j++;
+      names.push(inner.slice(i, j).replace(/^\$/, ''));
+      i = j;
+      phase = false;
+    } else {
+      skipWs();
+      if (i >= inner.length) break;
+      const ch = inner[i];
+      if (ch === '(' || ch === '[' || ch === '{') {
+        const open = ch, close = ch === '(' ? ')' : ch === '[' ? ']' : '}';
+        let d = 0;
+        while (i < inner.length) {
+          const c = inner[i];
+          if (c === '"') {
+            i++;
+            while (i < inner.length && inner[i] !== '"') { if (inner[i] === '\\') i++; i++; }
+            i++;
+            continue;
+          }
+          if (c === open) d++;
+          else if (c === close) { d--; i++; if (d === 0) break; continue; }
+          i++;
+        }
+      } else if (ch === '"') {
+        i++;
+        while (i < inner.length && inner[i] !== '"') { if (inner[i] === '\\') i++; i++; }
+        i++;
+      } else {
+        while (i < inner.length && !/\s/.test(inner[i])) i++;
+      }
+      phase = true;
+    }
+  }
+  return names;
+}
+
+// #5b let 바인딩이 전역 헬퍼(s/h)를 가림 — 오탐 적은 denylist
+function checkHelperLetShadow(routes, helpers) {
+  // p 등 짧은 style 토큰은 바인딩으로 너무 흔해 denylist만 (실사고: s)
+  const DENY = new Set(['s', 'h', 'h!']);
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(/\(let\s+\[([^\]]*)\]/g)) {
+      // [^\]]* 는 중첩 ] 에서 깨질 수 있음 — 단순 케이스 + topLevelLetBindings 로 완화
+      for (const bare of topLevelLetBindings(m[1])) {
+        if (DENY.has(bare))
+          hits.push({ base, name: bare, line: lineAtIdx(code, m.index) });
+      }
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ let 헬퍼 가림 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [let-shadow] let 이 전역 헬퍼를 가림 (예: style 헬퍼 s)\x1b[0m');
+  const seen = new Set();
+  for (const { base, name, line } of hits) {
+    const k = `${base}:${name}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — let '${name}' 가 전역 헬퍼 '${name}' 를 가림. 긴 이름 사용`);
+    issue('warn', 'let-shadow', base, line, `let '${name}' 가 전역 헬퍼를 가림 — 긴 바인딩 이름 사용`);
+  }
+}
+
+// #7 json-parse(하이픈) — 서버 컨텍스트에서 깨져 style 헬퍼 s 등으로 오염된 적 있음
+function checkJsonParseHyphen(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(/\(json-parse\b/g))
+      hits.push({ base, line: lineAtIdx(code, m.index) });
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ json-parse 하이픈 없음 (json_parse 권장)\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [json-parse] 하이픈 형태 — json_parse(underscore) 사용\x1b[0m');
+  const seen = new Set();
+  for (const { base, line } of hits) {
+    const k = `${base}:${line}`; if (seen.has(k)) continue; seen.add(k);
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — (json-parse …) → (json_parse …)`);
+    issue('warn', 'json-parse-hyphen', base, line, `(json-parse) 대신 (json_parse) 사용 — 서버 컨텍스트 파싱 오염 방지`);
+  }
+}
+
+// #8 대문자+하이픈 2개 이상 (AFL-DB-BASE) — APP-DB(하이픈1)는 레거시 허용 warn 제외
+function checkUpperHyphenIdent(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const hits = [];
+  const re = /\((?:define|defn)\s+([A-Z][A-Za-z0-9]*-[A-Za-z0-9-]+)/g;
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    const code = stripComments(src);
+    const base = path.basename(f);
+    for (const m of code.matchAll(re)) {
+      const name = m[1];
+      const hyphens = (name.match(/-/g) || []).length;
+      if (hyphens < 2) continue; // APP-DB / DEV-CSP 등은 당분간 제외
+      hits.push({ base, name, line: lineAtIdx(code, m.index) });
+    }
+  }
+  if (hits.length === 0) { console.log('  \x1b[32m✅ 대문자+다중하이픈 식별자 없음\x1b[0m'); return; }
+  console.log('\n\x1b[33m⚠️  [upper-hyphen] 대문자+다중하이픈 식별자 — 뺄셈 파싱 위험\x1b[0m');
+  const seen = new Set();
+  for (const { base, name, line } of hits) {
+    const k = `${base}:${name}`; if (seen.has(k)) continue; seen.add(k);
+    const suggest = name.toLowerCase().replace(/-/g, '_');
+    console.log(`  \x1b[33m⚠\x1b[0m ${base}:${line} — '${name}' → '${suggest}' (snake_case 소문자)`);
+    issue('warn', 'upper-hyphen', base, line, `'${name}' 대문자+하이픈은 뺄셈 파싱 위험 — '${suggest}' 권장`);
+  }
+}
+
+// #9 localhost/afl-db HTTP 사용 시 FL_HTTP_ALLOW 필요 (SSRF 가드)
+function checkFlHttpAllow(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  let needsAllow = false;
+  let evidence = '';
+  for (const f of allFiles) {
+    let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
+    if (/\bafldb-/.test(src) || /https?:\/\/127\.0\.0\.1\b/.test(src) || /https?:\/\/localhost\b/.test(src)) {
+      needsAllow = true;
+      evidence = path.basename(f);
+      break;
+    }
+  }
+  if (!needsAllow) { console.log('  \x1b[32m✅ FL_HTTP_ALLOW 불필요 (private HTTP 미사용)\x1b[0m'); return; }
+  const allow = (process.env.FL_HTTP_ALLOW || '').trim();
+  if (allow) {
+    console.log(`  \x1b[32m✅ FL_HTTP_ALLOW=${allow}\x1b[0m`);
+    return;
+  }
+  console.log('\n\x1b[33m⚠️  [fl-http-allow] private HTTP 사용 — FL_HTTP_ALLOW 미설정\x1b[0m');
+  console.log(`  \x1b[33m⚠\x1b[0m ${evidence} 등에서 127.0.0.1/localhost/afldb 사용. SSRF 가드가 차단함`);
+  console.log('  \x1b[90m→ FL_HTTP_ALLOW=127.0.0.1,localhost  (package.json start / PM2 env)\x1b[0m');
+  issue('warn', 'fl-http-allow', evidence, 0,
+    'private HTTP(afldb/127.0.0.1) 사용 — FL_HTTP_ALLOW=127.0.0.1,localhost 설정 필요');
 }
 
 // #6 동적 라우트가 정적 형제를 가로챌 여지 (정적 우선 등록 필요)
@@ -2241,6 +2415,34 @@ const elapsed = Date.now() - BUILD_START;
 const errors  = BUILD_ISSUES.filter(i => i.level === 'error');
 const warns   = BUILD_ISSUES.filter(i => i.level === 'warn');
 
+// fl-diagnostics/1 — AI-Interface Phase 1 (Klar klar-diagnostics/1 정렬)
+const DIAG_HINTS = {
+  'reserved-word': '예약어 대신 다른 식별자 사용',
+  'json-parse-hyphen': '(json_parse …) 로 교체',
+  'upper-hyphen': '소문자 snake_case 로 rename (예: afl_db_base)',
+  'let-shadow': 'let 바인딩을 긴 이름으로 (예: sess, stats-body)',
+  'global-shadow': '파라미터를 긴 이름으로',
+  'fl-http-allow': 'FL_HTTP_ALLOW=127.0.0.1,localhost 설정',
+  'route-shadow': '정적 라우트가 동적보다 먼저 등록되는지 확인',
+  'undefined-fn': '함수 정의 또는 stdlib/헬퍼 이름 확인',
+  'island-boundary': '서버 전용 호출을 island 밖으로 이동',
+  'island-test': 'tests/*.test.flx 기대값 확인',
+};
+
+function toDiagnostics(issues) {
+  return issues.map(i => ({
+    code: i.check || 'unknown',
+    severity: i.level === 'error' ? 'error' : 'warning',
+    file: i.file || '',
+    line: i.line || 0,
+    column: 0,
+    message: i.message || '',
+    hint: DIAG_HINTS[i.check] || '',
+  }));
+}
+
+const diagnostics = toDiagnostics(BUILD_ISSUES);
+
 const buildState = {
   ok: errors.length === 0,
   time: new Date().toISOString(),
@@ -2249,6 +2451,13 @@ const buildState = {
   helpers: helpers.map(h => path.basename(h)),
   store_keys: [...(storeRegistry||new Map()).keys()],
   issues: BUILD_ISSUES,
+  // fl-diagnostics/1
+  schema: 'fl-diagnostics/1',
+  tool: 'freelang-front',
+  version: '0.2.5',
+  positions: '1-based',
+  diagnostics,
+  summary: { errors: errors.length, warnings: warns.length },
   sourceMap,
 };
 try {
@@ -2256,9 +2465,14 @@ try {
 } catch {}
 
 if (JSON_MODE) {
-  // AI 파이프용: 순수 JSON만 stdout
+  // AI 파이프용: 순수 JSON만 stdout (console.log 억제됨 — process.stdout 직접)
   process.stdout.write(JSON.stringify(buildState, null, 2) + '\n');
+  if (errors.length > 0) process.exit(1);
 } else {
-  console.log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);
-  console.log(`✅ AGENTS.md 갱신 완료`);
+  _log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);
+  _log(`✅ AGENTS.md 갱신 완료`);
+  if (errors.length || warns.length) {
+    _log(`  \x1b[90mdiagnostics: errors=${errors.length} warnings=${warns.length}\x1b[0m`);
+  }
 }
+

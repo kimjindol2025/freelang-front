@@ -67,7 +67,7 @@
 
         (= $format "json")
           (let [$json (export-to-json)]
-            (server-json (json-parse $json) 200))
+            (server-json (json_parse $json) 200))
 
         true
           (server-json {"error" "Invalid format (csv|json)"} 400)))

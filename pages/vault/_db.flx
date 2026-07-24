@@ -8,7 +8,7 @@
 (ns vault)
 
 (define VAULT-DB {:type "sqlite" :path "data/vault.db"})
-(define SESSION-TTL-MS 900000)              ; 15분
+(define session_ttl_ms 900000)              ; 15분
 (define vault-sessions (atom {}))           ; sid -> {"dek" hex "exp" ms}
 
 (defn init []
@@ -57,21 +57,21 @@
 ; ── 인메모리 세션 (요청 간 유지되는 전역 atom) ──────────────────
 (defn session-new [dek]
   (let [sid (uuid)]
-    (swap! vault-sessions assoc sid {"dek" dek "exp" (+ (now-ms) SESSION-TTL-MS)})
+    (swap! vault-sessions assoc sid {"dek" dek "exp" (+ (now-ms) session_ttl_ms)})
     sid))
 
 (defn session-dek [sid]
-  (let [s (get @vault-sessions sid)]
-    (if (= s nil)
+  (let [sess (get @vault-sessions sid)]
+    (if (= sess nil)
       nil
-      (if (> (get s "exp") (now-ms))
-        (get s "dek")
+      (if (> (get sess "exp") (now-ms))
+        (get sess "dek")
         (do (swap! vault-sessions dissoc sid) nil)))))
 
 (defn session-touch [sid]
-  (let [s (get @vault-sessions sid)]
-    (when (not (= s nil))
-      (swap! vault-sessions assoc sid (assoc s "exp" (+ (now-ms) SESSION-TTL-MS))))))
+  (let [sess (get @vault-sessions sid)]
+    (when (not (= sess nil))
+      (swap! vault-sessions assoc sid (assoc sess "exp" (+ (now-ms) session_ttl_ms))))))
 
 (defn lock [sid]
   (do (swap! vault-sessions dissoc sid) true))

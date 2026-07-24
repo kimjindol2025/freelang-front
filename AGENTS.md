@@ -297,6 +297,9 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `afldb-unwrap-value` | `[key parsed]` |  |
 | `afldb-get` | `[key fallback]` |  |
 | `afldb-put` | `[key value]` |  |
+| `afldb-batch-get` | `[keys]` |  |
+| `afldb-batch-put` | `[items]` |  |
+| `afldb-history` | `[key]` |  |
 | `afldb-verify` | `[]` |  |
 | `afldb-stats` | `[]` |  |
 | `afldb-status` | `[]` |  |

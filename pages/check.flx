@@ -1,14 +1,31 @@
 ; /check — FreeLang Front 사용 가능 점검 / 홍보 페이지
-; afl-db 연결 상태를 실시간으로 표시
+; afl-db 연결 + 최근 빌드 diagnostics 요약
+
+(defn check-build-diag []
+  (let [raw (file-read ".build-state.json")
+        st  (if (or (= raw nil) (= raw ""))
+              nil
+              (json_parse raw))]
+    (if (= st nil)
+      {"ok" false "errors" "-" "warnings" "-" "schema" "-"}
+      {"ok" (= (get st "ok") true)
+       "errors" (str (get (get st "summary") "errors"))
+       "warnings" (str (get (get st "summary") "warnings"))
+       "schema" (if (= (get st "schema") nil) "-" (get st "schema"))})))
 
 (defn render [req]
   (let [db     (afldb-status)
+        diag   (check-build-diag)
         db-ok  (= (get db "ok") true)
         badge  (if db-ok "사용 가능" "연결 실패")
         badge-cls (if db-ok "ok" "warn")
         records (if db-ok (str (get db "records")) "-")
         keys    (if db-ok (str (get db "keys")) "-")
-        base    (if (= (get db "base") nil) "http://127.0.0.1:40610" (get db "base"))]
+        base    (if (= (get db "base") nil) "http://127.0.0.1:40610" (get db "base"))
+        diag-badge (if (= (get diag "ok") true) "빌드 OK" "진단 없음")
+        diag-cls (if (= (get diag "ok") true) "ok" "warn")
+        err-n (get diag "errors")
+        warn-n (get diag "warnings")]
     (layout-html "FreeLang Front 사용 가능 점검"
       (str
         """
@@ -47,7 +64,7 @@ a{text-decoration:none}
 .btn:hover{transform:translateY(-2px)}
 .btn-fill{background:linear-gradient(135deg,var(--violet),var(--indigo));color:white}
 .btn-line{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--ink)}
-.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0}
 .card{
   background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));
   border:1px solid var(--line);border-radius:18px;padding:22px 20px;box-shadow:0 12px 34px rgba(0,0,0,.18)
@@ -100,8 +117,7 @@ a{text-decoration:none}
     <h1>지금 바로 써볼 수 있는지<br>한 화면에서 점검합니다</h1>
     <p>
       이 페이지는 <strong>프리랭 프론트가 실제로 앱을 만들고 운영할 수 있는지</strong>를
-      설명용 문구가 아니라, 현재 제공 중인 화면과 기능 기준으로 보여주는 홍보용 점검 페이지입니다.
-      언어는 한국어 고정으로 두었습니다. 백엔드 저장소는 <strong>afl-db</strong> 입니다.
+      afl-db 연결과 최근 빌드 진단 기준으로 보여주는 점검 페이지입니다. 언어는 한국어 고정입니다.
     </p>
     <div class="hero-actions">
       <a href="/api/afldb" class="btn btn-fill">afl-db 상태 JSON →</a>
@@ -118,7 +134,7 @@ a{text-decoration:none}
           """</div>
       <div class="sub">백엔드 """
           base
-          """ · 체인 검증 """
+          """ · """
           (if db-ok "ok=true" "실패")
           """</div>
     </div>
@@ -136,11 +152,24 @@ a{text-decoration:none}
           """</div>
       <div class="sub">현재 살아있는 키 개수</div>
     </div>
+    <div class="card">
+      <div class="label">Build diagnostics</div>
+      <div class="value">"""
+          diag-badge
+          """</div>
+      <div class="sub">errors """
+          err-n
+          """ · warnings """
+          warn-n
+          """ · """
+          (get diag "schema")
+          """</div>
+    </div>
   </section>
 
   <section class="section">
     <h2>무엇을 점검하나</h2>
-    <p class="lead">홍보용 페이지지만, “예쁘다”보다 “지금 바로 써볼 수 있다”에 초점을 맞췄습니다.</p>
+    <p class="lead">“예쁘다”보다 “지금 바로 써볼 수 있다”에 초점을 맞췄습니다.</p>
     <div class="checks">
       <div class="check">
         <div class="check-top">
@@ -151,65 +180,53 @@ a{text-decoration:none}
           badge
           """</span>
         </div>
-        <p>프론트 언어 헬퍼 <code>afldb-get</code> / <code>afldb-put</code> / <code>afldb-verify</code> 로 :40610 저장소에 붙습니다. API는 <code>/api/afldb</code>.</p>
+        <p><code>afldb-get/put/batch-get/history</code> → :40610. API <code>/api/afldb</code>.</p>
       </div>
       <div class="check">
         <div class="check-top">
-          <div class="check-title">서버 렌더링 페이지</div>
-          <span class="badge ok">사용 가능</span>
+          <div class="check-title">Trap / diagnostics</div>
+          <span class="badge """
+          diag-cls
+          """">"""
+          diag-badge
+          """</span>
         </div>
-        <p>소개 페이지, 관리형 목록 페이지, 문서형 페이지를 FreeLang만으로 바로 구성할 수 있습니다.</p>
+        <p>빌드가 json-parse·다중하이픈·let[s]·FL_HTTP_ALLOW 함정을 잡습니다. <code>--json</code> → fl-diagnostics/1.</p>
       </div>
       <div class="check">
         <div class="check-top">
-          <div class="check-title">부분 상호작용 UI</div>
+          <div class="check-title">서버 렌더링</div>
           <span class="badge ok">사용 가능</span>
         </div>
-        <p>전체 SPA로 가지 않아도 버튼, 폼, 카드, 실시간 갱신 같은 상호작용을 Island로 붙일 수 있습니다.</p>
+        <p>목록·폼·문서형 페이지를 FreeLang만으로 구성할 수 있습니다.</p>
       </div>
       <div class="check">
         <div class="check-top">
           <div class="check-title">언어 정책</div>
           <span class="badge fixed">한국어 고정</span>
         </div>
-        <p>이 페이지는 다국어 토글 없이 한국어 메시지로만 구성했습니다. 홍보 문구도 같은 톤으로 유지합니다.</p>
+        <p>이 페이지는 한국어 메시지로만 구성했습니다.</p>
       </div>
     </div>
   </section>
 
   <section class="section">
     <h2>바로 확인할 데모</h2>
-    <p class="lead">말로 설명하지 않고 바로 눌러볼 수 있는 화면들입니다.</p>
     <div class="demo-grid">
       <a href="/api/afldb" class="demo">
         <div class="demo-k">Backend</div>
         <div class="demo-t">afl-db 상태</div>
-        <div class="demo-d">프론트가 백엔드 DB에 붙었는지 JSON으로 바로 확인합니다.</div>
+        <div class="demo-d">프론트↔DB 연결 JSON</div>
       </a>
       <a href="/dashboard" class="demo">
         <div class="demo-k">Operations</div>
         <div class="demo-t">운영 대시보드</div>
-        <div class="demo-d">메트릭, 상태, 카드형 정보 구조를 한 번에 확인할 수 있는 대표 화면입니다.</div>
+        <div class="demo-d">메트릭·상태 카드</div>
       </a>
       <a href="/subs" class="demo">
         <div class="demo-k">App</div>
         <div class="demo-t">구독 관리</div>
-        <div class="demo-d">폼 입력, 상태 초기화, 목록 렌더링, Island 상호작용이 들어간 실사용형 예제입니다.</div>
-      </a>
-      <a href="/counter" class="demo">
-        <div class="demo-k">Island</div>
-        <div class="demo-t">카운터 예제</div>
-        <div class="demo-d">가장 짧은 형태로 Island 반응형 동작을 확인할 수 있습니다.</div>
-      </a>
-      <a href="/notes" class="demo">
-        <div class="demo-k">CRUD</div>
-        <div class="demo-t">노트 앱</div>
-        <div class="demo-d">데이터 입력과 목록 관리 흐름을 FreeLang 프론트 안에서 어떻게 풀었는지 볼 수 있습니다.</div>
-      </a>
-      <a href="/intro" class="demo">
-        <div class="demo-k">Narrative</div>
-        <div class="demo-t">AI-Native 선언문</div>
-        <div class="demo-d">왜 이런 구조를 만들었는지 철학과 포지셔닝을 긴 문서형 화면으로 설명합니다.</div>
+        <div class="demo-d">폼 + Island 예제</div>
       </a>
     </div>
   </section>
@@ -217,9 +234,8 @@ a{text-decoration:none}
   <section class="foot">
     <strong>한 줄 요약</strong>
     <p>
-      프론트는 <strong style="color:#eef2ff">freelang-front</strong>,
-      백엔드 저장은 <strong style="color:#eef2ff">afl-db</strong>,
-      구현 언어는 AFJ/FreeLang 입니다. 이 페이지의 숫자도 afl-db를 직접 조회한 값입니다.
+      발전 축: Trap + <code>fl-diagnostics/1</code> + afldb 헬퍼.
+      플랜 파일: <code>PLAN_FRONT_LANG_2026-07-25.md</code>
     </p>
   </section>
 </div>

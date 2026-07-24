@@ -58,6 +58,27 @@
   (afldb-response-body
     (http_post (afldb-kv-url key) (json-stringify value))))
 
+(defn afldb-batch-get [keys]
+  (let [resp (http_post (str afl_db_base "/kv-batch") (json-stringify {"keys" keys}))
+        parsed (afldb-response-body resp)]
+    (if (= parsed nil)
+      nil
+      (afldb-field parsed "items" :items))))
+
+(defn afldb-batch-put [items]
+  (let [resp (http_post (str afl_db_base "/kv-batch-put") (json-stringify {"items" items}))
+        parsed (afldb-response-body resp)]
+    (if (= parsed nil)
+      nil
+      (afldb-field parsed "results" :results))))
+
+(defn afldb-history [key]
+  (let [resp (http_get (str afl_db_base "/history/" key))
+        parsed (afldb-response-body resp)]
+    (if (= parsed nil)
+      []
+      (afldb-field parsed "events" :events))))
+
 (defn afldb-verify []
   (afldb-response-body (http_get (str afl_db_base "/verify"))))
 

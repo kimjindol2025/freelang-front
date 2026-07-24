@@ -74,7 +74,7 @@ button.danger:hover{background:#b91c1c}
 </style>")
 
 ; 다크모드 토글 — localStorage 기반 영구 저장
-(define DARK-MODE-SCRIPT
+(define dark_mode_script
   "<script>(function(){
 var root=document.documentElement;
 var btn=document.getElementById('dark-btn');
@@ -437,7 +437,7 @@ window.addEventListener('popstate',function(e){
               ERROR-COLLECTOR
               PERFORMANCE-MONITOR
               SPA-ROUTER
-              DARK-MODE-SCRIPT
+              dark_mode_script
               HMR-SCRIPT
               DEBUG-PANEL)))))))
 
