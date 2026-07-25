@@ -15,6 +15,8 @@
         expand-id  (atom nil)
         edit-touch (atom "")
         err        (atom "")
+        fu-err     (atom "")
+        fu-ok-id   (atom nil)
         loaded     (atom false)
 
         apply-res (fn [res]
@@ -57,6 +59,40 @@
                        {"action" "set-status" "id" id "status" status}
                        reload))
 
+        ctx-join (fn [a b c d]
+                   (arr-join
+                     (filter (fn [part]
+                               (not (= (str-trim (or part "")) "")))
+                       (push (push (push (push [] a) b) c) d))
+                     " · "))
+
+        make-followup (fn [row]
+                        (let [pid  (get row "id")
+                              name (or (get row "name") "")
+                              tag  (or (get row "tag") "")
+                              ctx  (or (get row "context") "")
+                              nt   (or (get row "next_touch") "")
+                              td   (or (get @data "today") "")
+                              due  (if (= (str-trim nt) "") td nt)]
+                          (do
+                            (reset! fu-err "")
+                            (reset! fu-ok-id nil)
+                            (fetch-post! "/followups/api"
+                              {"action" "add"
+                               "title" (str "연락: " name)
+                               "context" (ctx-join tag ctx
+                                           (if (= (str-trim nt) "")
+                                             ""
+                                             (str "다음연락 " nt))
+                                           "")
+                               "due_date" due
+                               "source_type" "people"
+                               "source_id" (str pid)}
+                              (fn [res]
+                                (if (= (get res "ok") false)
+                                  (reset! fu-err (or (get res "error") "후속 만들기 실패"))
+                                  (reset! fu-ok-id pid)))))))
+
         due? (fn [row]
                (let [nt (or (get row "next_touch") "")
                      st (or (get row "status") "")
@@ -91,6 +127,8 @@
                          (h "button" {:class "pe-main"
                                       :on-click (fn []
                                                   (reset! err "")
+                                                  (reset! fu-err "")
+                                                  (reset! fu-ok-id nil)
                                                   (reset! edit-touch (or (get row "next_touch") ""))
                                                   (reset! expand-id (if is-open nil id)))}
                            (str
@@ -132,9 +170,18 @@
                                                               (if (= st "active")
                                                                 "dormant" "active")))}
                                      (if (= st "active") "휴면으로" "활성으로"))
+                                   (h "button" {:class "pe-btn pe-ghost"
+                                                :on-click (fn [] (make-followup row))}
+                                     "후속 만들기")
                                    (h "button" {:class "pe-btn pe-danger"
                                                 :on-click (fn [] (del-item id))}
-                                     "삭제")))))
+                                     "삭제")))
+                               (if (= @fu-ok-id id)
+                                 (h "p" {:class "pe-ok"} "Followups에 추가됨")
+                                 "")
+                               (if (and is-open (= @expand-id id) (not (= @fu-err "")))
+                                 (h "p" {:class "pe-fu-err"} @fu-err)
+                                 "")))
                            "")))))]
 
     ; fetch! 는 매 update 마다 돌면 무한루프 → 429. 1회만.
@@ -273,6 +320,8 @@
   .pe-ctx{margin:0;font-size:.8rem;color:#C8C8D0;line-height:1.5;white-space:pre-wrap}
   .pe-k{font-size:.68rem;font-weight:800;color:#8B8B96;letter-spacing:.04em}
   .pe-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .pe-ok{margin:0;font-size:.78rem;color:#3DCF8E;font-weight:600}
+  .pe-fu-err{margin:0;font-size:.78rem;color:#ff7b7b}
 </style>
 <div class="pe-wrap">
 """

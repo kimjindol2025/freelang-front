@@ -15,6 +15,8 @@
         chosen-in  (atom "")
         outcome-in (atom "")
         day-filter (atom "all")
+        fu-err     (atom "")
+        fu-ok-id   (atom nil)
         loaded     (atom false)
 
         apply-res (fn [res]
@@ -70,6 +72,34 @@
                          (= st "reviewed") "회고"
                          true st))
 
+        ctx-join (fn [a b c d]
+                   (arr-join
+                     (filter (fn [part]
+                               (not (= (str-trim (or part "")) "")))
+                       (push (push (push (push [] a) b) c) d))
+                     " · "))
+
+        make-followup (fn [row]
+                        (let [did (get row "id")
+                              st  (or (get row "status") "")]
+                          (do
+                            (reset! fu-err "")
+                            (reset! fu-ok-id nil)
+                            (fetch-post! "/followups/api"
+                              {"action" "add"
+                               "title" (str "후속: " (or (get row "title") ""))
+                               "context" (ctx-join (status-label st)
+                                                   (get row "chosen")
+                                                   (get row "outcome")
+                                                   (get row "context"))
+                               "due_date" (or (get @data "today") "")
+                               "source_type" "decision"
+                               "source_id" (str did)}
+                              (fn [res]
+                                (if (= (get res "ok") false)
+                                  (reset! fu-err (or (get res "error") "후속 만들기 실패"))
+                                  (reset! fu-ok-id did)))))))
+
         status-color (fn [st]
                        (cond
                          (= st "open") "#FF5B35"
@@ -121,6 +151,8 @@
                          (h "button" {:class "dec-row-main"
                                       :on-click (fn []
                                                   (reset! err "")
+                                                  (reset! fu-err "")
+                                                  (reset! fu-ok-id nil)
                                                   (reset! chosen-in (or (get row "chosen") ""))
                                                   (reset! outcome-in (or (get row "outcome") ""))
                                                   (reset! expand-id (if is-open nil id)))}
@@ -189,6 +221,9 @@
                                  "")
                                (h "div" {:class "dec-foot"}
                                  (str
+                                   (h "button" {:class "dec-btn-ghost"
+                                                :on-click (fn [] (make-followup row))}
+                                     "후속 만들기")
                                    (if (= st "open")
                                      ""
                                      (h "button" {:class "dec-btn-ghost"
@@ -196,7 +231,13 @@
                                        "다시 열기"))
                                    (h "button" {:class "dec-btn-ghost dec-danger"
                                                 :on-click (fn [] (del-item id))}
-                                     "삭제")))))
+                                     "삭제")))
+                               (if (= @fu-ok-id id)
+                                 (h "p" {:class "dec-ok"} "Followups에 추가됨")
+                                 "")
+                               (if (and is-open (= @expand-id id) (not (= @fu-err "")))
+                                 (h "p" {:class "dec-fu-err"} @fu-err)
+                                 "")))
                            "")))))]
 
     (when (not @loaded)
@@ -341,7 +382,9 @@
   .dec-chip-on{border-color:#FF5B35;background:rgba(255,91,53,.14);color:#fff;
     box-shadow:inset 0 0 0 1px #FF5B35}
   .dec-actions{display:flex;flex-direction:column;gap:8px}
-  .dec-foot{display:flex;justify-content:flex-end;gap:4px}
+  .dec-foot{display:flex;justify-content:flex-end;gap:4px;flex-wrap:wrap}
+  .dec-ok{margin:0;font-size:.78rem;color:#3DCF8E;font-weight:600}
+  .dec-fu-err{margin:0;font-size:.78rem;color:#ff7b7b}
   @media (min-width:480px){
     .dec-chips{flex-direction:row;flex-wrap:wrap}
     .dec-chip{width:auto;flex:1 1 calc(50% - 4px)}
