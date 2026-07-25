@@ -185,9 +185,11 @@ function emitGetIn(args, ctx) {
   return `(${chain} ?? null)`;
 }
 
-function emitIsland(args, ctx) {
+function emitIsland(args, ctx, islandId = null) {
   // (island Name [] body)
+  // islandId: HMR soft-reload 시 atom 복원 키
   const body = args.slice(2);
+  const hid = islandId ? JSON.stringify(islandId) : 'null';
 
   // 최상위 let 바인딩에서 atom 선언을 외부 클로저로 끌어올림
   // → update() 호출 시 atom이 재초기화되지 않고 상태 유지
@@ -197,13 +199,22 @@ function emitIsland(args, ctx) {
 
     const stateDecls  = []; // atom → 외부 클로저 (1회 생성)
     const renderDecls = []; // 그 외 → 렌더 함수 내부 (매 렌더마다)
+    const atomNames   = [];
     for (let i = 0; i < bindings.length; i += 2) {
       const name    = emitSym(bindings[i]?.sym ?? String(bindings[i]));
       const valNode = bindings[i + 1];
       const val     = emit(valNode, ctx);
       const isAtom  = Array.isArray(valNode) && valNode[0]?.sym === 'atom';
-      if (isAtom) stateDecls.push(`const ${name} = ${val}`);
-      else        renderDecls.push(`const ${name} = ${val}`);
+      if (isAtom) {
+        const initExpr = valNode[1] !== undefined ? emit(valNode[1], ctx) : 'null';
+        const key = JSON.stringify(name);
+        stateDecls.push(
+          `const ${name} = _fl.atom((__saved&&Object.prototype.hasOwnProperty.call(__saved,${key}))?__saved[${key}]:${initExpr})`
+        );
+        atomNames.push(name);
+      } else {
+        renderDecls.push(`const ${name} = ${val}`);
+      }
     }
 
     if (stateDecls.length > 0) {
@@ -214,7 +225,10 @@ function emitIsland(args, ctx) {
       const inner  = renderDecls.length > 0
         ? `${renderDecls.join('; ')}; ${bodyJs};`
         : `${bodyJs};`;
-      return `(() => { ${stateDecls.join('; ')};\n  return (update) => { ${inner} };\n})()`;
+      const reg = atomNames.length
+        ? `_fl.hmr_register(__hid,{${atomNames.map(n => `${n}:${n}`).join(',')}});`
+        : '';
+      return `(() => { const __hid=${hid}; const __saved=(_fl._pending_restore&&_fl._pending_restore[__hid])||{}; ${stateDecls.join('; ')}; ${reg}\n  return (update) => { ${inner} };\n})()`;
     }
   }
 
@@ -285,6 +299,19 @@ const _fl={
   // ── 글로벌 store (Island 간 상태 공유) ──
   _store:{v:{}},
   _watchers:[],
+  // HMR soft-reload: island atom/store 스냅샷
+  _pending_restore:null,
+  _hmr_islands:{},
+  hmr_register:(id,atoms)=>{if(id)_fl._hmr_islands[id]=atoms;},
+  hmr_snapshot:()=>{
+    const islands={};
+    for(const[id,atoms] of Object.entries(_fl._hmr_islands||{})){
+      const row={};
+      for(const[k,a] of Object.entries(atoms||{})) row[k]=a&&typeof a==='object'&&'v' in a?a.v:a;
+      islands[id]=row;
+    }
+    return {store:{...(_fl._store.v||{})}, islands};
+  },
   get_store:(key)=>key?(_fl._store.v[key]??null):_fl._store.v,
   dispatch:(key,val)=>{
     const prev=_fl._store.v;
@@ -393,6 +420,17 @@ function _fl_str(...xs){
 }
 const floor=Math.floor,ceil=Math.ceil,round=Math.round,abs=Math.abs;
 window._fl=_fl;
+// HMR soft-reload 복원 — island mount 전에 store/atom pending 주입
+(function(){
+  try{
+    const raw=sessionStorage.getItem('__fl_hmr');
+    if(!raw)return;
+    sessionStorage.removeItem('__fl_hmr');
+    const snap=JSON.parse(raw);
+    if(snap&&snap.store&&typeof snap.store==='object') _fl._store.v={..._fl._store.v,...snap.store};
+    if(snap&&snap.islands&&typeof snap.islands==='object') _fl._pending_restore=snap.islands;
+  }catch(e){}
+})();
 // ── Island 전역 헬퍼 (arr-join, concat, str-* 등) ──
 const arr_join=(arr,sep)=>{const a=arr||[];return a.some(x=>x instanceof Node)?a:a.join(sep??'');};
 const concat=(a,b)=>[...(a||[]),...(b||[])];
@@ -446,7 +484,7 @@ function compileFileIslands(flxContent) {
           return acc;
         }, [])
       : [];
-    const renderFn = emitIsland(ast.slice(1), {});
+    const renderFn = emitIsland(ast.slice(1), {}, id);
     const mountCall = watchKeys.length
       ? `_fl.mount_reactive(${JSON.stringify(id)}, ${renderFn}, ${JSON.stringify(watchKeys)});`
       : `_fl.mount(${JSON.stringify(id)}, ${renderFn});`;

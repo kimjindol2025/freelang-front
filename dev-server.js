@@ -23,7 +23,8 @@ const HMR_PORT       = 40851;
 let serverProc    = null;
 let debounceTimer = null;
 let hmrClients    = [];
-const fileHashes  = new Map();
+const fileHashes  = new Map();   // full file hash
+const logicHashes = new Map();   // (style …) 제거 후 해시 — CSS-only 판별
 
 // 빌드 상태 (fl-front-build.js가 .build-state.json에 저장)
 let lastBuildState = { ok: false, time: null, routes: [], helpers: [], sourceMap: {}, warnings: [] };
@@ -277,16 +278,58 @@ function hasChanged(filePath) {
   return cur !== prev;
 }
 
-// ── CSS 전용 변경 여부 판별 ──────────────────────────────────
-function isCssOnlyChange(changedFile) {
-  // style-compiler.js 또는 style 블록만 있는 .flx
-  if (path.basename(changedFile) === 'style-compiler.js') return true;
+// (style …) sexpr 제거 — 로직 해시용
+function stripStyleBlocks(src) {
+  let out = '';
+  let i = 0;
+  while (i < src.length) {
+    if (src.startsWith('(style ', i) || src.startsWith('(style\n', i) || src.startsWith('(style\t', i)) {
+      let d = 0;
+      let j = i;
+      for (; j < src.length; j++) {
+        const c = src[j];
+        if (c === '"') {
+          j++;
+          while (j < src.length && src[j] !== '"') {
+            if (src[j] === '\\') j++;
+            j++;
+          }
+          continue;
+        }
+        if (c === '(') d++;
+        else if (c === ')') {
+          d--;
+          if (d === 0) { j++; break; }
+        }
+      }
+      out += ' ';
+      i = j;
+      continue;
+    }
+    out += src[i++];
+  }
+  return out;
+}
+
+function logicHashOf(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, 'utf8');
+    return crypto.createHash('md5').update(stripStyleBlocks(raw)).digest('hex').slice(0, 8);
+  } catch {
+    return '';
+  }
+}
+
+// CSS 전용 변경: style-compiler / app.css / .flx에서 (style)만 바뀜
+function isCssOnlyChange(changedFile, prevLogicHash) {
+  const base = path.basename(changedFile);
+  if (base === 'style-compiler.js') return true;
+  if (base === 'app.css') return true;
   if (!changedFile.endsWith('.flx')) return false;
-  const content = fs.readFileSync(changedFile, 'utf8');
-  // style 블록만 있고 defn render 없으면 CSS 전용
-  const hasStyle  = content.includes('(style ');
-  const hasRender = content.includes('(defn render');
-  return hasStyle && !hasRender;
+  const nextLogic = logicHashOf(changedFile);
+  if (!prevLogicHash) return false;
+  // 로직 동일 + 파일 자체는 변경됨 → style DSL만 바뀐 것
+  return nextLogic === prevLogicHash && nextLogic !== '';
 }
 
 // ── 에러 루프 상태 추적 ───────────────────────────────────────
@@ -422,33 +465,44 @@ function startServer() {
 
 // ── 리빌드 핸들러 ─────────────────────────────────────────────
 async function rebuild(changedFile) {
-  if (!hasChanged(changedFile)) {
+  const prevLogic = logicHashes.get(changedFile) || '';
+  if (!hasChanged(changedFile) && path.basename(changedFile) !== 'app.css') {
     console.log(`[dev] 변경 없음 (캐시 일치): ${path.relative(ROOT, changedFile)}`);
     return;
   }
 
   console.log(`\n[dev] 변경: ${path.relative(ROOT, changedFile)}`);
+  const cssBefore = fileHash(CSS_FILE);
+  const cssOnly = isCssOnlyChange(changedFile, prevLogic);
 
-  // CSS 전용 변경 → 빌드만, 서버 재시작 없이 CSS reload
-  if (isCssOnlyChange(changedFile)) {
-    console.log('[dev] CSS 전용 변경 — 빌드만 실행');
+  // CSS 전용 변경 → 빌드만, 서버 재시작 없이 css-reload (L2)
+  if (cssOnly) {
+    console.log('[dev] CSS 전용 변경 — 빌드만 + css-reload');
     try {
       await build();
-      hmrReload('css-reload');  // 특수 신호 (향후 CSS만 교체 가능)
+      logicHashes.set(changedFile, logicHashOf(changedFile));
+      const cssAfter = fileHash(CSS_FILE);
+      if (cssBefore !== cssAfter || path.basename(changedFile) === 'app.css') {
+        hmrReload('css-reload');
+      } else {
+        // inline <style>만 바뀐 경우는 soft-reload로 HTML 갱신
+        hmrReload('soft-reload');
+      }
     } catch (e) { console.error('[dev] 빌드 실패:', e.message); }
     return;
   }
 
-  // 일반 변경 → 빌드 + 서버 재시작
+  // 일반 변경 → 빌드 + 서버 재시작 + soft-reload (L3, 실패 시 클라이언트 full reload)
   console.log('[dev] 빌드 중...');
   try {
     const start = Date.now();
     await build();
+    logicHashes.set(changedFile, logicHashOf(changedFile));
     console.log('[dev] 서버 재시작...');
     await startServer();
     const elapsed = Date.now() - start;
-    console.log(`[dev] ✅ 재시작 완료 ${elapsed}ms`);
-    hmrReload();
+    console.log(`[dev] ✅ 재시작 완료 ${elapsed}ms → soft-reload`);
+    hmrReload('soft-reload'); // L3 (클라이언트 실패 시 full reload)
   } catch (e) {
     console.error('[dev] 실패:', e.message);
   }
@@ -456,7 +510,8 @@ async function rebuild(changedFile) {
 
 // ── 파일 감시 ─────────────────────────────────────────────────
 function watchAll() {
-  const dirs = [PAGES_DIR, ROOT];
+  const PUBLIC_DIR = path.join(ROOT, 'public');
+  const dirs = [PAGES_DIR, ROOT, PUBLIC_DIR];
   const collectSubDirs = (dir) => {
     try {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -476,7 +531,7 @@ function watchAll() {
     try {
       fs.watch(dir, (event, filename) => {
         if (!filename) return;
-        if (!filename.endsWith('.flx') && !filename.endsWith('.js')) return;
+        if (!filename.endsWith('.flx') && !filename.endsWith('.js') && filename !== 'app.css') return;
         if (filename.includes('_app') || filename.startsWith('dev-server')) return;
         const full = path.join(dir, filename);
         clearTimeout(debounceTimer);
@@ -494,8 +549,9 @@ function snapshotHashes() {
       for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
         const full = path.join(dir, e.name);
         if (e.isDirectory() && !e.name.startsWith('.')) scan(full);
-        else if (e.name.endsWith('.flx') || e.name.endsWith('.js')) {
+        else if (e.name.endsWith('.flx') || e.name.endsWith('.js') || e.name === 'app.css') {
           fileHashes.set(full, fileHash(full));
+          if (e.name.endsWith('.flx')) logicHashes.set(full, logicHashOf(full));
         }
       }
     } catch {}

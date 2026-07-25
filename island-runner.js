@@ -99,6 +99,10 @@ function makeContext(vdoc) {
     reset:  (a, v) => { a.v = v; return v; },
     _store: { v: {} },
     _watchers: [],
+    _pending_restore: null,
+    _hmr_islands: {},
+    hmr_register: (id, atoms) => { if (id) _fl._hmr_islands[id] = atoms; },
+    hmr_snapshot: () => ({ store: { ..._fl._store.v }, islands: {} }),
     get_store: (key) => key ? (_fl._store.v[key] ?? null) : _fl._store.v,
     dispatch: (key, val) => {
       const prev = _fl._store.v;

@@ -9,7 +9,7 @@
 (style global-style :bg "#f9fafb" :color "#111")
 
 ; DEV CSP — inline style + HMR connect 허용
-(define DEV-CSP "default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob:; connect-src 'self' http://localhost:40851 ws://localhost:40851; font-src 'self' data:")
+(define DEV-CSP "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; script-src 'self' 'unsafe-inline' blob:; img-src 'self' data: blob:; connect-src 'self' http://localhost:40851 http://127.0.0.1:40851 ws://localhost:40851 ws://127.0.0.1:40851; font-src 'self' data: https://fonts.gstatic.com")
 
 ; nav 링크 — 현재 경로 강조 + SPA 라우팅
 (defn nav-link [href label current]
@@ -91,9 +91,65 @@ if(btn){btn.addEventListener('click',function(){
 });}
 })()</script>")
 
-; HMR 클라이언트 스크립트
+; HMR 클라이언트 — L1 full reload / L2 css-reload / L3 soft-reload(store·atom 유지)
 (define HMR-SCRIPT
-  "<script>(function(){var es=new EventSource('http://'+location.hostname+':40851/~hmr');es.onmessage=function(e){if(e.data==='reload')location.reload();};es.onerror=function(){setTimeout(function(){es.close();},5000);};})()</script>")
+  """<script>(function(){
+var isDev=location.hostname==='localhost'||location.hostname==='127.0.0.1';
+if(!isDev)return;
+var HMR='http://'+location.hostname+':40851/~hmr';
+function cssReload(){
+  return fetch(location.href,{cache:'no-store',headers:{'Accept':'text/html'}})
+    .then(function(r){return r.text();})
+    .then(function(html){
+      var doc=new DOMParser().parseFromString(html,'text/html');
+      var oldLinks=[].slice.call(document.querySelectorAll('link[rel="stylesheet"]'));
+      var newLinks=[].slice.call(doc.querySelectorAll('link[rel="stylesheet"]'));
+      oldLinks.forEach(function(link,i){
+        var href=(newLinks[i]&&newLinks[i].getAttribute('href'))||link.getAttribute('href');
+        if(!href)return;
+        var u=href.split('?')[0]+'?hmr='+Date.now();
+        link.setAttribute('href',u);
+      });
+      var oldStyles=[].slice.call(document.querySelectorAll('style'));
+      var newStyles=[].slice.call(doc.querySelectorAll('style'));
+      for(var i=0;i<newStyles.length;i++){
+        if(oldStyles[i]) oldStyles[i].textContent=newStyles[i].textContent;
+        else document.head.appendChild(document.importNode(newStyles[i],true));
+      }
+      console.log('[hmr] css-reload');
+    });
+}
+function softReload(){
+  try{
+    if(window._fl&&_fl.hmr_snapshot){
+      sessionStorage.setItem('__fl_hmr',JSON.stringify(_fl.hmr_snapshot()));
+    }
+  }catch(e){}
+  return fetch(location.href,{cache:'no-store',headers:{'Accept':'text/html'}})
+    .then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text();})
+    .then(function(html){
+      document.open();
+      document.write(html);
+      document.close();
+      console.log('[hmr] soft-reload');
+    })
+    .catch(function(err){
+      console.warn('[hmr] soft-reload failed → full reload',err);
+      location.reload();
+    });
+}
+function onMsg(type){
+  if(type==='css-reload') return cssReload();
+  if(type==='soft-reload') return softReload();
+  if(type==='reload'){ location.reload(); return; }
+}
+function connect(){
+  var es=new EventSource(HMR);
+  es.onmessage=function(e){ if(e.data&&e.data!=='connected') onMsg(e.data); };
+  es.onerror=function(){ try{es.close();}catch(x){} setTimeout(connect,1500); };
+}
+connect();
+})()</script>""")
 
 ; FL DevTools — dev 전용 floating 디버그 패널
 ; store 현재값 · Island 마운트 목록 · 최근 에러 표시

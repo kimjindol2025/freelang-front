@@ -716,13 +716,9 @@ function routeToFnName(rel) {
 }
 
 // ── 개발 모드 HMR 클라이언트 스크립트 ──
-const HMR_SCRIPT = `<script>
-(function(){
-  var es = new EventSource('/~hmr');
-  es.onmessage = function(e){ if(e.data==='reload') location.reload(); };
-  es.onerror = function(){ setTimeout(function(){ location.reload(); }, 2000); };
-})();
-</script>`;
+// HMR 클라이언트는 pages/_layout.flx HMR-SCRIPT 가 정본 (L1/L2/L3).
+// 여기 상수는 레거시 참조용 — 레이아웃 주입 경로를 쓰지 말 것.
+const HMR_SCRIPT = `<!-- hmr: see pages/_layout.flx HMR-SCRIPT -->`;
 
 // ── 에러 오버레이 HTML ──
 function errorOverlayHtml(route, err) {
