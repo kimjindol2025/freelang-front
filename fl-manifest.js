@@ -61,12 +61,14 @@ const manifest = {
     summary: extras.lastBuildSummary,
   },
   traps: [
+    'reserved-word', // defn/파라미터/let 바인딩 (act 등) — topLevelLetBindings
     'json-parse-hyphen',
     'upper-hyphen',
     'let-shadow',
     'fl-http-allow',
     'helper-load-order',
     'req-key-collision',
+    'comment-defn',
   ],
   // afl-db 컬렉션 앱 작성 전 계약 (콜드스타트용 — 기존 앱 소스 불필요)
   afldbColl: {

@@ -75,9 +75,10 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 
 (상세: 메모리 `project_freelang_v12`.)
 
-## 즉시 다음 행동 (갱신 2026-07-25 DIAG-BLINDSPOT)
+## 즉시 다음 행동 (갱신 2026-07-25 DIAG-BLINDSPOT 마감)
 
-**수집 루프 졸업 확정** + **reserved-word/let 사각지대 해소** (`reserved-word` 코드 확장, 18 유지).
+**수집 루프 졸업 확정** + **reserved-word/let 사각지대 해소 완료**  
+(`91397b3` 구현 · HEAD `32dac2c`에서 재검증: 검출→fix→재빌드·오검출 0).
 
 ### 졸업 이후 운영 규칙 (사이클 의무 해제 · 상시만 유지)
 - FEEDBACK 상시 수집 (막히면 즉시 한 줄)
@@ -85,12 +86,14 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 - 매 보고 보류 카운트: **`APP-DB rename 0/3` · `undefined-fn/route-shadow 실장애 0/1`**
 - 정기 “N사이클 지시서” 의무는 **해제** — 다음 착수는 감독 지시서에서
 
-### 다음 단계 후보 (착수 없음 — 감독 선택)
+### 다음 단계 후보 (착수 0건 — 감독 선택)
 | 후보 | 근거 (한 줄) |
 |------|----------------|
-| 무인 스캐폴드 → `fl-front-loop` 완주 | ✅ `RUN-FL-AUTOPILOT-001` — `fl-scaffold.js` + clips 실험 |
-| 진단 humanShare 리포트 | ✅ `RUN-FL-HUMANSHARE-001` — `fl-loop/1`에 humanShare·Items·meaning 추가 |
-| 진단 커버리지 확대 | reserved let 외에도 let-벡터 파서 의존 사각이 더 있을 수 있음 |
-| afl-db / SSR 성능 | ✅ PERF-001 verify 분리 · ✅ COREPROBE-001: http=`spawnSync` 티켓 `docs/CORE-TICKET-HTTP-SPAWN.md` |
+| 무인 스캐폴드 → `fl-front-loop` 완주 | ✅ `RUN-FL-AUTOPILOT-001` |
+| 진단 humanShare 리포트 | ✅ `RUN-FL-HUMANSHARE-001` |
+| HTTP in-process | ✅ HTTP-INPROCESS-001 (`32dac2c` / 코어 `3d9a3b46`) |
+| afl-db batch write 경로 정리 | in-process 이후 콜 횟수 최적 여지 — **미착수** |
+| 진단 커버리지 확대 | let-벡터 외 파서 의존 사각이 더 있을 수 있음 — **미착수** |
+| APP-DB / route-shadow 일괄 | 보류 트리거(0/3 · 0/1) 전 — **미착수** |
 
 조회: `npm run manifest` · `npm run loop:dry` · `npm run loop`.

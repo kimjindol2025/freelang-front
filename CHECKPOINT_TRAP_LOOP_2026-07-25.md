@@ -58,8 +58,20 @@ N=1 (공통 CSS) — TRAPS 문서화 완료, 추가 checker 승격 없음.
 ## DIAG-BLINDSPOT (졸업 마감 + reserved-word/let)
 
 - 미진단 증거: LOOP-3 픽스처에서 `(let [… act …])` 잔존·미진단 확인됨.
-- 택: **기존 `reserved-word` 확장** (19 신설 아님) — 동일 오류 클래스, 파서만 교체(`topLevelLetBindings`).
+- 택: **기존 `reserved-word` 확장** (신설 코드 아님) — 동일 오류 클래스, 파서만 교체(`topLevelLetBindings`).
+- 구현 커밋: `91397b3`.
 - fix: machine-applicable 유지 · apply 후 재빌드 ok · 루프 축소판 2라운드 수렴.
 - 오검출: 정상 let·문자열 `"act"`·주석 속 `(let [act` → 진단 0·fix 0.
-- 픽스처: pages 임시·커밋 미포함·삭제 원복 (124r/13h/18c).
-- 분류(본 지시서): `Trap 0 / fix 1 / 문서화 2 / 보류 0` — fix=reserved let 해소, 문서=졸업마감+로드맵.
+- 픽스처: pages 임시·커밋 미포함·삭제 원복.
+
+### 재검증 (HEAD `32dac2c`, 2026-07-25 오후)
+
+| 항목 | 결과 |
+|------|------|
+| 기준선 | 126 routes · 13 helpers · 19 codes · build ok · warn 26 |
+| 오검출 | normal_let / `"act"` 문자열 / 주석 `(let [act` → reserved-word **0** |
+| 검출 | `(let [… act …])` → error `reserved-word` (let 바인딩) |
+| 루프 축소판 | detect → `fl-front-fix --fix` (act→action) → rebuild ok → 픽스처 삭제 · 무한루프 0 · 오수정 0 |
+| 지시서 교정 | “보류 1 = let”은 **틀림**. CYCLE3 보류 1 = dry-run 사람몫 미표시. let은 문서화 #2 → 본 트랙에서 해소. |
+| 후보 공개 | `docs/AI-INTERFACE-ROADMAP.md` · **착수 0건** |
+| 보류 카운트 | **0/3 · 0/1** |
