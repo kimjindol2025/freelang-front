@@ -218,6 +218,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/flash/api` | pages/flash/api.flx |
 | `/flash` | pages/flash/index.flx |
 | `/flash/study` | pages/flash/study.flx |
+| `/flow` | pages/flow/index.flx |
 | `/followups/api` | pages/followups/api.flx |
 | `/followups` | pages/followups/index.flx |
 | `/freelang` | pages/freelang.flx |

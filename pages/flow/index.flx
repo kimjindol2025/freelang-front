@@ -1,0 +1,258 @@
+; pages/flow/index.flx — C2C Flow 대시보드 (People → Market → Followups)
+
+(island FlowApp []
+  (let [people     (atom nil)
+        market     (atom nil)
+        followups  (atom nil)
+        err        (atom "")
+        loaded     (atom false)
+
+        people-items (fn []
+                       (or (get @people "items") []))
+
+        market-items (fn []
+                       (or (get @market "items") []))
+
+        fu-items (fn []
+                   (or (get @followups "items") []))
+
+        find-by-id (fn [items id]
+                     (let [sid (str id)]
+                       (first (filter (fn [r] (= (str (get r "id")) sid)) items))))
+
+        from-people (fn []
+                      (filter (fn [m]
+                                (= (or (get m "source_type") "") "people"))
+                        (market-items)))
+
+        from-market (fn []
+                      (filter (fn [f]
+                                (= (or (get f "source_type") "") "market"))
+                        (fu-items)))
+
+        fmt-price (fn [row]
+                    (let [p (or (get row "price") 0)]
+                      (if (= p 0) "나눔" (str p "원"))))
+
+        reload-all (fn []
+                     (do
+                       (reset! err "")
+                       (fetch! "/people/api" (fn [res] (reset! people res)))
+                       (fetch! "/market/api" (fn [res] (reset! market res)))
+                       (fetch! "/followups/api" (fn [res] (reset! followups res)))))
+
+        chain-row (fn [fu]
+                    (let [fid (get fu "id")
+                          mid (or (get fu "source_id") "")
+                          m   (find-by-id (market-items) mid)
+                          pid (if (= m nil) "" (or (get m "source_id") ""))
+                          p   (if (= (str-trim pid) "")
+                                nil
+                                (find-by-id (people-items) pid))
+                          mst (if (= m nil) "삭제됨" (or (get m "title") ""))
+                          mss (or (get m "status") "")]
+                      (h "div" {:class "fl-chain"}
+                        (str
+                          (h "div" {:class "fl-chain-nodes"}
+                            (str
+                              (if (= p nil)
+                                (h "span" {:class "fl-node fl-node-dim"}
+                                  (if (= (str-trim pid) "")
+                                    "People —"
+                                    (str "People #" pid)))
+                                (h "a" {:class "fl-node fl-node-p"
+                                        :href "/people"
+                                        :data-spa "1"}
+                                  (or (get p "name") "People")))
+                              (h "span" {:class "fl-arrow"} "→")
+                              (if (= m nil)
+                                (h "span" {:class "fl-node fl-node-dim"}
+                                  (str "Market #" mid))
+                                (h "a" {:class "fl-node fl-node-m"
+                                        :href "/market"
+                                        :data-spa "1"}
+                                  mst))
+                              (h "span" {:class "fl-arrow"} "→")
+                              (h "a" {:class "fl-node fl-node-f"
+                                      :href "/followups"
+                                      :data-spa "1"}
+                                (or (get fu "title") "Followup"))))
+                          (h "div" {:class "fl-chain-meta"}
+                            (str
+                              mss
+                              " · "
+                              (or (get fu "status") "")
+                              " · #"
+                              (str fid)))))))
+
+        pm-row (fn [m]
+                 (let [pid (or (get m "source_id") "")
+                       p   (find-by-id (people-items) pid)]
+                   (h "div" {:class "fl-link-row"}
+                     (str
+                       (h "a" {:class "fl-link-from"
+                               :href "/people"
+                               :data-spa "1"}
+                         (if (= p nil)
+                           (str "People #" pid)
+                           (or (get p "name") "People")))
+                       (h "span" {:class "fl-arrow-sm"} "→")
+                       (h "a" {:class "fl-link-to"
+                               :href "/market"
+                               :data-spa "1"}
+                         (or (get m "title") "—"))
+                       (h "span" {:class "fl-link-meta"}
+                         (str (fmt-price m) " · " (or (get m "status") "open")))))))]
+
+    (when (not @loaded)
+      (do
+        (reset! loaded true)
+        (reload-all)))
+
+    (if (or (= @people nil) (= @market nil) (= @followups nil))
+      (h "div" {:class "fl-loading"} "불러오는 중…")
+
+      (h "div" {:class "fl-app"}
+        (str
+          (h "header" {:class "fl-head"}
+            (str
+              (h "div" {}
+                (str
+                  (h "h1" {} "C2C Flow")
+                  (h "p" {:class "fl-lead"} "People → Market → Followups")))
+              (h "button" {:class "fl-btn fl-ghost"
+                           :on-click reload-all}
+                "새로고침")))
+
+          (h "div" {:class "fl-pipeline"}
+            (str
+              (h "a" {:class "fl-pipe fl-pipe-p" :href "/people" :data-spa "1"}
+                (str
+                  (h "div" {:class "fl-pipe-icon"} "👤")
+                  (h "div" {:class "fl-pipe-label"} "People")
+                  (h "div" {:class "fl-pipe-n"}
+                    (str (length (people-items))))))
+              (h "span" {:class "fl-pipe-arrow"} "→")
+              (h "a" {:class "fl-pipe fl-pipe-m" :href "/market" :data-spa "1"}
+                (str
+                  (h "div" {:class "fl-pipe-icon"} "🥕")
+                  (h "div" {:class "fl-pipe-label"} "Market")
+                  (h "div" {:class "fl-pipe-n"}
+                    (str (length (market-items))))))
+              (h "span" {:class "fl-pipe-arrow"} "→")
+              (h "a" {:class "fl-pipe fl-pipe-f" :href "/followups" :data-spa "1"}
+                (str
+                  (h "div" {:class "fl-pipe-icon"} "✅")
+                  (h "div" {:class "fl-pipe-label"} "Followups")
+                  (h "div" {:class "fl-pipe-n"}
+                    (str (length (fu-items))))))))
+
+          (h "div" {:class "fl-stats"}
+            (str
+              (h "div" {:class "fl-stat"}
+                (str (h "div" {:class "fl-stat-n"}
+                        (str (get @people "active_count")))
+                     (h "div" {:class "fl-stat-l"} "People 활성")))
+              (h "div" {:class "fl-stat"}
+                (str (h "div" {:class "fl-stat-n"}
+                        (str (get @market "open_count")))
+                     (h "div" {:class "fl-stat-l"} "Market 판매중")))
+              (h "div" {:class "fl-stat"}
+                (str (h "div" {:class "fl-stat-n"}
+                        (str (get @followups "open_count")))
+                     (h "div" {:class "fl-stat-l"} "Followups 진행")))
+              (h "div" {:class "fl-stat fl-stat-link"}
+                (str (h "div" {:class "fl-stat-n"}
+                        (str (length (from-people))))
+                     (h "div" {:class "fl-stat-l"} "People→Market")))
+              (h "div" {:class "fl-stat fl-stat-link"}
+                (str (h "div" {:class "fl-stat-n"}
+                        (str (length (from-market))))
+                     (h "div" {:class "fl-stat-l"} "Market→FU")))))
+
+          (h "section" {:class "fl-section"}
+            (str
+              (h "h2" {:class "fl-h2"} "연결된 흐름")
+              (h "p" {:class "fl-hint"} "Market 후속(source=market) 기준 3단 체인")
+              (if (= (length (from-market)) 0)
+                (h "p" {:class "fl-empty"} "아직 Market → Followups 연결 흐름이 없습니다.")
+                (h "div" {:class "fl-chain-list"}
+                  (arr-join (map chain-row (from-market)) "")))))
+
+          (h "section" {:class "fl-section"}
+            (str
+              (h "h2" {:class "fl-h2"} "People → Market")
+              (if (= (length (from-people)) 0)
+                (h "p" {:class "fl-empty"} "People에서 올린 Market 글이 없습니다.")
+                (h "div" {:class "fl-link-list"}
+                  (arr-join (map pm-row (from-people)) "")))))
+
+          (if (= @err "")
+            ""
+            (h "p" {:class "fl-err"} @err)))))))
+
+(defn render [req]
+  (layout-html "C2C Flow"
+    (str
+      """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  .fl-wrap{max-width:520px;margin:0 auto;padding:20px 16px 88px;
+    font-family:'Manrope',system-ui,sans-serif;color:#F2F2F5;
+    background:radial-gradient(120% 90% at 20% -10%,#1a2438 0%,#12141c 50%,#0a0c12 100%);
+    min-height:100dvh;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  .fl-loading{text-align:center;padding:64px 20px;color:#8B8B96}
+  .fl-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:20px}
+  .fl-head h1{margin:0;font-size:1.5rem;font-weight:800;letter-spacing:-.02em;
+    background:linear-gradient(90deg,#4C8DFF,#FF6F0F,#3DCF8E);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .fl-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96}
+  .fl-btn{border:none;border-radius:12px;min-height:40px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer}
+  .fl-ghost{background:#2A3140;color:#F2F2F5}
+  .fl-pipeline{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:18px;
+    padding:16px 8px;background:#1A1F28;border:1px solid #2A3140;border-radius:16px}
+  .fl-pipe{flex:1;text-align:center;text-decoration:none;color:inherit;padding:8px 4px;border-radius:12px;
+    transition:background .15s}
+  .fl-pipe:active{background:rgba(255,255,255,.05)}
+  .fl-pipe-icon{font-size:1.5rem;line-height:1}
+  .fl-pipe-label{font-size:.68rem;color:#8B8B96;font-weight:700;margin-top:4px}
+  .fl-pipe-n{font-size:1.1rem;font-weight:800;margin-top:2px}
+  .fl-pipe-p .fl-pipe-n{color:#4C8DFF}
+  .fl-pipe-m .fl-pipe-n{color:#FF6F0F}
+  .fl-pipe-f .fl-pipe-n{color:#3DCF8E}
+  .fl-pipe-arrow{color:#4A5060;font-size:.9rem;font-weight:700;flex:0 0 auto}
+  .fl-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:20px}
+  .fl-stat{background:#1A1F28;border:1px solid #2A3140;border-radius:12px;padding:10px 4px;text-align:center}
+  .fl-stat-link{border-color:#3A4050}
+  .fl-stat-n{font-size:.95rem;font-weight:800}
+  .fl-stat-l{font-size:.55rem;color:#8B8B96;margin-top:2px;font-weight:600;line-height:1.3}
+  .fl-section{margin-bottom:22px}
+  .fl-h2{margin:0 0 4px;font-size:.95rem;font-weight:800}
+  .fl-hint{margin:0 0 12px;font-size:.72rem;color:#8B8B96}
+  .fl-empty{color:#8B8B96;font-size:.82rem;padding:20px 8px;text-align:center;line-height:1.5}
+  .fl-chain-list,.fl-link-list{display:flex;flex-direction:column;gap:10px}
+  .fl-chain{background:#1A1F28;border:1px solid #2A3140;border-radius:14px;padding:12px 14px}
+  .fl-chain-nodes{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:6px}
+  .fl-node{font-size:.78rem;font-weight:700;padding:4px 8px;border-radius:8px;text-decoration:none;
+    max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fl-node-p{background:rgba(76,141,255,.15);color:#4C8DFF}
+  .fl-node-m{background:rgba(255,111,15,.15);color:#FF6F0F}
+  .fl-node-f{background:rgba(61,207,142,.15);color:#3DCF8E}
+  .fl-node-dim{background:#2A3140;color:#8B8B96}
+  .fl-arrow{color:#4A5060;font-size:.75rem;font-weight:700}
+  .fl-chain-meta{font-size:.68rem;color:#8B8B96}
+  .fl-link-row{display:flex;align-items:center;gap:8px;background:#1A1F28;border:1px solid #2A3140;
+    border-radius:12px;padding:12px 14px;flex-wrap:wrap}
+  .fl-link-from,.fl-link-to{font-size:.82rem;font-weight:700;text-decoration:none}
+  .fl-link-from{color:#4C8DFF}
+  .fl-link-to{color:#FF6F0F;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fl-link-meta{font-size:.68rem;color:#8B8B96;flex:0 0 auto}
+  .fl-arrow-sm{color:#4A5060;font-size:.7rem}
+  .fl-err{color:#FF3B30;font-size:.82rem}
+</style>
+<div class="fl-wrap">
+"""
+      "ISLAND_PLACEHOLDER"
+      "</div>"
+      "ISLAND_SCRIPTS")
+    req))
