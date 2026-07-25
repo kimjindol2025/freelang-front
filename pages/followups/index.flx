@@ -72,12 +72,50 @@
                       (not (= td ""))
                       (<= dd td))))
 
+        source-type-of (fn [row]
+                         (let [t (or (get row "source_type") "")]
+                           (if (= (str-trim t) "") "manual" t)))
+
         source-label (fn [row]
-                       (let [t (or (get row "source_type") "manual")]
+                       (let [t (source-type-of row)]
                          (cond
                            (= t "people") "People"
-                           (= t "decision") "결정"
+                           (= t "decision") "Decision"
                            true "수동")))
+
+        source-panel-text (fn [row]
+                            (let [t   (source-type-of row)
+                                  sid (or (get row "source_id") "")]
+                              (cond
+                                (= t "people")
+                                  (if (= (str-trim sid) "")
+                                    "출처: People"
+                                    (str "출처: People #" sid))
+                                (= t "decision")
+                                  (if (= (str-trim sid) "")
+                                    "출처: Decision"
+                                    (str "출처: Decision #" sid))
+                                true "출처: 수동")))
+
+        source-has-link? (fn [row]
+                           (let [t   (source-type-of row)
+                                 sid (or (get row "source_id") "")]
+                             (and (not (= (str-trim sid) ""))
+                                  (or (= t "people") (= t "decision")))))
+
+        source-link-view (fn [row]
+                           (let [t (source-type-of row)]
+                             (if (= t "people")
+                               (h "a" {:class "fu-src-link"
+                                       :href "/people"
+                                       :data-spa "1"}
+                                 "People 열기")
+                               (if (= t "decision")
+                                 (h "a" {:class "fu-src-link"
+                                         :href "/decisions"
+                                         :data-spa "1"}
+                                   "Decision 열기")
+                                 ""))))
 
         visible (fn []
                   (let [f @filter-k
@@ -131,10 +169,10 @@
                                (if (= (or (get row "context") "") "")
                                  ""
                                  (h "p" {:class "fu-ctx"} (get row "context")))
-                               (if (= (or (get row "source_id") "") "")
-                                 ""
-                                 (h "p" {:class "fu-src"}
-                                   (str "출처 ID: " (get row "source_id"))))
+                               (h "p" {:class "fu-src"} (source-panel-text row))
+                               (if (source-has-link? row)
+                                 (source-link-view row)
+                                 "")
                                (h "label" {:class "fu-k"} "마감일")
                                (h! "input" {:class "fu-input" :type "date"
                                             :value @edit-due
@@ -228,10 +266,10 @@
                              :value @source-in
                              :on-change (fn [e] (reset! source-in (.-value (.-target e))))}
                   (str
-                    (h "option" {:value "manual"} "수동")
-                    (h "option" {:value "people"} "People")
-                    (h "option" {:value "decision"} "결정")))
-                (h! "input" {:class "fu-input" :placeholder "출처 ID (선택)"
+                    (h "option" {:value "manual"} "manual · 수동")
+                    (h "option" {:value "people"} "people · People")
+                    (h "option" {:value "decision"} "decision · Decision")))
+                (h! "input" {:class "fu-input" :placeholder "source_id (people/decision일 때)"
                              :value @source-id-in
                              :on-input (fn [e] (reset! source-id-in (.-value (.-target e))))})
                 (h "div" {:class "fu-form-actions"}
@@ -310,7 +348,10 @@
     animation:fuIn .22s ease}
   @keyframes fuIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
   .fu-ctx,.fu-src{margin:0;font-size:.8rem;color:#C8C8D0;line-height:1.5;white-space:pre-wrap}
-  .fu-src{color:#8B8B96;font-size:.72rem}
+  .fu-src{color:#8B8B96;font-size:.72rem;margin:0}
+  .fu-src-link{display:inline-flex;align-items:center;min-height:44px;padding:10px 0;
+    color:#3DCF8E;font-size:.82rem;font-weight:700;text-decoration:none}
+  .fu-src-link:active{opacity:.85}
   .fu-k{font-size:.68rem;font-weight:800;color:#8B8B96;letter-spacing:.04em}
   .fu-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 </style>
