@@ -1,0 +1,64 @@
+; pages/people/api.flx — People CRM JSON API
+; GET  /people/api → people-payload
+; POST /people/api → add|delete|touch|set-status
+
+(load "pages/people/_db.flx")
+(people-init)
+
+; 고유 이름 필수 — 전역 payload 충돌 금지 (380cfe9)
+; db row 키는 obj-merge 하지 말고 명시 복사
+(defn people-payload []
+  {"items" (people-all)
+   "active_count" (people-count-by "active")
+   "dormant_count" (people-count-by "dormant")
+   "due_count" (people-due-count)
+   "today" (people-today)})
+
+(defn render [req]
+  (server-json (people-payload)))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [name       (or (get body "name") "")
+              tag        (or (get body "tag") "")
+              context    (or (get body "context") "")
+              next-touch (or (get body "next_touch") "")]
+          (if (= (str-trim name) "")
+            (server-json {"ok" false "error" "이름이 필요합니다"} 400)
+            (do
+              (people-add (str-trim name) (str-trim tag) context (str-trim next-touch))
+              (server-json (obj-merge {"ok" true} (people-payload))))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (people-delete id)
+              (server-json (obj-merge {"ok" true} (people-payload))))))
+
+      (= action "touch")
+        (let [id         (get body "id")
+              next-touch (or (get body "next_touch") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (people-touch id (str-trim next-touch))
+              (server-json (obj-merge {"ok" true} (people-payload))))))
+
+      (= action "set-status")
+        (let [id     (get body "id")
+              status (or (get body "status") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (if (and (not (= status "active")) (not (= status "dormant")))
+              (server-json {"ok" false "error" "status는 active|dormant"} 400)
+              (do
+                (people-set-status id status)
+                (server-json (obj-merge {"ok" true} (people-payload)))))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

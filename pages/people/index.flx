@@ -1,0 +1,278 @@
+; pages/people/index.flx — People CRM MVP
+; 이름 · 태그 · 맥락 · 다음연락 · active/dormant
+
+(load "pages/people/_db.flx")
+(people-init)
+
+(island PeopleApp []
+  (let [data       (atom nil)
+        show-form  (atom false)
+        name-in    (atom "")
+        tag-in     (atom "")
+        context-in (atom "")
+        touch-in   (atom "")
+        filter-k   (atom "all")
+        expand-id  (atom nil)
+        edit-touch (atom "")
+        err        (atom "")
+
+        apply-res (fn [res]
+                    (reset! data res)
+                    (reset! show-form false)
+                    (reset! name-in "")
+                    (reset! tag-in "")
+                    (reset! context-in "")
+                    (reset! touch-in "")
+                    (reset! err "")
+                    (reset! expand-id nil)
+                    (reset! edit-touch ""))
+
+        reload (fn [res]
+                 (if (= (get res "ok") false)
+                   (reset! err (or (get res "error") "요청 실패"))
+                   (apply-res res)))
+
+        add-item (fn []
+                   (if (= (str-trim @name-in) "")
+                     (reset! err "이름을 입력하세요")
+                     (fetch-post! "/people/api"
+                       {"action" "add"
+                        "name" @name-in
+                        "tag" @tag-in
+                        "context" @context-in
+                        "next_touch" @touch-in}
+                       reload)))
+
+        del-item (fn [id]
+                   (fetch-post! "/people/api" {"action" "delete" "id" id} reload))
+
+        save-touch (fn [id]
+                     (fetch-post! "/people/api"
+                       {"action" "touch" "id" id "next_touch" @edit-touch}
+                       reload))
+
+        set-status (fn [id status]
+                     (fetch-post! "/people/api"
+                       {"action" "set-status" "id" id "status" status}
+                       reload))
+
+        due? (fn [row]
+               (let [nt (or (get row "next_touch") "")
+                     st (or (get row "status") "")
+                     td (or (get @data "today") "")]
+                 (and (= st "active")
+                      (not (= nt ""))
+                      (not (= td ""))
+                      (<= nt td))))
+
+        visible (fn []
+                  (let [f @filter-k
+                        items (or (get @data "items") [])]
+                    (cond
+                      (= f "all") items
+                      (= f "due") (filter due? items)
+                      (= f "active") (filter (fn [r] (= (get r "status") "active")) items)
+                      (= f "dormant") (filter (fn [r] (= (get r "status") "dormant")) items)
+                      true items)))
+
+        status-color (fn [row]
+                       (cond
+                         (due? row) "#FF5B35"
+                         (= (get row "status") "dormant") "#8B8B96"
+                         true "#3DCF8E"))
+
+        row-view (fn [row]
+                   (let [id      (get row "id")
+                         is-open (= @expand-id id)
+                         st      (get row "status")]
+                     (h "div" {:class "pe-row"}
+                       (str
+                         (h "button" {:class "pe-main"
+                                      :on-click (fn []
+                                                  (reset! err "")
+                                                  (reset! edit-touch (or (get row "next_touch") ""))
+                                                  (reset! expand-id (if is-open nil id)))}
+                           (str
+                             (h "div" {:class "pe-dot"
+                                       :style (str "background:" (status-color row))} "")
+                             (h "div" {:class "pe-text"}
+                               (str
+                                 (h "div" {:class "pe-name"} (get row "name"))
+                                 (h "div" {:class "pe-meta"}
+                                   (str
+                                     (if (= (or (get row "tag") "") "") "—" (get row "tag"))
+                                     " · "
+                                     (if (= (or (get row "next_touch") "") "")
+                                       "다음연락 없음"
+                                       (get row "next_touch"))
+                                     (if (due? row) " · 오늘까지" "")
+                                     (if (= st "dormant") " · 휴면" "")))))
+                             (h "span" {:class "pe-chev"} (if is-open "▾" "▸"))))
+                         (if is-open
+                           (h "div" {:class "pe-panel"}
+                             (str
+                               (if (= (or (get row "context") "") "")
+                                 ""
+                                 (h "p" {:class "pe-ctx"} (get row "context")))
+                               (h "label" {:class "pe-k"} "다음 연락일")
+                               (h! "input" {:class "pe-input" :type "date"
+                                            :value @edit-touch
+                                            :on-input (fn [e]
+                                                        (reset! edit-touch
+                                                          (.-value (.-target e))))})
+                               (h "div" {:class "pe-actions"}
+                                 (str
+                                   (h "button" {:class "pe-btn pe-accent"
+                                                :on-click (fn [] (save-touch id))}
+                                     "날짜 저장")
+                                   (h "button" {:class "pe-btn pe-ghost"
+                                                :on-click (fn []
+                                                            (set-status id
+                                                              (if (= st "active")
+                                                                "dormant" "active")))}
+                                     (if (= st "active") "휴면으로" "활성으로"))
+                                   (h "button" {:class "pe-btn pe-danger"
+                                                :on-click (fn [] (del-item id))}
+                                     "삭제")))))
+                           "")))))]
+
+    (fetch! "/people/api" (fn [res] (reset! data res)))
+
+    (if (= @data nil)
+      (h "div" {:class "pe-loading"} "불러오는 중…")
+
+      (h "div" {:class "pe-app"}
+        (str
+          (h "header" {:class "pe-head"}
+            (str
+              (h "div" {}
+                (str
+                  (h "h1" {} "People")
+                  (h "p" {:class "pe-lead"} "다음 연락 · 관계 메모")))
+              (h "button" {:class "pe-btn pe-accent"
+                           :on-click (fn [] (reset! show-form true))}
+                "+ 추가")))
+
+          (h "div" {:class "pe-stats"}
+            (str
+              (h "div" {:class "pe-stat"}
+                (str (h "div" {:class "pe-stat-n"} (str (get @data "active_count")))
+                     (h "div" {:class "pe-stat-l"} "활성")))
+              (h "div" {:class "pe-stat"}
+                (str (h "div" {:class "pe-stat-n"} (str (get @data "dormant_count")))
+                     (h "div" {:class "pe-stat-l"} "휴면")))
+              (h "div" {:class "pe-stat"}
+                (str (h "div" {:class "pe-stat-n"} (str (get @data "due_count")))
+                     (h "div" {:class "pe-stat-l"} "오늘까지")))))
+
+          (h "div" {:class "pe-filters"}
+            (str
+              (h "button" {:class (if (= @filter-k "all") "pe-chip pe-chip-on" "pe-chip")
+                           :on-click (fn [] (reset! filter-k "all"))} "전체")
+              (h "button" {:class (if (= @filter-k "due") "pe-chip pe-chip-on" "pe-chip")
+                           :on-click (fn [] (reset! filter-k "due"))} "오늘까지")
+              (h "button" {:class (if (= @filter-k "active") "pe-chip pe-chip-on" "pe-chip")
+                           :on-click (fn [] (reset! filter-k "active"))} "활성")
+              (h "button" {:class (if (= @filter-k "dormant") "pe-chip pe-chip-on" "pe-chip")
+                           :on-click (fn [] (reset! filter-k "dormant"))} "휴면")))
+
+          (if @show-form
+            (h "div" {:class "pe-form"}
+              (str
+                (h! "input" {:class "pe-input" :placeholder "이름"
+                             :value @name-in
+                             :on-input (fn [e] (reset! name-in (.-value (.-target e))))})
+                (h! "input" {:class "pe-input" :placeholder "태그 (고객/동료…)"
+                             :value @tag-in
+                             :on-input (fn [e] (reset! tag-in (.-value (.-target e))))})
+                (h "textarea" {:class "pe-area" :placeholder "한 줄 맥락"
+                               :value @context-in
+                               :on-input (fn [e] (reset! context-in (.-value (.-target e))))} "")
+                (h! "input" {:class "pe-input" :type "date"
+                             :value @touch-in
+                             :on-input (fn [e] (reset! touch-in (.-value (.-target e))))})
+                (h "div" {:class "pe-form-actions"}
+                  (str
+                    (h "button" {:class "pe-btn pe-ghost"
+                                 :on-click (fn [] (reset! show-form false))}
+                      "취소")
+                    (h "button" {:class "pe-btn pe-accent"
+                                 :on-click add-item}
+                      "추가")))))
+            "")
+
+          (if (= @err "")
+            ""
+            (h "p" {:class "pe-err"} @err))
+
+          (if (= (length (visible)) 0)
+            (h "p" {:class "pe-empty"}
+              (if (= (length (get @data "items")) 0)
+                "아직 사람이 없습니다. 첫 관계를 남겨 보세요."
+                "이 필터에 해당하는 사람이 없습니다."))
+            (h "div" {:class "pe-list"}
+              (arr-join (map row-view (visible)) ""))))))))
+
+(defn render [req]
+  (layout-html "People"
+    (str
+      """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  .pe-wrap{max-width:440px;margin:0 auto;padding:20px 16px 88px;
+    font-family:'Manrope',system-ui,sans-serif;color:#F2F2F5;
+    background:radial-gradient(120% 80% at 90% -10%,#1c2430 0%,#14181f 45%,#10141a 100%);
+    min-height:100dvh;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  .pe-loading{text-align:center;padding:64px 20px;color:#8B8B96}
+  .pe-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+  .pe-head h1{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
+  .pe-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96;line-height:1.45}
+  .pe-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .pe-stat{background:#1A1F28;border:1px solid #2A3140;border-radius:14px;padding:14px 10px;text-align:center}
+  .pe-stat-n{font-size:1.25rem;font-weight:800}
+  .pe-stat-l{font-size:.68rem;color:#8B8B96;margin-top:2px;font-weight:600}
+  .pe-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .pe-filters::-webkit-scrollbar{display:none}
+  .pe-chip{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #2A3140;
+    background:#1A1F28;color:#8B8B96;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+  .pe-chip-on{background:#4C8DFF;border-color:#4C8DFF;color:#fff}
+  .pe-form{background:#1A1F28;border:1px solid #2A3140;border-radius:16px;padding:14px;margin-bottom:14px;
+    display:flex;flex-direction:column;gap:8px}
+  .pe-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+  .pe-input,.pe-area{width:100%;box-sizing:border-box;background:#10141a;color:#F2F2F5;
+    border:1px solid #2A3140;border-radius:12px;padding:12px 14px;font:inherit;font-size:16px}
+  .pe-area{min-height:72px;resize:vertical}
+  .pe-input:focus,.pe-area:focus{outline:none;border-color:#4C8DFF}
+  .pe-btn{border:none;border-radius:12px;min-height:46px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer}
+  .pe-accent{background:#4C8DFF;color:#fff}
+  .pe-accent:active{filter:brightness(.95);transform:scale(.98)}
+  .pe-ghost{background:transparent;border:none;color:#8B8B96;font:inherit;font-weight:600;
+    cursor:pointer;min-height:44px;padding:10px 12px}
+  .pe-danger{color:#ff7b7b;background:transparent}
+  .pe-err{color:#ff7b7b;font-size:.8rem;margin:0 0 12px}
+  .pe-empty{color:#8B8B96;font-size:.85rem;padding:28px 8px;text-align:center;line-height:1.5}
+  .pe-list{display:flex;flex-direction:column}
+  .pe-row{border-bottom:1px solid #242A35}
+  .pe-main{width:100%;display:flex;align-items:center;gap:12px;min-height:56px;padding:14px 2px;
+    background:transparent;border:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+  .pe-main:active{opacity:.85}
+  .pe-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .pe-text{flex:1;min-width:0}
+  .pe-name{font-size:.95rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pe-meta{font-size:.72rem;color:#8B8B96;margin-top:3px}
+  .pe-chev{color:#8B8B96;font-size:.85rem;flex-shrink:0}
+  .pe-panel{padding:0 2px 16px 22px;display:flex;flex-direction:column;gap:10px;
+    animation:peIn .22s ease}
+  @keyframes peIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .pe-ctx{margin:0;font-size:.8rem;color:#C8C8D0;line-height:1.5;white-space:pre-wrap}
+  .pe-k{font-size:.68rem;font-weight:800;color:#8B8B96;letter-spacing:.04em}
+  .pe-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+</style>
+<div class="pe-wrap">
+"""
+      "ISLAND_PLACEHOLDER"
+      "</div>"
+      "ISLAND_SCRIPTS")
+    req))

@@ -143,12 +143,23 @@ function onMsg(type){
   if(type==='soft-reload') return softReload();
   if(type==='reload'){ location.reload(); return; }
 }
-function connect(){
+// PM2(npm start)는 :40851 없음 — 무한 재연결/콘솔 스팸 금지. npm run dev 일 때만 유지.
+function connect(fails){
+  fails=fails||0;
+  if(fails>=2){
+    console.info('[hmr] off — npm run dev 가 아님 (PM2/start). HMR 생략');
+    return;
+  }
   var es=new EventSource(HMR);
+  var opened=false;
+  es.onopen=function(){ opened=true; fails=0; };
   es.onmessage=function(e){ if(e.data&&e.data!=='connected') onMsg(e.data); };
-  es.onerror=function(){ try{es.close();}catch(x){} setTimeout(connect,1500); };
+  es.onerror=function(){
+    try{es.close();}catch(x){}
+    setTimeout(function(){ connect(opened?0:fails+1); }, opened?1500:800);
+  };
 }
-connect();
+connect(0);
 })()</script>""")
 
 ; FL DevTools — dev 전용 floating 디버그 패널
@@ -262,11 +273,8 @@ setInterval(function(){if(open)fetchErrors();},3000);
 ; v0.2.1: 프로덕션 에러 리포팅 추가
 (define ERROR-COLLECTOR
   "<script>(function(){
-var isDev=location.hostname==='localhost' || location.hostname==='127.0.0.1';
-var EVs=[
-  isDev ? 'http://'+location.hostname+':40851/~errors' : null,
-  '/api/errors'
-].filter(function(u){return u;});
+// :40851 은 npm run dev 전용 — PM2 localhost 에서도 붙이지 않음 (연결 거부 스팸 방지)
+var EVs=['/api/errors'];
 
 function send(type,msg,src,line,stack){
   var payload={type:type,message:String(msg),source:src,line:line,stack:String(stack||''),url:location.href};
@@ -316,8 +324,9 @@ function cbSend(payload){
     headers:{'Content-Type':'application/json'},
     body:JSON.stringify(payload),
     signal:ctrl.signal
-  }).then(function(){
+  }).then(function(r){
     clearTimeout(timer);
+    if(!r.ok) throw new Error('http '+r.status);
     if(CB.state==='half-open'){
       CB.state='closed'; CB.failures=0;
       console.log('[circuit] closed — 복구');

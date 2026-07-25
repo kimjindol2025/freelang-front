@@ -121,6 +121,7 @@ function emitList(node, ctx) {
   if (head?.sym === 'let')    return emitLet(args, ctx);
   if (head?.sym === 'fn')     return emitFn(args, ctx);
   if (head?.sym === 'if')     return emitIf(args, ctx);
+  if (head?.sym === 'cond')   return emitCond(args, ctx);
   if (head?.sym === 'do')     return emitDo(args, ctx);
   if (head?.sym === 'atom')   return `_fl.atom(${emit(args[0], ctx)})`;
   if (head?.sym === 'deref')  return `_fl.deref(${emit(args[0], ctx)})`;
@@ -263,6 +264,24 @@ function emitIf(args, ctx) {
   return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : (${emit(args[2]??null,ctx)})`;
 }
 
+// (cond test1 expr1 test2 expr2 … true else) → nested ternary
+function emitCond(args, ctx) {
+  if (args.length === 0) return 'null';
+  let out = 'null';
+  for (let i = args.length - 2; i >= 0; i -= 2) {
+    const test = args[i];
+    const expr = args[i + 1];
+    if (!expr) break;
+    // 마지막 true / :else 는 else 가지
+    if (i === args.length - 2 && (test?.sym === 'true' || test === true || test?.sym === 'else' || test?.kw === 'else')) {
+      out = emit(expr, ctx);
+      continue;
+    }
+    out = `(${emit(test, ctx)}) ? (${emit(expr, ctx)}) : (${out})`;
+  }
+  return out;
+}
+
 function emitDo(args, ctx) {
   return `(() => { ${args.map(a=>emit(a,ctx)).join('; ')} })()`;
 }
@@ -372,11 +391,12 @@ const _fl={
   _err:(islandId,err,phase)=>{
     const msg=err&&err.message?err.message:String(err);
     const stack=err&&err.stack?err.stack:'';
-    console.error('[Island:'+islandId+']['+phase+'] '+msg+'\n'+stack);
+    // FreeLang 문자열이 \\n / \\d 를 재해석하므로 이스케이프 금지 — fromCharCode·[0-9] 사용
+    console.error('[Island:'+islandId+']['+phase+'] '+msg+String.fromCharCode(10)+stack);
     try{
       if(location.hostname==='localhost'||location.port==='40850'||location.port==='40851'){
         const EV='http://'+location.hostname+':40851/~errors';
-        const lineMatch=stack.match(/:(\d+):\d+\)?$/m);
+        const lineMatch=stack.match(/:([0-9]+):[0-9]+/);
         const lineNo=lineMatch?parseInt(lineMatch[1]):0;
         fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
           body:JSON.stringify({type:'island',message:'['+islandId+']['+phase+'] '+msg,source:'island-'+islandId+'.flx',line:lineNo,col:0,stack:stack,url:location.href})

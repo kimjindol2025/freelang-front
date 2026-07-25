@@ -322,6 +322,7 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
     <a href="/subs"    class="app-card"><span class="icon">💳</span><span class="name">구독</span><span class="desc">정기결제 관리</span></a>
     <a href="/decisions" class="app-card"><span class="icon">⚖️</span><span class="name">결정 일지</span><span class="desc">결정→회고 루프</span></a>
     <a href="/prompts" class="app-card"><span class="icon">✨</span><span class="name">Prompts</span><span class="desc">프롬프트 보관함</span></a>
+    <a href="/people"  class="app-card"><span class="icon">👤</span><span class="name">People</span><span class="desc">다음 연락 · 관계 메모</span></a>
     <a href="/feed"    class="app-card"><span class="icon">📡</span><span class="name">피드</span><span class="desc">RSS 뉴스</span></a>
   </div>
 </div>

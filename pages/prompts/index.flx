@@ -192,6 +192,7 @@
 </style>
 <div class="pr-wrap">
 """
-      PromptsApp
-      "</div>")
+      "ISLAND_PLACEHOLDER"
+      "</div>"
+      "ISLAND_SCRIPTS")
     req))

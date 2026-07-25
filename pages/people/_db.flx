@@ -1,0 +1,69 @@
+; pages/people/_db.flx — People CRM (관계 유지 MVP)
+; /contacts 와 완전 분리 — data/people.db 만 사용
+(ns people)
+
+(define PEOPLE-DB {:type "sqlite" :path "data/people.db"})
+
+(defn init []
+  (db-exec PEOPLE-DB
+    "CREATE TABLE IF NOT EXISTS people (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      tag TEXT DEFAULT '',
+      context TEXT DEFAULT '',
+      next_touch TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query PEOPLE-DB
+    "SELECT * FROM people ORDER BY
+       CASE status WHEN 'active' THEN 0 ELSE 1 END,
+       CASE WHEN next_touch = '' THEN 1 ELSE 0 END,
+       next_touch ASC,
+       name ASC" []))
+
+(defn count-by [status]
+  (let [rows (db-query PEOPLE-DB
+               "SELECT COUNT(*) AS n FROM people WHERE status=?"
+               [status])]
+    (if (= (length rows) 0)
+      0
+      (str-to-num (or (get (first rows) "n") 0)))))
+
+(defn today []
+  (let [rows (db-query PEOPLE-DB
+               "SELECT date('now','localtime') AS today" [])]
+    (if (= (length rows) 0)
+      ""
+      (or (get (first rows) "today") ""))))
+
+(defn due-count []
+  (let [rows (db-query PEOPLE-DB
+               "SELECT COUNT(*) AS n FROM people
+                 WHERE status='active'
+                   AND next_touch != ''
+                   AND next_touch <= date('now','localtime')"
+               [])]
+    (if (= (length rows) 0)
+      0
+      (str-to-num (or (get (first rows) "n") 0)))))
+
+(defn add [name tag context next-touch]
+  (db-exec PEOPLE-DB
+    "INSERT INTO people (name, tag, context, next_touch) VALUES (?,?,?,?)"
+    [name tag context next-touch]))
+
+(defn delete [id]
+  (db-exec PEOPLE-DB "DELETE FROM people WHERE id=?" [(str-to-num id)]))
+
+(defn touch [id next-touch]
+  (db-exec PEOPLE-DB
+    "UPDATE people SET next_touch=? WHERE id=?"
+    [next-touch (str-to-num id)]))
+
+(defn set-status [id status]
+  (db-exec PEOPLE-DB
+    "UPDATE people SET status=? WHERE id=?"
+    [status (str-to-num id)]))

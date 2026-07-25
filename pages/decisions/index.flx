@@ -346,6 +346,7 @@
 </style>
 <div class="dec-wrap">
 """
-      DecisionsApp
-      "</div>")
+      "ISLAND_PLACEHOLDER"
+      "</div>"
+      "ISLAND_SCRIPTS")
     req))
