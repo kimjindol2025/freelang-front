@@ -1550,6 +1550,14 @@ function stripComments(src) {
     } else if (src[i] === ';') {
       // 줄 끝까지 스킵
       while (i < src.length && src[i] !== '\n') i++;
+    } else if (src.startsWith('#|', i)) {
+      // 블록 주석 — 줄바꿈만 보존(라인번호), 내용 스킵 (let-shadow 등 오검출 방지)
+      i += 2;
+      while (i < src.length && !src.startsWith('|#', i)) {
+        if (src[i] === '\n') out += '\n';
+        i++;
+      }
+      if (src.startsWith('|#', i)) i += 2;
     } else {
       out += src[i++];
     }

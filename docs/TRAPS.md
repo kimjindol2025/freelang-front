@@ -9,7 +9,7 @@
 | `reserved-word` | `act` 등 예약어를 **defn/파라미터/let 바인딩**에 사용 | `action` 등 (`let [act …]`도 동일) | machine |
 | `json-parse-hyphen` | `(json-parse …)`가 서버에서 `s` 등 헬퍼와 충돌·오염 | `(json_parse …)` underscore만 | machine |
 | `upper-hyphen` | `FOO-BAR-BAZ`처럼 하이픈 **2개 이상** 대문자 심볼 → 뺄셈 파싱 | `foo_bar_baz` / `afl_db_base` | — |
-| `let-shadow` | `let [s …]` / `h` / `h!`가 주입 헬퍼를 가림 (**중첩 `]` 값 뒤 바인딩 포함**) | 다른 이름 (`sess`, `html`, …) | machine |
+| `let-shadow` | `let [s …]` / `h` / `h!`가 주입 헬퍼를 가림 (**중첩 `]` 값 뒤 바인딩 포함**). fix는 주석/문자열 바깥만 | 다른 이름 (`sess`, `html`, …) | machine |
 | `fl-http-allow` | localhost/127.0.0.1 HTTP가 SSRF로 차단 | env `FL_HTTP_ALLOW=127.0.0.1,localhost` | manual |
 | `helper-load-order` | `_afldb-coll.flx`가 `_afldb.flx`보다 **먼저** 정렬·로드 → 미정의 | `_afldb_coll.flx` (하이픈→underscore) | machine |
 | `req-key-collision` | `(get body "text")` / `form-get "text"` / `:name "text"` — raw body와 충돌 | `content`/`title` 등 | machine |

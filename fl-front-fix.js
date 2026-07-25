@@ -90,6 +90,43 @@ function mapOutsideStrings(src, mapper) {
   return out;
 }
 
+/** 주석·문자열 바깥의 다음 `(let` (let-xxx 제외). 인덱스 또는 -1. */
+function findNextLet(s, from) {
+  let i = from;
+  while (i < s.length) {
+    if (s[i] === ';') {
+      while (i < s.length && s[i] !== '\n') i++;
+      continue;
+    }
+    if (s.startsWith('#|', i)) {
+      const end = s.indexOf('|#', i + 2);
+      i = end === -1 ? s.length : end + 2;
+      continue;
+    }
+    if (s[i] === '"') {
+      i++;
+      while (i < s.length && s[i] !== '"') {
+        if (s[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      continue;
+    }
+    if (s.startsWith('"""', i)) {
+      i += 3;
+      while (i < s.length && !s.startsWith('"""', i)) i++;
+      if (s.startsWith('"""', i)) i += 3;
+      continue;
+    }
+    if (s.startsWith('(let', i)) {
+      const after = i + 4;
+      if (after >= s.length || !/[\w$!?-]/.test(s[after])) return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
 function fixJsonParse(code) {
   let n = 0;
   const next = mapOutsideStrings(code, chunk =>
@@ -259,33 +296,6 @@ function fixReservedAct(code) {
     return { inner: out, changed };
   }
 
-  function findNextLet(s, from) {
-    let i = from;
-    while (i < s.length) {
-      if (s[i] === ';') {
-        while (i < s.length && s[i] !== '\n') i++;
-        continue;
-      }
-      if (s.startsWith('#|', i)) {
-        const end = s.indexOf('|#', i + 2);
-        i = end === -1 ? s.length : end + 2;
-        continue;
-      }
-      if (s[i] === '"') {
-        i++;
-        while (i < s.length && s[i] !== '"') { if (s[i] === '\\') i++; i++; }
-        i++;
-        continue;
-      }
-      if (s.startsWith('(let', i)) {
-        const after = i + 4;
-        if (after >= s.length || !/[\w$!?-]/.test(s[after])) return i;
-      }
-      i++;
-    }
-    return -1;
-  }
-
   let guard = 0;
   while (guard++ < 50) {
     let found = false;
@@ -376,13 +386,19 @@ function fixLetShadow(code) {
     return -1;
   }
 
-  // 반복: 한 번에 하나 고쳐 인덱스가 안 꼬이게
+  // 반복: 한 번에 하나 고쳐 인덱스가 안 꼬이게.
+  // 검색은 findNextLet — 주석/문자열 속 (let …) 는 오수정 대상이 아님 (DIAG-COVERAGE-FIX-FP).
   let guard = 0;
   while (guard++ < 200) {
-    const m = /\(let\s+\[/.exec(src);
-    if (!m) break;
-    const letStart = m.index;
-    const bracketStart = src.indexOf('[', letStart);
+    const letStart = findNextLet(src, 0);
+    if (letStart < 0) break;
+    const afterLet = letStart + 4;
+    let bracketStart = afterLet;
+    while (bracketStart < src.length && /\s/.test(src[bracketStart])) bracketStart++;
+    if (src[bracketStart] !== '[') {
+      src = src.slice(0, letStart) + '(LET_SKIP' + src.slice(letStart + 4);
+      continue;
+    }
     const bracketEnd = findLetBindingEnd(src, bracketStart);
     if (bracketEnd < 0) break;
     const parenEnd = findMatchingParen(src, letStart);
@@ -458,18 +474,20 @@ function fixLetShadow(code) {
     let newBody = body;
     for (const old of names) {
       const neu = LET_RENAME[old];
-      const re = new RegExp(
-        `(^|[^A-Za-z0-9_\\-!])${old.replace(/!/g, '\\!')}(?![A-Za-z0-9_\\-!])`,
-        'g'
+      const pat = `(^|[^A-Za-z0-9_\\-!])${old.replace(/!/g, '\\!')}(?![A-Za-z0-9_\\-!])`;
+      // 바인딩·본문 치환도 문자열/주석 바깥만 (예제 문자열 속 s/h 보존)
+      newBind = mapOutsideStrings(newBind, chunk =>
+        chunk.replace(new RegExp(pat, 'g'), (_, p) => {
+          n++;
+          return `${p}${neu}`;
+        })
       );
-      newBind = newBind.replace(re, (_, p) => {
-        n++;
-        return `${p}${neu}`;
-      });
-      newBody = newBody.replace(re, (_, p) => {
-        n++;
-        return `${p}${neu}`;
-      });
+      newBody = mapOutsideStrings(newBody, chunk =>
+        chunk.replace(new RegExp(pat, 'g'), (_, p) => {
+          n++;
+          return `${p}${neu}`;
+        })
+      );
     }
 
     src =

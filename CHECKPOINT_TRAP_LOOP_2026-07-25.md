@@ -115,6 +115,17 @@ summary에 `stdlibLoadOk` / `stdlibLsFnsCount` 추가 — **정본 판별은 `st
 | 기준선 | warnings **26** · stdlibLoadOk true · 126r/13h/19c |
 | 보류 | APP-DB **0/3** · undefined-fn/route-shadow **0/1** · 후보 착수 0 |
 
+### DIAG-COVERAGE-FIX-FP (2026-07-25) — `6647e07` 보완
+
+| 항목 | 결과 |
+|------|------|
+| 원인 | build는 주석/문자열 마스크, **fix**는 raw `/\(let\s+\[/` → 오수정 |
+| 수정 | `findNextLet` 공유 + rename `mapOutsideStrings`; build `stripComments`에 `#|` |
+| build 진단 FP | `;` / 문자열 / `#|` → **0** |
+| fix 오수정 | 동일 fixture → **filesChanged 해당 0**; nested만 후보 |
+| 기준선 | warnings **26** · fixable 0 · loop remaining 0 |
+| 보류 | APP-DB **0/3** · undefined-fn/route-shadow **0/1** |
+
 | 오검출 | normal_let / `"act"` 문자열 / 주석 `(let [act` → reserved-word **0** |
 | 검출 | `(let [… act …])` → error `reserved-word` (let 바인딩) |
 | 루프 축소판 | detect → `fl-front-fix --fix` (act→action) → rebuild ok → 픽스처 삭제 · 무한루프 0 · 오수정 0 |

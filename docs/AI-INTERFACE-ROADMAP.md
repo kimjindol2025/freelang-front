@@ -93,7 +93,7 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 | 진단 humanShare 리포트 | ✅ `RUN-FL-HUMANSHARE-001` |
 | HTTP in-process | ✅ HTTP-INPROCESS-001 (`32dac2c` / 코어 `3d9a3b46`) |
 | afl-db batch write 경로 정리 | ✅ create get+batch-put (3→2). update/delete 유지 |
-| 진단 커버리지 확대 | ✅ SWEEP: `let-shadow` 중첩`]` 미진단 해소. 타 코드는 증거 없어 미착수 |
+| 진단 커버리지 확대 | ✅ SWEEP + FIX-FP: 중첩`]` 검출 + fix 주석/문자열 오수정 차단 |
 | APP-DB / route-shadow 일괄 | 보류 트리거(0/3 · 0/1) 전 — **미착수** |
 
 조회: `npm run manifest` · `npm run loop:dry` · `npm run loop`.

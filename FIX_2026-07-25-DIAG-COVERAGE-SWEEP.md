@@ -34,3 +34,7 @@
 - fix: `s`→`sess` (count includes body)
 - build: ok · warnings 26 · stdlibLoadOk true · 126r/13h/19c
 - `fl-front-loop.js --dry` converged · 무한루프 0
+
+## 보완 (FIX-FP)
+팀장 검수: build FP 0이어도 `fl-front-fix.js --dry`가 주석/문자열 `(let …)`를 고침.  
+→ `FIX_2026-07-25-DIAG-COVERAGE-FIX-FP.md` (`findNextLet` + `#|` strip).
