@@ -25961,7 +25961,7 @@ function createErrorModule() {
 }
 
 // src/stdlib-http.ts
-var import_child_process = require("child_process");
+var import_worker_threads = require("worker_threads");
 // ── SSRF Guard (language-level, v11.9.x) ──────────────────────────────
 // Allowlist policy: private/loopback ranges are blocked by default; cloud
 // metadata (169.254.x / fe80:) and the unspecified address (0.0.0.0 / ::)
@@ -26003,6 +26003,101 @@ function flSsrfBlockReason(rawUrl) {
   if (isPrivate) return `SSRF blocked: ${host} (private range; set FL_HTTP_ALLOW to permit)`;
   return null;
 }
+var HTTP_SYNC_WORKER_SOURCE = `
+const { parentPort, workerData } = require("worker_threads");
+const http = require("http");
+const https = require("https");
+const { URL } = require("url");
+const signal = new Int32Array(workerData.sab);
+function handle(port, msg) {
+  let settled = false;
+  const done = (r) => {
+    if (settled) return;
+    settled = true;
+    port.postMessage(r);
+    Atomics.store(signal, 0, 1);
+    Atomics.notify(signal, 0);
+  };
+  try {
+    const u = new URL(msg.url);
+    const mod = u.protocol === "https:" ? https : http;
+    const headers = Object.assign({}, msg.headers || {});
+    if (msg.body != null) {
+      headers["Content-Length"] = Buffer.byteLength(msg.body, "utf-8");
+    }
+    const req = mod.request(
+      {
+        hostname: u.hostname,
+        port: u.port || undefined,
+        path: u.pathname + (u.search || ""),
+        method: msg.method || "GET",
+        headers,
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (d) => chunks.push(d));
+        res.on("end", () =>
+          done({
+            status: res.statusCode || 0,
+            body: Buffer.concat(chunks).toString("utf-8"),
+          })
+        );
+      }
+    );
+    req.on("error", (e) =>
+      done({ status: 0, body: "", error: String(e && e.message ? e.message : e) })
+    );
+    const ms = msg.timeoutMs || 10000;
+    req.setTimeout(ms, () => {
+      req.destroy();
+      done({ status: 0, body: "", error: "timeout" });
+    });
+    if (msg.body != null) req.write(msg.body, "utf-8");
+    req.end();
+  } catch (e) {
+    done({ status: 0, body: "", error: String(e && e.message ? e.message : e) });
+  }
+}
+parentPort.once("message", (init) => {
+  const port = init.port;
+  port.on("message", (msg) => handle(port, msg));
+  Atomics.store(signal, 1, 1);
+  Atomics.notify(signal, 1);
+});
+`;
+var httpWorkerState = null;
+function ensureHttpWorker() {
+  if (httpWorkerState) return httpWorkerState;
+  const sab = new SharedArrayBuffer(8);
+  const signal = new Int32Array(sab);
+  const { port1, port2 } = new import_worker_threads.MessageChannel();
+  const worker = new import_worker_threads.Worker(HTTP_SYNC_WORKER_SOURCE, {
+    eval: true,
+    workerData: { sab }
+  });
+  worker.on("error", (err4) => {
+    httpWorkerState = null;
+    console.error("[FreeLang] http sync worker error:", err4 && err4.message ? err4.message : err4);
+  });
+  worker.on("exit", () => {
+    httpWorkerState = null;
+  });
+  worker.postMessage({ port: port2 }, [port2]);
+  const ready = Atomics.wait(signal, 1, 0, 5e3);
+  if (ready === "timed-out" || Atomics.load(signal, 1) !== 1) {
+    try {
+      worker.terminate();
+    } catch {
+    }
+    throw new Error("http sync worker failed to start");
+  }
+  try {
+    worker.unref();
+  } catch {
+  }
+  httpWorkerState = { worker, port: port1, signal };
+  return httpWorkerState;
+}
 function nodeHttpRequest(url2, method = "GET", headers, body, timeoutMs = 1e4) {
   const __ssrf = flSsrfBlockReason(url2);
   if (__ssrf) return { status: 0, body: "", error: __ssrf };
@@ -26014,15 +26109,30 @@ function nodeHttpRequest(url2, method = "GET", headers, body, timeoutMs = 1e4) {
         headersObj[String(k)] = String(v);
       }
     }
-    const encodedUrl = JSON.stringify(url2);
-    const encodedMethod = JSON.stringify(method.toUpperCase());
-    const encodedHeaders = JSON.stringify(headersObj);
-    const encodedBody = body ? JSON.stringify(body) : "null";
-    const script = `const {URL}=require('url');const u=new URL(${encodedUrl});const mod=u.protocol==='https:'?require('https'):require('http');const method=${encodedMethod};const hdrs=${encodedHeaders};const bodyStr=${encodedBody};const opts={hostname:u.hostname,port:u.port||undefined,path:u.pathname+(u.search||''),method,headers:hdrs};if(bodyStr!=null)opts.headers['Content-Length']=Buffer.byteLength(bodyStr,'utf-8');const chunks=[];const req=mod.request(opts,res=>{res.on('data',d=>chunks.push(d));res.on('end',()=>{process.stdout.write(JSON.stringify({s:res.statusCode,b:Buffer.concat(chunks).toString('utf-8')}))})});let done=false;const fail=(msg)=>{if(done)return;done=true;process.stdout.write(JSON.stringify({s:0,b:'',e:msg}))};req.on('error',e=>fail(e.message));req.on('socket',s=>{s.setTimeout(${timeoutMs},()=>{req.destroy();fail('timeout')})});req.setTimeout(${timeoutMs},()=>{req.destroy();fail('timeout')});if(bodyStr!=null)req.write(bodyStr,'utf-8');req.end();`;
-    const r = (0, import_child_process.spawnSync)("node", ["-e", script], { encoding: "utf-8", timeout: timeoutMs + 2e3 });
-    if (r.error) return { status: 0, body: "", error: r.error.message };
-    const parsed = JSON.parse(r.stdout || "{}");
-    return { status: parsed.s || 0, body: parsed.b || "", ...parsed.e && { error: parsed.e } };
+    const { port, signal } = ensureHttpWorker();
+    Atomics.store(signal, 0, 0);
+    port.postMessage({
+      url: String(url2),
+      method: String(method || "GET").toUpperCase(),
+      headers: headersObj,
+      body: body != null ? String(body) : null,
+      timeoutMs
+    });
+    const waitMs = Math.max(1, Number(timeoutMs) || 1e4) + 2e3;
+    const wr = Atomics.wait(signal, 0, 0, waitMs);
+    if (wr === "timed-out") {
+      return { status: 0, body: "", error: "timeout" };
+    }
+    const msg = (0, import_worker_threads.receiveMessageOnPort)(port);
+    if (!msg || !msg.message) {
+      return { status: 0, body: "", error: "no response from http worker" };
+    }
+    const result = msg.message;
+    return {
+      status: result.status || 0,
+      body: result.body || "",
+      ...result.error && { error: result.error }
+    };
   } catch (err4) {
     return { status: 0, body: "", error: err4.message };
   }
