@@ -16,7 +16,7 @@ fl:<ns>:item:<id>    → { "id", ..., "updated" }
 
 | 함수 | 역할 |
 |------|------|
-| `afldb-coll-create` | id·updated 부여 + put + index add |
+| `afldb-coll-create` | id·updated 부여 + **index get 1 + `afldb-batch-put`(item·index)** (HTTP 3→2) |
 | `afldb-coll-update` | patch merge + updated |
 | `afldb-coll-delete` | index remove + tombstone delete |
 | `afldb-coll-all` / `get` / `history` | 조회 |
@@ -94,6 +94,17 @@ curl -sS http://127.0.0.1:40860/<name>/api
 ```
 
 도메인 필드·검증·핀 토글만 앱에 둔다. 인덱스/키 조립/삭제는 공통 모듈.
+
+## Write 경로 HTTP 콜 수 (afl-db)
+
+| 경로 | 전 | 후 | 비고 |
+|------|----|----|------|
+| `afldb-coll-create` | 3 (put+get+put) | **2** (get+batch-put) | item·index 동시 기록 |
+| `afldb-coll-update` | 2 (get+put) | 2 | read-then-write — batch 불가 |
+| `afldb-coll-delete` | 3 (get+put+delete) | 3 | batch-delete API 없음 · tombstone 의미 변경 금지 |
+| clips add+delete | 6 | **5** | create만 절감 |
+
+측정: `node scripts/perf-afldb.js --json` → `composition_hint.http_calls`.
 
 ## 로드 순서
 

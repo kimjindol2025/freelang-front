@@ -39,8 +39,14 @@ function timed(url, opts = {}) {
         res.on('data', (c) => chunks.push(c));
         res.on('end', () => {
           const buf = Buffer.concat(chunks);
+          const ms = performance.now() - t0;
+          // 429 등 비정상은 ms가 수 ms로 나와 median을 오염시킴 — 실패로 올려 재시도/중단
+          if (res.statusCode >= 400) {
+            reject(new Error(`HTTP ${res.statusCode} ${opts.method || 'GET'} ${path} (${Math.round(ms)}ms)`));
+            return;
+          }
           resolve({
-            ms: performance.now() - t0,
+            ms,
             status: res.statusCode,
             bytes: buf.length,
             body: buf,
@@ -123,6 +129,15 @@ async function main() {
       afldb_stats_direct: results.afldb_stats.median_ms,
       clips_html: results.front_clips_html.median_ms,
       about_ssr_baseline: results.front_about.median_ms,
+      // 정적 콜 횟수 (afl-db HTTP). create는 batch-put 적용 후 기준.
+      http_calls: {
+        coll_create: 2, // index-get + batch-put(item,index)  — was 3
+        coll_update: 2, // get + put (read-then-write; batch 불가)
+        coll_delete: 3, // index-get + index-put + delete (batch-delete 없음)
+        clips_add: 2, // = coll_create
+        clips_delete: 3, // = coll_delete
+        clips_add_delete_roundtrip: 5, // was 6
+      },
     },
   };
 

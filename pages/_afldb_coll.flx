@@ -27,11 +27,21 @@
 (defn afldb-coll-get [ns id]
   (afldb-get (afldb-coll-item-key ns id) nil))
 
+; create: item put + index put 를 kv-batch-put 1회로 합침 (index get 1회는 유지).
+; HTTP: 이전 put+get+put = 3 → get+batch-put = 2
 (defn afldb-coll-create [ns item]
   (let [id (str (now-ms))
-        full (obj-merge item {"id" id "updated" (now-ms)})]
-    (afldb-put (afldb-coll-item-key ns id) full)
-    (afldb-index-add-id (afldb-coll-index-key ns) id)
+        full (obj-merge item {"id" id "updated" (now-ms)})
+        index-key (afldb-coll-index-key ns)
+        item-key (afldb-coll-item-key ns id)
+        ids (afldb-index-get index-key)
+        sid (str id)
+        exists (filter (fn [x] (= (str x) sid)) ids)
+        next-ids (if (> (length exists) 0)
+                   ids
+                   (push ids sid))]
+    (afldb-batch-put [{"key" item-key "value" full}
+                      {"key" index-key "value" next-ids}])
     full))
 
 (defn afldb-coll-update [ns id patch]

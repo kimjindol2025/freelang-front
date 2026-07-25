@@ -92,7 +92,7 @@ FL v12는 별도 gogs 리포 2개에서 진행 중: **kim/freelang-v12**(모듈�
 | 무인 스캐폴드 → `fl-front-loop` 완주 | ✅ `RUN-FL-AUTOPILOT-001` |
 | 진단 humanShare 리포트 | ✅ `RUN-FL-HUMANSHARE-001` |
 | HTTP in-process | ✅ HTTP-INPROCESS-001 (`32dac2c` / 코어 `3d9a3b46`) |
-| afl-db batch write 경로 정리 | in-process 이후 콜 횟수 최적 여지 — **미착수** |
+| afl-db batch write 경로 정리 | ✅ create get+batch-put (3→2). update/delete 유지 |
 | 진단 커버리지 확대 | let-벡터 외 파서 의존 사각이 더 있을 수 있음 — **미착수** |
 | APP-DB / route-shadow 일괄 | 보류 트리거(0/3 · 0/1) 전 — **미착수** |
 
