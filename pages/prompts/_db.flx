@@ -1,0 +1,26 @@
+; pages/prompts/_db.flx — AI 프롬프트 스니펫
+(ns prompts)
+
+(define PROMPTS-DB {:type "sqlite" :path "data/prompts.db"})
+
+(defn init []
+  (db-exec PROMPTS-DB
+    "CREATE TABLE IF NOT EXISTS prompts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      body TEXT NOT NULL,
+      tag TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query PROMPTS-DB
+    "SELECT * FROM prompts ORDER BY created_at DESC" []))
+
+(defn add [title body tag]
+  (db-exec PROMPTS-DB
+    "INSERT INTO prompts (title, body, tag) VALUES (?,?,?)"
+    [title body tag]))
+
+(defn delete [id]
+  (db-exec PROMPTS-DB "DELETE FROM prompts WHERE id=?" [(str-to-num id)]))

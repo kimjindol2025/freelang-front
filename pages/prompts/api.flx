@@ -1,0 +1,37 @@
+; pages/prompts/api.flx
+; GET  /prompts/api → {items}
+; POST /prompts/api → add|delete
+
+(load "pages/prompts/_db.flx")
+(prompts-init)
+
+(defn prompts-payload []
+  {"items" (prompts-all)})
+
+(defn render [req]
+  (server-json (prompts-payload)))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [title (or (get body "title") "")
+              text  (or (get body "body") "")
+              tag   (or (get body "tag") "")]
+          (if (or (= (str-trim title) "") (= (str-trim text) ""))
+            (server-json {"ok" false "error" "제목과 본문이 필요합니다"} 400)
+            (do
+              (prompts-add (str-trim title) text (str-trim tag))
+              (server-json (obj-merge {"ok" true} (prompts-payload))))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (prompts-delete id)
+              (server-json (obj-merge {"ok" true} (prompts-payload))))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

@@ -235,6 +235,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/photos/api` | pages/photos/api.flx |
 | `/photos` | pages/photos/index.flx |
 | `/playground` | pages/playground.flx |
+| `/prompts/api` | pages/prompts/api.flx |
+| `/prompts` | pages/prompts/index.flx |
 | `/reading/api` | pages/reading/api.flx |
 | `/reading` | pages/reading/index.flx |
 | `/scratch/api` | pages/scratch/api.flx |

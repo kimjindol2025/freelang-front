@@ -30,6 +30,17 @@
     (if (= (length rows) 0)
       0
       (str-to-num (or (get (first rows) "n") 0)))))
+
+(defn date-bounds []
+  (let [rows (db-query DECISIONS-DB
+               "SELECT date('now','localtime') AS today,
+                       date('now','localtime','-6 days') AS week_start,
+                       date('now','localtime','start of month') AS month_start"
+               [])]
+    (if (= (length rows) 0)
+      {"today" "" "week_start" "" "month_start" ""}
+      (first rows))))
+
 (defn add [title context options]
   (db-exec DECISIONS-DB
     "INSERT INTO decisions (title, context, options) VALUES (?,?,?)"

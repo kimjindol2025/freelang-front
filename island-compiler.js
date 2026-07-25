@@ -437,6 +437,8 @@ const concat=(a,b)=>[...(a||[]),...(b||[])];
 const str_contains=(s,sub)=>String(s??'').includes(String(sub??''));
 const str_blank_q=(s)=>!s||String(s).trim()==='';
 const str_slice=(s,start,end)=>String(s??'').slice(start,end);
+const str_trim=(s)=>String(s??'').trim();
+const str_split=(s,sep)=>String(s??'').split(sep);
 const js_prompt=(msg,def)=>window.prompt(msg,def??'');
 const js_confirm=(msg)=>window.confirm(msg);
 </script>`;

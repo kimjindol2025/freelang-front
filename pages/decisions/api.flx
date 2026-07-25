@@ -1,18 +1,24 @@
 ; pages/decisions/api.flx — 결정 일지 JSON API
-; GET  /decisions/api → {items, open_count, decided_count, reviewed_count}
+; GET  /decisions/api → {items, counts, today, week_start, month_start}
 ; POST /decisions/api → add|delete|decide|review|reopen
 
 (load "pages/decisions/_db.flx")
 (decisions-init)
 
-(defn payload []
-  (let [items (decisions-all)]
+; 옵션 줄 분리는 Island(클라이언트)에서 처리
+; db row 는 JS 네이티브 객체라 obj-merge 불가 → 키를 명시적으로 복사
+(defn decisions-payload []
+  (let [items  (decisions-all)
+        bounds (decisions-date-bounds)]
     {"items" items
      "open_count" (decisions-count-by "open")
      "decided_count" (decisions-count-by "decided")
-     "reviewed_count" (decisions-count-by "reviewed")}))
+     "reviewed_count" (decisions-count-by "reviewed")
+     "today" (or (get bounds "today") "")
+     "week_start" (or (get bounds "week_start") "")
+     "month_start" (or (get bounds "month_start") "")}))
 (defn render [req]
-  (server-json (payload)))
+  (server-json (decisions-payload)))
 
 (defn render_post [req]
   (let [body   (get req "body")
@@ -26,7 +32,7 @@
             (server-json {"ok" false "error" "제목이 필요합니다"} 400)
             (do
               (decisions-add (str-trim title) context options)
-              (server-json (obj-merge {"ok" true} (payload))))))
+              (server-json (obj-merge {"ok" true} (decisions-payload))))))
 
       (= action "delete")
         (let [id (get body "id")]
@@ -34,7 +40,7 @@
             (server-json {"ok" false "error" "id 필요"} 400)
             (do
               (decisions-delete id)
-              (server-json (obj-merge {"ok" true} (payload))))))
+              (server-json (obj-merge {"ok" true} (decisions-payload))))))
 
       (= action "decide")
         (let [id     (get body "id")
@@ -45,7 +51,7 @@
               (server-json {"ok" false "error" "선택한 안을 입력하세요"} 400)
               (do
                 (decisions-decide id (str-trim chosen))
-                (server-json (obj-merge {"ok" true} (payload)))))))
+                (server-json (obj-merge {"ok" true} (decisions-payload)))))))
 
       (= action "review")
         (let [id      (get body "id")
@@ -56,7 +62,7 @@
               (server-json {"ok" false "error" "결과를 입력하세요"} 400)
               (do
                 (decisions-review id (str-trim outcome))
-                (server-json (obj-merge {"ok" true} (payload)))))))
+                (server-json (obj-merge {"ok" true} (decisions-payload)))))))
 
       (= action "reopen")
         (let [id (get body "id")]
@@ -64,7 +70,7 @@
             (server-json {"ok" false "error" "id 필요"} 400)
             (do
               (decisions-reopen id)
-              (server-json (obj-merge {"ok" true} (payload))))))
+              (server-json (obj-merge {"ok" true} (decisions-payload))))))
 
       true
         (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

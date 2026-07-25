@@ -1,5 +1,5 @@
 ; pages/decisions/index.flx — 결정 일지
-; 디자인 참고: design-052 GymCRM 체크인 (다크 · Manrope · #FF5B35)
+; 선택지 탭 선택 · 날짜 필터 · 모바일 터치 타깃
 
 (load "pages/decisions/_db.flx")
 (decisions-init)
@@ -14,6 +14,7 @@
         expand-id  (atom nil)
         chosen-in  (atom "")
         outcome-in (atom "")
+        day-filter (atom "all")
 
         apply-res (fn [res]
                     (reset! data res)
@@ -46,7 +47,7 @@
 
         decide-item (fn [id]
                       (if (= (str-trim @chosen-in) "")
-                        (reset! err "선택한 안을 입력하세요")
+                        (reset! err "선택한 안을 탭하거나 입력하세요")
                         (fetch-post! "/decisions/api"
                           {"action" "decide" "id" id "chosen" @chosen-in}
                           reload)))
@@ -75,10 +76,45 @@
                          (= st "reviewed") "#3DCF8E"
                          true "#8B8B96"))
 
+        created-day (fn [row]
+                      (str-slice (or (get row "created_at") "") 0 10))
+
+        in-filter? (fn [row]
+                     (let [day (created-day row)
+                           f   @day-filter]
+                       (cond
+                         (= f "all") true
+                         (= f "today") (= day (get @data "today"))
+                         (= f "week") (>= day (get @data "week_start"))
+                         (= f "month") (>= day (get @data "month_start"))
+                         true true)))
+
+        visible-items (fn []
+                        (filter in-filter? (or (get @data "items") [])))
+
+        option-list (fn [text]
+                      (let [raw (or text "")]
+                        (if (= (str-trim raw) "")
+                          []
+                          (filter
+                            (fn [line] (not (= (str-trim line) "")))
+                            (str-split raw "\n")))))
+
+        opt-chip (fn [opt]
+                   (let [t   (str-trim opt)
+                         sel (= @chosen-in t)]
+                     (h "button"
+                       {:class (if sel "dec-chip dec-chip-on" "dec-chip")
+                        :on-click (fn []
+                                    (reset! chosen-in t)
+                                    (reset! err ""))}
+                       t)))
+
         row-view (fn [row]
-                   (let [id     (get row "id")
-                         st     (get row "status")
-                         is-open (= @expand-id id)]
+                   (let [id      (get row "id")
+                         st      (get row "status")
+                         is-open (= @expand-id id)
+                         opts    (option-list (get row "options"))]
                      (h "div" {:class "dec-row"}
                        (str
                          (h "button" {:class "dec-row-main"
@@ -95,6 +131,8 @@
                                  (h "div" {:class "dec-title"} (get row "title"))
                                  (h "div" {:class "dec-meta"}
                                    (str (status-label st)
+                                        " · "
+                                        (created-day row)
                                         (if (= (or (get row "chosen") "") "")
                                           ""
                                           (str " · " (get row "chosen")))))))
@@ -107,15 +145,22 @@
                                  (h "p" {:class "dec-block"}
                                    (str (h "span" {:class "dec-k"} "맥락")
                                         (get row "context"))))
-                               (if (= (or (get row "options") "") "")
-                                 ""
-                                 (h "p" {:class "dec-block"}
-                                   (str (h "span" {:class "dec-k"} "선택지")
-                                        (get row "options"))))
+                               (if (= (length opts) 0)
+                                 (if (= (or (get row "options") "") "")
+                                   ""
+                                   (h "p" {:class "dec-block"}
+                                     (str (h "span" {:class "dec-k"} "선택지")
+                                          (get row "options"))))
+                                 (h "div" {:class "dec-opts"}
+                                   (str
+                                     (h "span" {:class "dec-k"} "선택지 — 탭해서 고르기")
+                                     (h "div" {:class "dec-chips"}
+                                       (arr-join (map opt-chip opts) "")))))
                                (if (= st "open")
                                  (h "div" {:class "dec-actions"}
                                    (str
-                                     (h! "input" {:class "dec-input" :placeholder "선택한 안"
+                                     (h! "input" {:class "dec-input"
+                                                  :placeholder "직접 입력도 가능"
                                                   :value @chosen-in
                                                   :on-input (fn [e]
                                                               (reset! chosen-in
@@ -165,7 +210,7 @@
               (h "div" {}
                 (str
                   (h "h1" {} "Decisions")
-                  (h "p" {:class "dec-lead"} "결정하고, 나중에 결과를 남긴다")))
+                  (h "p" {:class "dec-lead"} "탭으로 고르고, 나중에 결과를 남긴다")))
               (h "button" {:class "dec-btn dec-btn-accent"
                            :on-click (fn []
                                        (reset! show-form true)
@@ -184,6 +229,17 @@
                 (str (h "div" {:class "dec-stat-n"} (str (get @data "reviewed_count")))
                      (h "div" {:class "dec-stat-l"} "회고")))))
 
+          (h "div" {:class "dec-filters"}
+            (str
+              (h "button" {:class (if (= @day-filter "all") "dec-fchip dec-fchip-on" "dec-fchip")
+                           :on-click (fn [] (reset! day-filter "all"))} "전체")
+              (h "button" {:class (if (= @day-filter "today") "dec-fchip dec-fchip-on" "dec-fchip")
+                           :on-click (fn [] (reset! day-filter "today"))} "오늘")
+              (h "button" {:class (if (= @day-filter "week") "dec-fchip dec-fchip-on" "dec-fchip")
+                           :on-click (fn [] (reset! day-filter "week"))} "7일")
+              (h "button" {:class (if (= @day-filter "month") "dec-fchip dec-fchip-on" "dec-fchip")
+                           :on-click (fn [] (reset! day-filter "month"))} "이번 달")))
+
           (if @show-form
             (h "div" {:class "dec-form"}
               (str
@@ -193,7 +249,7 @@
                 (h "textarea" {:class "dec-area" :placeholder "맥락 (선택)"
                                :value @context-in
                                :on-input (fn [e] (reset! context-in (.-value (.-target e))))} "")
-                (h "textarea" {:class "dec-area" :placeholder "선택지 — 줄바꿈으로 나열"
+                (h "textarea" {:class "dec-area" :placeholder "선택지 — 한 줄에 하나"
                                :value @options-in
                                :on-input (fn [e] (reset! options-in (.-value (.-target e))))} "")
                 (h "div" {:class "dec-form-actions"}
@@ -210,10 +266,13 @@
             ""
             (h "p" {:class "dec-err"} @err))
 
-          (if (= (length (get @data "items")) 0)
-            (h "p" {:class "dec-empty"} "아직 기록이 없습니다. 첫 결정을 남겨 보세요.")
+          (if (= (length (visible-items)) 0)
+            (h "p" {:class "dec-empty"}
+              (if (= (length (get @data "items")) 0)
+                "아직 기록이 없습니다. 첫 결정을 남겨 보세요."
+                "이 기간에 해당하는 결정이 없습니다."))
             (h "div" {:class "dec-list"}
-              (arr-join (map row-view (get @data "items")) ""))))))))
+              (arr-join (map row-view (visible-items)) ""))))))))
 
 (defn render [req]
   (layout-html "Decisions"
@@ -222,49 +281,68 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  .dec-wrap{max-width:440px;margin:0 auto;padding:28px 18px 72px;
+  .dec-wrap{max-width:440px;margin:0 auto;padding:20px 16px 88px;
     font-family:'Manrope',system-ui,sans-serif;color:#F2F2F5;
     background:radial-gradient(120% 80% at 10% -10%,#2a1f1c 0%,#16161C 45%,#121218 100%);
-    min-height:100dvh;box-sizing:border-box}
+    min-height:100dvh;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   .dec-loading{text-align:center;padding:64px 20px;color:#8B8B96}
-  .dec-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:22px}
+  .dec-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
   .dec-head h1{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
   .dec-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96;line-height:1.45}
-  .dec-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
-  .dec-stat{background:#1C1C24;border:1px solid #2A2A33;border-radius:14px;padding:12px 10px;text-align:center}
+  .dec-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .dec-stat{background:#1C1C24;border:1px solid #2A2A33;border-radius:14px;padding:14px 10px;text-align:center}
   .dec-stat-n{font-size:1.25rem;font-weight:800}
   .dec-stat-l{font-size:.68rem;color:#8B8B96;margin-top:2px;font-weight:600}
+  .dec-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .dec-filters::-webkit-scrollbar{display:none}
+  .dec-fchip{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #2A2A33;
+    background:#1C1C24;color:#8B8B96;font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+  .dec-fchip-on{background:#FF5B35;border-color:#FF5B35;color:#fff}
   .dec-form{background:#1C1C24;border:1px solid #2A2A33;border-radius:16px;padding:14px;margin-bottom:14px;
     display:flex;flex-direction:column;gap:8px}
   .dec-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
   .dec-input,.dec-area{width:100%;box-sizing:border-box;background:#121218;color:#F2F2F5;
-    border:1px solid #2A2A33;border-radius:10px;padding:10px 12px;font:inherit;font-size:.88rem}
-  .dec-area{min-height:72px;resize:vertical}
+    border:1px solid #2A2A33;border-radius:12px;padding:12px 14px;font:inherit;font-size:16px}
+  .dec-area{min-height:80px;resize:vertical}
   .dec-input:focus,.dec-area:focus{outline:none;border-color:#FF5B35}
-  .dec-btn{border:none;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+  .dec-btn{border:none;border-radius:12px;min-height:46px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer}
   .dec-btn-accent{background:#FF5B35;color:#fff}
-  .dec-btn-accent:hover{filter:brightness(1.06)}
+  .dec-btn-accent:active{filter:brightness(.95);transform:scale(.98)}
   .dec-btn-ghost{background:transparent;border:none;color:#8B8B96;font:inherit;font-weight:600;
-    cursor:pointer;padding:8px 10px}
+    cursor:pointer;min-height:44px;padding:10px 12px}
   .dec-danger{color:#ff7b7b}
   .dec-err{color:#ff7b7b;font-size:.8rem;margin:0 0 12px}
   .dec-empty{color:#8B8B96;font-size:.85rem;padding:28px 8px;text-align:center;line-height:1.5}
   .dec-list{display:flex;flex-direction:column}
   .dec-row{border-bottom:1px solid #24242C}
-  .dec-row-main{width:100%;display:flex;align-items:center;gap:12px;padding:14px 2px;
+  .dec-row-main{width:100%;display:flex;align-items:center;gap:12px;min-height:56px;padding:14px 2px;
     background:transparent;border:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+  .dec-row-main:active{opacity:.85}
   .dec-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
   .dec-row-text{flex:1;min-width:0}
-  .dec-title{font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dec-title{font-size:.95rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dec-meta{font-size:.72rem;color:#8B8B96;margin-top:3px}
   .dec-chev{color:#8B8B96;font-size:.85rem;flex-shrink:0}
-  .dec-panel{padding:0 2px 14px 24px;display:flex;flex-direction:column;gap:10px;
+  .dec-panel{padding:0 2px 16px 22px;display:flex;flex-direction:column;gap:12px;
     animation:decIn .22s ease}
   @keyframes decIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
   .dec-block{margin:0;font-size:.8rem;color:#C8C8D0;line-height:1.5;white-space:pre-wrap}
-  .dec-k{display:block;font-size:.68rem;font-weight:800;color:#8B8B96;margin-bottom:3px;letter-spacing:.04em}
+  .dec-k{display:block;font-size:.68rem;font-weight:800;color:#8B8B96;margin-bottom:6px;letter-spacing:.04em}
+  .dec-opts{display:flex;flex-direction:column;gap:8px}
+  .dec-chips{display:flex;flex-direction:column;gap:8px}
+  .dec-chip{width:100%;min-height:48px;text-align:left;padding:12px 14px;border-radius:12px;
+    border:1px solid #2A2A33;background:#121218;color:#F2F2F5;font:inherit;font-size:.9rem;
+    font-weight:600;cursor:pointer}
+  .dec-chip:active{transform:scale(.99)}
+  .dec-chip-on{border-color:#FF5B35;background:rgba(255,91,53,.14);color:#fff;
+    box-shadow:inset 0 0 0 1px #FF5B35}
   .dec-actions{display:flex;flex-direction:column;gap:8px}
   .dec-foot{display:flex;justify-content:flex-end;gap:4px}
+  @media (min-width:480px){
+    .dec-chips{flex-direction:row;flex-wrap:wrap}
+    .dec-chip{width:auto;flex:1 1 calc(50% - 4px)}
+  }
 </style>
 <div class="dec-wrap">
 """
