@@ -123,14 +123,30 @@ const BOOTSTRAP = (() => {
   return candidates.find(p => { try { require('fs').accessSync(p); return true; } catch { return false; } }) || candidates[0];
 })();
 
+// ls-fns 로드 메타 — summary에 노출. 실패 시 known stdlib가 비어 undefined-fn이 폭증함(26→67).
+let STDLIB_LOAD = { ok: false, count: 0, bootstrap: BOOTSTRAP, error: null };
+
 function loadFreeLangStdlib() {
   try {
     const out = cp.execSync(`node ${BOOTSTRAP} ls-fns 2>/dev/null`, { timeout: 8000 }).toString();
     // 출력 패턴: "  func_name [args] → ..." (2칸 들여쓰기)
     const names = [...out.matchAll(/^ {2}([\w?-]+)[\s[→]/gm)].map(m => m[1]);
+    STDLIB_LOAD = { ok: names.length > 0, count: names.length, bootstrap: BOOTSTRAP, error: null };
+    if (names.length === 0) {
+      STDLIB_LOAD.error = 'ls-fns produced 0 parseable names (format mismatch?)';
+      console.warn(`⚠️  [stdlib] ${STDLIB_LOAD.error} — undefined-fn 경고가 부풀 수 있음 (bootstrap=${BOOTSTRAP})`);
+    }
     return new Set(names);
-  } catch {
-    return new Set(); // 로드 실패 시 빈 Set (모든 함수 허용)
+  } catch (e) {
+    // 빈 Set ≠ 모든 함수 허용. FL_FRONT_HELPERS만 known → undefined-fn 대량 증가.
+    STDLIB_LOAD = {
+      ok: false,
+      count: 0,
+      bootstrap: BOOTSTRAP,
+      error: (e && e.message) ? String(e.message).slice(0, 200) : 'ls-fns exec failed',
+    };
+    console.warn(`⚠️  [stdlib] ls-fns 로드 실패 — undefined-fn 폭증 가능: ${STDLIB_LOAD.error}`);
+    return new Set();
   }
 }
 
@@ -2588,6 +2604,12 @@ const buildState = {
     errors: errors.length,
     warnings: warns.length,
     diagnosticCodeCount: DIAGNOSTIC_CODES.length,
+    // 정본 판별용: ok=false/count=0 이면 warnings≈67(undefined-fn 폭증)이 정상 증상
+    stdlibLoadOk: STDLIB_LOAD.ok,
+    stdlibFnCount: STDLIB_LOAD.count + FL_FRONT_HELPERS.size, // ls-fns ∪ helpers (대략)
+    stdlibLsFnsCount: STDLIB_LOAD.count,
+    stdlibBootstrap: STDLIB_LOAD.bootstrap,
+    ...(STDLIB_LOAD.error ? { stdlibLoadError: STDLIB_LOAD.error } : {}),
   },
   sourceMap,
 };

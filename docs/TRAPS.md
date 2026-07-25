@@ -27,6 +27,7 @@
 | **공통 CSS** | afldb 앱 공통 CSS 모듈 없음 (1·2사이클 반복). 당분간 인라인 style / 무스타일. 모듈 추가는 보류. |
 | **콜드스타트 허용면** | 앱 작성 전: `node fl-manifest.js` + `docs/TRAPS.md` + `docs/AFLDB-COLL.md` + `--codes`. 기존 coll 앱 소스 복사 금지. |
 | **fl-loop 계약** | `converged` = **machine-applicable 0건** (자동으로 더 고칠 것 없음). `humanShare`/`humanShareItems` = 사람 몫. **converged ≠ humanShare 0**. |
+| **stdlib ls-fns** | `node runtime/bootstrap.js ls-fns` 실패·파싱0이면 `undefined-fn` 2→43 · warnings 26→67. 정본은 `summary.stdlibLoadOk==true`일 때. |
 | **scaffold 필드명** | `text`/`body`/`action`/`id` 는 req body와 충돌 가능 — `content`/`title` 등 (`fl-scaffold.js` BLOCKED_FIELDS). **손코드 `text`는 Trap `req-key-collision`.** `action`/`id`는 API 프로토콜이라 Trap 제외. |
 
 ## 관련 규칙

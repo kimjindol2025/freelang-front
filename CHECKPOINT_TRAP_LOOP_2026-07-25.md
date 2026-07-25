@@ -68,9 +68,39 @@ N=1 (공통 CSS) — TRAPS 문서화 완료, 추가 checker 승격 없음.
 
 | 항목 | 결과 |
 |------|------|
-| 기준선 | 126 routes · 13 helpers · 19 codes · build ok · **`summary.warnings` 26** (`--json` 정본) |
-| 팀장 검수 | `warnings 67` 보고와 불일치 → 재실측 시 `issues`/`summary.warnings` **26** (global-shadow14+route-shadow6+str-loop3+undefined-fn2+arity1). 67 출처 불명 — 문서를 67로 덮지 않음. 콘솔 `⚠` 줄 수는 ~29(헤더 포함)로 JSON과 다름. |
-| 블로그 1311 | 전체 해시가 `[REDACTED:Git Token]`으로 저장됨 → 짧은 해시 `43c4ee9`로 정정 필요(push 전) |
+| 기준선 | 126 routes · 13 helpers · 19 codes · build ok · **`summary.warnings` 26** |
+| 블로그 1311 | redaction → 짧은 해시 `43c4ee9` 정정 완료 |
+
+### warnings 26 vs 67 — 원인 (팀장 검수 후 확정)
+
+| 수치 | 조건 | undefined-fn |
+|------|------|----------------|
+| **26** (정본) | `node runtime/bootstrap.js ls-fns` 성공·파싱 ≥1 | **2** (`conj`,`js-keys` in `[id].flx`) |
+| **67** | `loadFreeLangStdlib()` 실패 또는 파싱 0건 | **43** (+41) |
+
+차이 구성: undefined-fn만 2→43. arity1 · global-shadow14 · route-shadow6 · str-loop-concat3 동일.
+
+**67 재현 (검증됨):** `FL_BOOTSTRAP`이 **존재하는 파일**이어야 함.
+(`/nonexistent`는 후보 fallthrough로 local bootstrap을 쓰므로 67이 안 남.)
+```bash
+printf 'process.exit(1)\n' > /tmp/fl-bootstrap-fail.js
+FL_HTTP_ALLOW=127.0.0.1,localhost FL_BOOTSTRAP=/tmp/fl-bootstrap-fail.js \
+  node fl-front-build.js --json \
+  | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["summary"])'
+# → warnings 67 · stdlibLoadOk false · stdlibLsFnsCount 0 · undefined-fn 43
+```
+
+**26 재현 (정본):**
+```bash
+node runtime/bootstrap.js ls-fns 2>/dev/null | wc -l   # 파싱 가능한 줄 존재
+FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js --json \
+  | python3 -c 'import json,sys;d=json.load(sys.stdin);print(d["summary"])'
+# → warnings 26 · stdlibLoadOk true · stdlibLsFnsCount ~485 · undefined-fn 2
+```
+
+주의: 옛 주석 “빈 Set = 모든 함수 허용”은 **거짓**. helper만 known → undefined-fn 폭증.  
+summary에 `stdlibLoadOk` / `stdlibLsFnsCount` 추가 — **정본 판별은 `stdlibLoadOk==true`일 때의 warnings**.  
+팀장 67은 ls-fns 로드 실패 증상으로 설명됨. **push 보류.**
 | 오검출 | normal_let / `"act"` 문자열 / 주석 `(let [act` → reserved-word **0** |
 | 검출 | `(let [… act …])` → error `reserved-word` (let 바인딩) |
 | 루프 축소판 | detect → `fl-front-fix --fix` (act→action) → rebuild ok → 픽스처 삭제 · 무한루프 0 · 오수정 0 |
