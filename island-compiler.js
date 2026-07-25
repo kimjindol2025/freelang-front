@@ -128,6 +128,7 @@ function emitList(node, ctx) {
   if (head?.sym === 'swap!')  return emitSwap(args, ctx);
   if (head?.sym === 'reset!') return emitReset(args, ctx);
   if (head?.sym === 'h')      return emitH(args, ctx);
+  if (head?.sym === 'h!')     return emitHBang(args, ctx);
   if (head?.sym === 'str')    return emitStr(args, ctx);
   if (head?.sym === '+')      return `(${args.map(a=>emit(a,ctx)).join(' + ')})`;
   if (head?.sym === '-')      return `(${args.map(a=>emit(a,ctx)).join(' - ')})`;
@@ -308,6 +309,13 @@ function emitH(args, ctx) {
   const attrs  = args[1] ? emit(args[1], ctx) : '{}';
   const children = args.slice(2).map(a => emit(a, ctx));
   return `_fl.h(${tag}, ${attrs}${children.length ? ', ' + children.join(', ') : ''})`;
+}
+
+function emitHBang(args, ctx) {
+  // (h! "input" {attrs}) — void 태그; _fl.h 로 createElement (자식 없음)
+  const tag   = emit(args[0], ctx);
+  const attrs = args[1] ? emit(args[1], ctx) : '{}';
+  return `_fl.h(${tag}, ${attrs})`;
 }
 
 function emitStr(args, ctx) {

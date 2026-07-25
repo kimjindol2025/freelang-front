@@ -1,0 +1,78 @@
+; pages/followups/api.flx — Followups JSON API
+; GET  /followups/api → followups-payload
+; POST /followups/api → add|done|reopen|snooze|reschedule|delete
+
+(load "pages/followups/_db.flx")
+(followups-init)
+
+(defn followups-payload []
+  {"items" (followups-all)
+   "open_count" (followups-count-by "open")
+   "due_count" (followups-due-count)
+   "done_count" (followups-count-by "done")
+   "snoozed_count" (followups-count-by "snoozed")
+   "today" (followups-today)})
+
+(defn render [req]
+  (server-json (followups-payload)))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [title       (or (get body "title") "")
+              context     (or (get body "context") "")
+              due-date    (or (get body "due_date") "")
+              source-type (or (get body "source_type") "manual")
+              source-id   (or (get body "source_id") "")]
+          (if (= (str-trim title) "")
+            (server-json {"ok" false "error" "title이 필요합니다"} 400)
+            (do
+              (followups-add (str-trim title) context (str-trim due-date)
+                (str-trim source-type) (str-trim source-id))
+              (server-json (obj-merge {"ok" true} (followups-payload))))))
+
+      (= action "done")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (followups-mark-done id)
+              (server-json (obj-merge {"ok" true} (followups-payload))))))
+
+      (= action "reopen")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (followups-reopen id)
+              (server-json (obj-merge {"ok" true} (followups-payload))))))
+
+      (= action "snooze")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (followups-snooze id)
+              (server-json (obj-merge {"ok" true} (followups-payload))))))
+
+      (= action "reschedule")
+        (let [id       (get body "id")
+              due-date (or (get body "due_date") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (followups-reschedule id (str-trim due-date))
+              (server-json (obj-merge {"ok" true} (followups-payload))))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (followups-delete id)
+              (server-json (obj-merge {"ok" true} (followups-payload))))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

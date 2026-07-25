@@ -1,0 +1,322 @@
+; pages/followups/index.flx — 후속 행동 보드 MVP
+
+(load "pages/followups/_db.flx")
+(followups-init)
+
+(island FollowupsApp []
+  (let [data        (atom nil)
+        show-form   (atom false)
+        title-in    (atom "")
+        context-in  (atom "")
+        due-in      (atom "")
+        source-in   (atom "manual")
+        source-id-in (atom "")
+        filter-k    (atom "all")
+        expand-id   (atom nil)
+        edit-due    (atom "")
+        err         (atom "")
+        loaded      (atom false)
+
+        apply-res (fn [res]
+                    (reset! data res)
+                    (reset! show-form false)
+                    (reset! title-in "")
+                    (reset! context-in "")
+                    (reset! due-in "")
+                    (reset! source-in "manual")
+                    (reset! source-id-in "")
+                    (reset! err "")
+                    (reset! expand-id nil)
+                    (reset! edit-due ""))
+
+        reload (fn [res]
+                 (if (= (get res "ok") false)
+                   (reset! err (or (get res "error") "요청 실패"))
+                   (apply-res res)))
+
+        add-item (fn []
+                   (if (= (str-trim @title-in) "")
+                     (reset! err "할 일을 입력하세요")
+                     (fetch-post! "/followups/api"
+                       {"action" "add"
+                        "title" @title-in
+                        "context" @context-in
+                        "due_date" @due-in
+                        "source_type" @source-in
+                        "source_id" @source-id-in}
+                       reload)))
+
+        del-item (fn [id]
+                   (fetch-post! "/followups/api" {"action" "delete" "id" id} reload))
+
+        mark-done (fn [id]
+                    (fetch-post! "/followups/api" {"action" "done" "id" id} reload))
+
+        reopen-item (fn [id]
+                      (fetch-post! "/followups/api" {"action" "reopen" "id" id} reload))
+
+        snooze-item (fn [id]
+                      (fetch-post! "/followups/api" {"action" "snooze" "id" id} reload))
+
+        save-due (fn [id]
+                   (fetch-post! "/followups/api"
+                     {"action" "reschedule" "id" id "due_date" @edit-due}
+                     reload))
+
+        due? (fn [row]
+               (let [dd (or (get row "due_date") "")
+                     st (or (get row "status") "")
+                     td (or (get @data "today") "")]
+                 (and (= st "open")
+                      (not (= dd ""))
+                      (not (= td ""))
+                      (<= dd td))))
+
+        source-label (fn [row]
+                       (let [t (or (get row "source_type") "manual")]
+                         (cond
+                           (= t "people") "People"
+                           (= t "decision") "결정"
+                           true "수동")))
+
+        visible (fn []
+                  (let [f @filter-k
+                        items (or (get @data "items") [])]
+                    (cond
+                      (= f "all") items
+                      (= f "due") (filter due? items)
+                      (= f "open") (filter (fn [r] (= (get r "status") "open")) items)
+                      (= f "done") (filter (fn [r] (= (get r "status") "done")) items)
+                      (= f "snoozed") (filter (fn [r] (= (get r "status") "snoozed")) items)
+                      true items)))
+
+        status-color (fn [row]
+                       (cond
+                         (due? row) "#FF5B35"
+                         (= (get row "status") "done") "#8B8B96"
+                         (= (get row "status") "snoozed") "#E6A817"
+                         true "#4C8DFF"))
+
+        row-view (fn [row]
+                   (let [id      (get row "id")
+                         is-open (= @expand-id id)
+                         st      (or (get row "status") "open")]
+                     (h "div" {:class "fu-row"}
+                       (str
+                         (h "button" {:class "fu-main"
+                                      :on-click (fn []
+                                                  (reset! err "")
+                                                  (reset! edit-due (or (get row "due_date") ""))
+                                                  (reset! expand-id (if is-open nil id)))}
+                           (str
+                             (h "div" {:class "fu-dot"
+                                       :style (str "background:" (status-color row))} "")
+                             (h "div" {:class "fu-text"}
+                               (str
+                                 (h "div" {:class "fu-title"} (get row "title"))
+                                 (h "div" {:class "fu-meta"}
+                                   (str
+                                     (if (= (or (get row "due_date") "") "")
+                                       "날짜 없음"
+                                       (get row "due_date"))
+                                     " · "
+                                     (source-label row)
+                                     (if (due? row) " · 오늘까지" "")
+                                     (if (= st "done") " · 완료" "")
+                                     (if (= st "snoozed") " · 보류" "")))))
+                             (h "span" {:class "fu-chev"} (if is-open "▾" "▸"))))
+                         (if is-open
+                           (h "div" {:class "fu-panel"}
+                             (str
+                               (if (= (or (get row "context") "") "")
+                                 ""
+                                 (h "p" {:class "fu-ctx"} (get row "context")))
+                               (if (= (or (get row "source_id") "") "")
+                                 ""
+                                 (h "p" {:class "fu-src"}
+                                   (str "출처 ID: " (get row "source_id"))))
+                               (h "label" {:class "fu-k"} "마감일")
+                               (h! "input" {:class "fu-input" :type "date"
+                                            :value @edit-due
+                                            :on-input (fn [e]
+                                                        (reset! edit-due
+                                                          (.-value (.-target e))))})
+                               (h "div" {:class "fu-actions"}
+                                 (str
+                                   (h "button" {:class "fu-btn fu-accent"
+                                                :on-click (fn [] (save-due id))}
+                                     "날짜 저장")
+                                   (if (= st "done")
+                                     (h "button" {:class "fu-btn fu-ghost"
+                                                  :on-click (fn [] (reopen-item id))}
+                                       "재개")
+                                     (h "button" {:class "fu-btn fu-accent"
+                                                  :on-click (fn [] (mark-done id))}
+                                       "완료"))
+                                   (if (= st "snoozed")
+                                     (h "button" {:class "fu-btn fu-ghost"
+                                                  :on-click (fn [] (reopen-item id))}
+                                       "재개")
+                                     (h "button" {:class "fu-btn fu-ghost"
+                                                  :on-click (fn [] (snooze-item id))}
+                                       "보류"))
+                                   (h "button" {:class "fu-btn fu-danger"
+                                                :on-click (fn [] (del-item id))}
+                                     "삭제")))))
+                           "")))))]
+
+    (when (not @loaded)
+      (reset! loaded true)
+      (fetch! "/followups/api" (fn [res] (reset! data res))))
+
+    (if (= @data nil)
+      (h "div" {:class "fu-loading"} "불러오는 중…")
+
+      (h "div" {:class "fu-app"}
+        (str
+          (h "header" {:class "fu-head"}
+            (str
+              (h "div" {}
+                (str
+                  (h "h1" {} "Followups")
+                  (h "p" {:class "fu-lead"} "오늘 처리할 다음 행동")))
+              (h "button" {:class "fu-btn fu-accent"
+                           :on-click (fn [] (reset! show-form true))}
+                "+ 추가")))
+
+          (h "div" {:class "fu-stats"}
+            (str
+              (h "div" {:class "fu-stat"}
+                (str (h "div" {:class "fu-stat-n"} (str (get @data "due_count")))
+                     (h "div" {:class "fu-stat-l"} "오늘까지")))
+              (h "div" {:class "fu-stat"}
+                (str (h "div" {:class "fu-stat-n"} (str (get @data "open_count")))
+                     (h "div" {:class "fu-stat-l"} "진행중")))
+              (h "div" {:class "fu-stat"}
+                (str (h "div" {:class "fu-stat-n"} (str (get @data "done_count")))
+                     (h "div" {:class "fu-stat-l"} "완료")))
+              (h "div" {:class "fu-stat"}
+                (str (h "div" {:class "fu-stat-n"} (str (get @data "snoozed_count")))
+                     (h "div" {:class "fu-stat-l"} "보류")))))
+
+          (h "div" {:class "fu-filters"}
+            (str
+              (h "button" {:class (if (= @filter-k "all") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "all"))} "전체")
+              (h "button" {:class (if (= @filter-k "due") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "due"))} "오늘까지")
+              (h "button" {:class (if (= @filter-k "open") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "open"))} "진행중")
+              (h "button" {:class (if (= @filter-k "done") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "done"))} "완료")
+              (h "button" {:class (if (= @filter-k "snoozed") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "snoozed"))} "보류")))
+
+          (if @show-form
+            (h "div" {:class "fu-form"}
+              (str
+                (h! "input" {:class "fu-input" :placeholder "할 일"
+                             :value @title-in
+                             :on-input (fn [e] (reset! title-in (.-value (.-target e))))})
+                (h "textarea" {:class "fu-area" :placeholder "맥락 (선택)"
+                               :value @context-in
+                               :on-input (fn [e] (reset! context-in (.-value (.-target e))))} "")
+                (h! "input" {:class "fu-input" :type "date"
+                             :value @due-in
+                             :on-input (fn [e] (reset! due-in (.-value (.-target e))))})
+                (h "select" {:class "fu-input"
+                             :value @source-in
+                             :on-change (fn [e] (reset! source-in (.-value (.-target e))))}
+                  (str
+                    (h "option" {:value "manual"} "수동")
+                    (h "option" {:value "people"} "People")
+                    (h "option" {:value "decision"} "결정")))
+                (h! "input" {:class "fu-input" :placeholder "출처 ID (선택)"
+                             :value @source-id-in
+                             :on-input (fn [e] (reset! source-id-in (.-value (.-target e))))})
+                (h "div" {:class "fu-form-actions"}
+                  (str
+                    (h "button" {:class "fu-btn fu-ghost"
+                                 :on-click (fn [] (reset! show-form false))}
+                      "취소")
+                    (h "button" {:class "fu-btn fu-accent"
+                                 :on-click add-item}
+                      "추가")))))
+            "")
+
+          (if (= @err "")
+            ""
+            (h "p" {:class "fu-err"} @err))
+
+          (if (= (length (visible)) 0)
+            (h "p" {:class "fu-empty"}
+              (if (= (length (get @data "items")) 0)
+                "아직 후속 행동이 없습니다. 첫 할 일을 추가해 보세요."
+                "이 필터에 해당하는 항목이 없습니다."))
+            (h "div" {:class "fu-list"}
+              (arr-join (map row-view (visible)) ""))))))))
+
+(defn render [req]
+  (layout-html "Followups"
+    (str
+      """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  .fu-wrap{max-width:440px;margin:0 auto;padding:20px 16px 88px;
+    font-family:'Manrope',system-ui,sans-serif;color:#F2F2F5;
+    background:radial-gradient(120% 80% at 10% -10%,#1a2430 0%,#14181f 45%,#10141a 100%);
+    min-height:100dvh;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  .fu-loading{text-align:center;padding:64px 20px;color:#8B8B96}
+  .fu-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+  .fu-head h1{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
+  .fu-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96;line-height:1.45}
+  .fu-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .fu-stat{background:#1A1F28;border:1px solid #2A3140;border-radius:14px;padding:12px 6px;text-align:center}
+  .fu-stat-n{font-size:1.1rem;font-weight:800}
+  .fu-stat-l{font-size:.62rem;color:#8B8B96;margin-top:2px;font-weight:600}
+  .fu-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .fu-filters::-webkit-scrollbar{display:none}
+  .fu-chip{flex:0 0 auto;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid #2A3140;
+    background:#1A1F28;color:#8B8B96;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+  .fu-chip-on{background:#3DCF8E;border-color:#3DCF8E;color:#0f141a}
+  .fu-form{background:#1A1F28;border:1px solid #2A3140;border-radius:16px;padding:14px;margin-bottom:14px;
+    display:flex;flex-direction:column;gap:8px}
+  .fu-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+  .fu-input,.fu-area{width:100%;box-sizing:border-box;background:#10141a;color:#F2F2F5;
+    border:1px solid #2A3140;border-radius:12px;padding:12px 14px;font:inherit;font-size:16px}
+  .fu-area{min-height:72px;resize:vertical}
+  .fu-input:focus,.fu-area:focus{outline:none;border-color:#3DCF8E}
+  .fu-btn{border:none;border-radius:12px;min-height:46px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer}
+  .fu-accent{background:#3DCF8E;color:#0f141a}
+  .fu-accent:active{filter:brightness(.95);transform:scale(.98)}
+  .fu-ghost{background:transparent;border:none;color:#8B8B96;font:inherit;font-weight:600;
+    cursor:pointer;min-height:44px;padding:10px 12px}
+  .fu-danger{color:#ff7b7b;background:transparent}
+  .fu-err{color:#ff7b7b;font-size:.8rem;margin:0 0 12px}
+  .fu-empty{color:#8B8B96;font-size:.85rem;padding:28px 8px;text-align:center;line-height:1.5}
+  .fu-list{display:flex;flex-direction:column}
+  .fu-row{border-bottom:1px solid #242A35}
+  .fu-main{width:100%;display:flex;align-items:center;gap:12px;min-height:56px;padding:14px 2px;
+    background:transparent;border:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+  .fu-main:active{opacity:.85}
+  .fu-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .fu-text{flex:1;min-width:0}
+  .fu-title{font-size:.95rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fu-meta{font-size:.72rem;color:#8B8B96;margin-top:3px}
+  .fu-chev{color:#8B8B96;font-size:.85rem;flex-shrink:0}
+  .fu-panel{padding:0 2px 16px 22px;display:flex;flex-direction:column;gap:10px;
+    animation:fuIn .22s ease}
+  @keyframes fuIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .fu-ctx,.fu-src{margin:0;font-size:.8rem;color:#C8C8D0;line-height:1.5;white-space:pre-wrap}
+  .fu-src{color:#8B8B96;font-size:.72rem}
+  .fu-k{font-size:.68rem;font-weight:800;color:#8B8B96;letter-spacing:.04em}
+  .fu-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+</style>
+<div class="fu-wrap">
+"""
+      "ISLAND_PLACEHOLDER"
+      "</div>"
+      "ISLAND_SCRIPTS")
+    req))

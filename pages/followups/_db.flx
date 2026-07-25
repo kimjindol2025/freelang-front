@@ -1,0 +1,82 @@
+; pages/followups/_db.flx — 후속 행동 보드 MVP
+; People/Decisions DB와 분리 — data/followups.db 만 사용
+(ns followups)
+
+(define FOLLOWUPS-DB {:type "sqlite" :path "data/followups.db"})
+
+(defn init []
+  (db-exec FOLLOWUPS-DB
+    "CREATE TABLE IF NOT EXISTS followups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      context TEXT DEFAULT '',
+      due_date TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      source_type TEXT DEFAULT 'manual',
+      source_id TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      done_at TEXT DEFAULT ''
+    )" []))
+
+(defn all []
+  (db-query FOLLOWUPS-DB
+    "SELECT * FROM followups ORDER BY
+       CASE status WHEN 'open' THEN 0 WHEN 'snoozed' THEN 1 ELSE 2 END,
+       CASE WHEN due_date = '' THEN 1 ELSE 0 END,
+       due_date ASC,
+       created_at DESC" []))
+
+(defn count-by [status]
+  (let [rows (db-query FOLLOWUPS-DB
+               "SELECT COUNT(*) AS n FROM followups WHERE status=?"
+               [status])]
+    (if (= (length rows) 0)
+      0
+      (str-to-num (or (get (first rows) "n") 0)))))
+
+(defn today []
+  (let [rows (db-query FOLLOWUPS-DB
+               "SELECT date('now','localtime') AS today" [])]
+    (if (= (length rows) 0)
+      ""
+      (or (get (first rows) "today") ""))))
+
+(defn due-count []
+  (let [rows (db-query FOLLOWUPS-DB
+               "SELECT COUNT(*) AS n FROM followups
+                 WHERE status='open'
+                   AND due_date != ''
+                   AND due_date <= date('now','localtime')"
+               [])]
+    (if (= (length rows) 0)
+      0
+      (str-to-num (or (get (first rows) "n") 0)))))
+
+(defn add [title context due-date source-type source-id]
+  (db-exec FOLLOWUPS-DB
+    "INSERT INTO followups (title, context, due_date, source_type, source_id)
+     VALUES (?,?,?,?,?)"
+    [title context due-date source-type source-id]))
+
+(defn delete [id]
+  (db-exec FOLLOWUPS-DB "DELETE FROM followups WHERE id=?" [(str-to-num id)]))
+
+(defn mark-done [id]
+  (db-exec FOLLOWUPS-DB
+    "UPDATE followups SET status='done', done_at=datetime('now','localtime') WHERE id=?"
+    [(str-to-num id)]))
+
+(defn reopen [id]
+  (db-exec FOLLOWUPS-DB
+    "UPDATE followups SET status='open', done_at='' WHERE id=?"
+    [(str-to-num id)]))
+
+(defn snooze [id]
+  (db-exec FOLLOWUPS-DB
+    "UPDATE followups SET status='snoozed' WHERE id=?"
+    [(str-to-num id)]))
+
+(defn reschedule [id due-date]
+  (db-exec FOLLOWUPS-DB
+    "UPDATE followups SET due_date=? WHERE id=?"
+    [due-date (str-to-num id)]))
