@@ -68,7 +68,9 @@ N=1 (공통 CSS) — TRAPS 문서화 완료, 추가 checker 승격 없음.
 
 | 항목 | 결과 |
 |------|------|
-| 기준선 | 126 routes · 13 helpers · 19 codes · build ok · warn 26 |
+| 기준선 | 126 routes · 13 helpers · 19 codes · build ok · **`summary.warnings` 26** (`--json` 정본) |
+| 팀장 검수 | `warnings 67` 보고와 불일치 → 재실측 시 `issues`/`summary.warnings` **26** (global-shadow14+route-shadow6+str-loop3+undefined-fn2+arity1). 67 출처 불명 — 문서를 67로 덮지 않음. 콘솔 `⚠` 줄 수는 ~29(헤더 포함)로 JSON과 다름. |
+| 블로그 1311 | 전체 해시가 `[REDACTED:Git Token]`으로 저장됨 → 짧은 해시 `43c4ee9`로 정정 필요(push 전) |
 | 오검출 | normal_let / `"act"` 문자열 / 주석 `(let [act` → reserved-word **0** |
 | 검출 | `(let [… act …])` → error `reserved-word` (let 바인딩) |
 | 루프 축소판 | detect → `fl-front-fix --fix` (act→action) → rebuild ok → 픽스처 삭제 · 무한루프 0 · 오수정 0 |
