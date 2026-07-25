@@ -100,7 +100,21 @@ FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js --json \
 
 주의: 옛 주석 “빈 Set = 모든 함수 허용”은 **거짓**. helper만 known → undefined-fn 폭증.  
 summary에 `stdlibLoadOk` / `stdlibLsFnsCount` 추가 — **정본 판별은 `stdlibLoadOk==true`일 때의 warnings**.  
-팀장 67은 ls-fns 로드 실패 증상으로 설명됨. **push 보류.**
+팀장 67은 ls-fns 로드 실패 증상으로 설명됨.  
+(이후 `0c525f8`·`672ffd4`는 Gogs `origin/master`에 push 완료 — 위 “push 보류”는 **당시** 상태.)
+
+### DIAG-COVERAGE-SWEEP (2026-07-25)
+
+| 항목 | 결과 |
+|------|------|
+| 미진단 증거 | `let-shadow`가 `[^\]]*`로 중첩 `]` 뒤 바인딩(`s`/`h`) 미검출 |
+| 수정 | 브래킷 매칭 + `topLevelLetBindings` + `maskStringsPreserveLines` (예제 문자열 FP 방지) |
+| 새 code | 없음 (기존 `let-shadow` 확장) |
+| 오검출 | 주석·문자열 `"s"`·playground 예제 문자열 → 0 |
+| fix | machine-applicable 유지 · nested `s`→`sess` |
+| 기준선 | warnings **26** · stdlibLoadOk true · 126r/13h/19c |
+| 보류 | APP-DB **0/3** · undefined-fn/route-shadow **0/1** · 후보 착수 0 |
+
 | 오검출 | normal_let / `"act"` 문자열 / 주석 `(let [act` → reserved-word **0** |
 | 검출 | `(let [… act …])` → error `reserved-word` (let 바인딩) |
 | 루프 축소판 | detect → `fl-front-fix --fix` (act→action) → rebuild ok → 픽스처 삭제 · 무한루프 0 · 오수정 0 |

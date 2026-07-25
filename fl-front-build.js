@@ -2031,6 +2031,40 @@ function checkSingleCharShadow(routes, helpers) {
   }
 }
 
+
+// 문자열/삼중따옴표 내용을 공백으로 가리되 줄바꿈·길이는 유지 — 라인번호 보존.
+// let 스캔이 예제 문자열 안의 (let …) 를 파싱하지 않게 한다.
+function maskStringsPreserveLines(src) {
+  let out = '';
+  let i = 0;
+  while (i < src.length) {
+    if (src.startsWith('"""', i)) {
+      out += '"""';
+      i += 3;
+      while (i < src.length && !src.startsWith('"""', i)) {
+        out += src[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      if (src.startsWith('"""', i)) { out += '"""'; i += 3; }
+      continue;
+    }
+    if (src[i] === '"') {
+      out += '"';
+      i++;
+      while (i < src.length && src[i] !== '"') {
+        if (src[i] === '\\') { out += '  '; i += 2; continue; }
+        out += src[i] === '\n' ? '\n' : ' ';
+        i++;
+      }
+      if (i < src.length && src[i] === '"') { out += '"'; i++; }
+      continue;
+    }
+    out += src[i];
+    i++;
+  }
+  return out;
+}
+
 // let [ ... ] 안쪽의 바인딩 이름만 (중첩 sexpr 값은 건너뜀)
 function topLevelLetBindings(inner) {
   const names = [];
@@ -2080,20 +2114,49 @@ function topLevelLetBindings(inner) {
 
 // #5b let 바인딩이 전역 헬퍼(s/h)를 가림 — 오탐 적은 denylist
 function checkHelperLetShadow(routes, helpers) {
-  // p 등 짧은 style 토큰은 바인딩으로 너무 흔해 denylist만 (실사고: s)
+  // p 등 단일 style 토큰은 바인딩으로 너무 흔해 denylist만 (실사고: s)
+  // 중첩 ] 값(예: [items [1 2] s …])은 [^\]]* 가 앞 ]에서 끊김 → reserved-word와
+  // 동일 브래킷 매칭 + topLevelLetBindings (DIAG-COVERAGE-SWEEP 미진단 증거).
   const DENY = new Set(['s', 'h', 'h!']);
   const allFiles = [...helpers, ...routes.map(r => r.file)];
   const hits = [];
   for (const f of allFiles) {
     let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
-    const code = stripComments(src);
+    const code = maskStringsPreserveLines(stripComments(src));
     const base = path.basename(f);
-    for (const m of code.matchAll(/\(let\s+\[([^\]]*)\]/g)) {
-      // [^\]]* 는 중첩 ] 에서 깨질 수 있음 — 단순 케이스 + topLevelLetBindings 로 완화
-      for (const bare of topLevelLetBindings(m[1])) {
-        if (DENY.has(bare))
-          hits.push({ base, name: bare, line: lineAtIdx(code, m.index) });
+    let searchFrom = 0;
+    while (true) {
+      const idx = code.indexOf('(let', searchFrom);
+      if (idx === -1) break;
+      const afterLet = idx + 4;
+      if (afterLet < code.length && /[\w$!?-]/.test(code[afterLet])) {
+        searchFrom = afterLet;
+        continue; // let-xxx 아님
       }
+      let i = afterLet;
+      while (i < code.length && /\s/.test(code[i])) i++;
+      if (code[i] !== '[') { searchFrom = afterLet; continue; }
+      const open = i;
+      let d = 0, j = open;
+      for (; j < code.length; j++) {
+        const c = code[j];
+        if (c === '"') {
+          j++;
+          while (j < code.length && code[j] !== '"') { if (code[j] === '\\') j++; j++; }
+          continue;
+        }
+        if (c === '[') d++;
+        else if (c === ']') {
+          d--;
+          if (d === 0) { j++; break; }
+        }
+      }
+      const inner = code.slice(open + 1, j - 1);
+      for (const bare of topLevelLetBindings(inner)) {
+        if (DENY.has(bare))
+          hits.push({ base, name: bare, line: lineAtIdx(code, idx) });
+      }
+      searchFrom = idx + 4;
     }
   }
   if (hits.length === 0) { console.log('  \x1b[32m✅ let 헬퍼 가림 없음\x1b[0m'); return; }
