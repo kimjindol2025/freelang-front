@@ -1,0 +1,55 @@
+; pages/market/_db.flx — 동네장터 MVP (당근 inspired)
+; People/Followups DB와 분리 — data/market.db 만 사용
+(ns market)
+
+(define MARKET-DB {:type "sqlite" :path "data/market.db"})
+
+(defn init []
+  (db-exec MARKET-DB
+    "CREATE TABLE IF NOT EXISTS listings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      price INTEGER NOT NULL DEFAULT 0,
+      category TEXT NOT NULL DEFAULT '기타',
+      description TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      contact TEXT DEFAULT '',
+      neighborhood TEXT DEFAULT '',
+      photo_url TEXT DEFAULT '',
+      source_type TEXT DEFAULT 'manual',
+      source_id TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime'))
+    )" []))
+
+(defn all []
+  (db-query MARKET-DB
+    "SELECT * FROM listings ORDER BY
+       CASE status WHEN 'open' THEN 0 WHEN 'reserved' THEN 1 ELSE 2 END,
+       created_at DESC" []))
+
+(defn count-by [status]
+  (let [rows (db-query MARKET-DB
+               "SELECT COUNT(*) AS n FROM listings WHERE status=?"
+               [status])]
+    (if (= (length rows) 0)
+      0
+      (str-to-num (or (get (first rows) "n") 0)))))
+
+(defn add [title price category description contact neighborhood photo-url source-type source-id]
+  (db-exec MARKET-DB
+    "INSERT INTO listings (title, price, category, description, contact, neighborhood, photo_url, source_type, source_id)
+     VALUES (?,?,?,?,?,?,?,?,?)"
+    [title price category description contact neighborhood photo-url source-type source-id]))
+
+(defn delete [id]
+  (db-exec MARKET-DB "DELETE FROM listings WHERE id=?" [(str-to-num id)]))
+
+(defn set-status [id status]
+  (db-exec MARKET-DB
+    "UPDATE listings SET status=? WHERE id=?"
+    [status (str-to-num id)]))
+
+(defn update-contact [id contact]
+  (db-exec MARKET-DB
+    "UPDATE listings SET contact=? WHERE id=?"
+    [contact (str-to-num id)]))

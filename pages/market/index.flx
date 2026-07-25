@@ -1,0 +1,430 @@
+; pages/market/index.flx — 동네장터 MVP (당근 inspired)
+
+(load "pages/market/_db.flx")
+(market-init)
+
+(island MarketApp []
+  (let [data          (atom nil)
+        show-form     (atom false)
+        title-in      (atom "")
+        price-in      (atom "")
+        category-in   (atom "기타")
+        desc-in       (atom "")
+        contact-in    (atom "")
+        hood-in       (atom "")
+        photo-in      (atom "")
+        source-in     (atom "manual")
+        source-id-in  (atom "")
+        filter-k      (atom "all")
+        cat-filter    (atom "all")
+        expand-id     (atom nil)
+        edit-contact  (atom "")
+        err           (atom "")
+        fu-err        (atom "")
+        fu-ok-id      (atom nil)
+        loaded        (atom false)
+
+        apply-res (fn [res]
+                    (reset! data res)
+                    (reset! show-form false)
+                    (reset! title-in "")
+                    (reset! price-in "")
+                    (reset! category-in "기타")
+                    (reset! desc-in "")
+                    (reset! contact-in "")
+                    (reset! hood-in "")
+                    (reset! photo-in "")
+                    (reset! source-in "manual")
+                    (reset! source-id-in "")
+                    (reset! err "")
+                    (reset! expand-id nil)
+                    (reset! edit-contact ""))
+
+        reload (fn [res]
+                 (if (= (get res "ok") false)
+                   (reset! err (or (get res "error") "요청 실패"))
+                   (apply-res res)))
+
+        add-item (fn []
+                   (if (= (str-trim @title-in) "")
+                     (reset! err "제목을 입력하세요")
+                     (fetch-post! "/market/api"
+                       {"action" "add"
+                        "title" @title-in
+                        "price" @price-in
+                        "category" @category-in
+                        "description" @desc-in
+                        "contact" @contact-in
+                        "neighborhood" @hood-in
+                        "photo_url" @photo-in
+                        "source_type" @source-in
+                        "source_id" @source-id-in}
+                       reload)))
+
+        del-item (fn [id]
+                   (fetch-post! "/market/api" {"action" "delete" "id" id} reload))
+
+        set-status (fn [id status]
+                     (fetch-post! "/market/api"
+                       {"action" "set-status" "id" id "status" status}
+                       reload))
+
+        save-contact (fn [id]
+                       (fetch-post! "/market/api"
+                         {"action" "update-contact" "id" id "contact" @edit-contact}
+                         reload))
+
+        fmt-price (fn [row]
+                    (let [p (or (get row "price") 0)]
+                      (if (= p 0)
+                        "나눔"
+                        (str p "원"))))
+
+        status-label (fn [st]
+                       (cond
+                         (= st "open") "판매중"
+                         (= st "reserved") "예약"
+                         (= st "sold") "완료"
+                         true st))
+
+        source-type-of (fn [row]
+                         (let [t (or (get row "source_type") "")]
+                           (if (= (str-trim t) "") "manual" t)))
+
+        source-panel-text (fn [row]
+                            (let [t   (source-type-of row)
+                                  sid (or (get row "source_id") "")]
+                              (cond
+                                (= t "people")
+                                  (if (= (str-trim sid) "")
+                                    "출처: People"
+                                    (str "출처: People #" sid))
+                                true "출처: 수동")))
+
+        source-has-link? (fn [row]
+                           (let [t   (source-type-of row)
+                                 sid (or (get row "source_id") "")]
+                             (and (= t "people")
+                                  (not (= (str-trim sid) "")))))
+
+        ctx-join (fn [a b c d]
+                   (arr-join
+                     (filter (fn [part]
+                               (not (= (str-trim (or part "")) "")))
+                       (push (push (push (push [] a) b) c) d))
+                     " · "))
+
+        make-followup (fn [row]
+                        (let [lid  (get row "id")
+                              ttl  (or (get row "title") "")
+                              cat  (or (get row "category") "")
+                              hood (or (get row "neighborhood") "")
+                              st   (or (get row "status") "")]
+                          (do
+                            (reset! fu-err "")
+                            (reset! fu-ok-id nil)
+                            (fetch-post! "/followups/api"
+                              {"action" "add"
+                               "title" (str "거래: " ttl)
+                               "context" (ctx-join cat (fmt-price row) hood (status-label st))
+                               "due_date" ""
+                               "source_type" "market"
+                               "source_id" (str lid)}
+                              (fn [res]
+                                (if (= (get res "ok") false)
+                                  (reset! fu-err (or (get res "error") "후속 만들기 실패"))
+                                  (reset! fu-ok-id lid)))))))
+
+        status-color (fn [row]
+                       (cond
+                         (= (get row "status") "open") "#FF6F0F"
+                         (= (get row "status") "reserved") "#E6A817"
+                         (= (get row "status") "sold") "#8B8B96"
+                         true "#FF6F0F"))
+
+        cat-match? (fn [row]
+                     (let [c @cat-filter
+                           rc (or (get row "category") "")]
+                       (if (= c "all")
+                         true
+                         (= rc c))))
+
+        visible (fn []
+                  (let [f @filter-k
+                        items (or (get @data "items") [])]
+                    (filter cat-match?
+                      (cond
+                        (= f "all") items
+                        (= f "open") (filter (fn [r] (= (get r "status") "open")) items)
+                        (= f "reserved") (filter (fn [r] (= (get r "status") "reserved")) items)
+                        (= f "sold") (filter (fn [r] (= (get r "status") "sold")) items)
+                        true items))))
+
+        row-view (fn [row]
+                   (let [id      (get row "id")
+                         is-open (= @expand-id id)
+                         st      (or (get row "status") "open")
+                         photo   (or (get row "photo_url") "")]
+                     (h "div" {:class "mk-row"}
+                       (str
+                         (h "button" {:class "mk-main"
+                                      :on-click (fn []
+                                                  (reset! err "")
+                                                  (reset! fu-err "")
+                                                  (reset! fu-ok-id nil)
+                                                  (reset! edit-contact (or (get row "contact") ""))
+                                                  (reset! expand-id (if is-open nil id)))}
+                           (str
+                             (if (= (str-trim photo) "")
+                               (h "div" {:class "mk-thumb mk-thumb-empty"} "🥕")
+                               (h "img" {:class "mk-thumb" :src photo :alt ""}))
+                             (h "div" {:class "mk-text"}
+                               (str
+                                 (h "div" {:class "mk-title"} (get row "title"))
+                                 (h "div" {:class "mk-meta"}
+                                   (str
+                                     (fmt-price row)
+                                     " · "
+                                     (or (get row "category") "기타")
+                                     (if (= (or (get row "neighborhood") "") ""
+                                       "" (str " · " (get row "neighborhood"))))
+                                     " · "
+                                     (status-label st)))))
+                             (h "span" {:class "mk-chev"} (if is-open "▾" "▸"))))
+                         (if is-open
+                           (h "div" {:class "mk-panel"}
+                             (str
+                               (if (= (or (get row "description") "") "")
+                                 ""
+                                 (h "p" {:class "mk-desc"} (get row "description")))
+                               (h "p" {:class "mk-src"} (source-panel-text row))
+                               (if (source-has-link? row)
+                                 (h "a" {:class "mk-src-link"
+                                         :href "/people"
+                                         :data-spa "1"}
+                                   "People 열기")
+                                 "")
+                               (h "label" {:class "mk-k"} "연락처 / 메모")
+                               (h! "input" {:class "mk-input" :placeholder "전화·카톡·만남 장소"
+                                            :value @edit-contact
+                                            :on-input (fn [e]
+                                                        (reset! edit-contact
+                                                          (.-value (.-target e))))})
+                               (h "div" {:class "mk-actions"}
+                                 (str
+                                   (h "button" {:class "mk-btn mk-accent"
+                                                :on-click (fn [] (save-contact id))}
+                                     "연락 저장")
+                                   (if (= st "open")
+                                     (h "button" {:class "mk-btn mk-ghost"
+                                                  :on-click (fn [] (set-status id "reserved"))}
+                                       "예약")
+                                     "")
+                                   (if (not (= st "sold"))
+                                     (h "button" {:class "mk-btn mk-ghost"
+                                                  :on-click (fn [] (set-status id "sold"))}
+                                       "판매완료")
+                                     (h "button" {:class "mk-btn mk-ghost"
+                                                  :on-click (fn [] (set-status id "open"))}
+                                       "다시 판매"))
+                                   (h "button" {:class "mk-btn mk-ghost"
+                                                :on-click (fn [] (make-followup row))}
+                                     "후속 만들기")
+                                   (h "button" {:class "mk-btn mk-danger"
+                                                :on-click (fn [] (del-item id))}
+                                     "삭제")))
+                               (if (= @fu-ok-id id)
+                                 (h "p" {:class "mk-ok"} "Followups에 추가됨")
+                                 "")
+                               (if (and is-open (= @expand-id id) (not (= @fu-err "")))
+                                 (h "p" {:class "mk-fu-err"} @fu-err)
+                                 "")))
+                           "")))))]
+
+    (when (not @loaded)
+      (reset! loaded true)
+      (fetch! "/market/api" (fn [res] (reset! data res))))
+
+    (if (= @data nil)
+      (h "div" {:class "mk-loading"} "불러오는 중…")
+
+      (h "div" {:class "mk-app"}
+        (str
+          (h "header" {:class "mk-head"}
+            (str
+              (h "div" {}
+                (str
+                  (h "h1" {} "Market")
+                  (h "p" {:class "mk-lead"} "동네 중고 · 당근 inspired")))
+              (h "button" {:class "mk-btn mk-accent"
+                           :on-click (fn [] (reset! show-form true))}
+                "+ 글쓰기")))
+
+          (h "div" {:class "mk-stats"}
+            (str
+              (h "div" {:class "mk-stat"}
+                (str (h "div" {:class "mk-stat-n"} (str (get @data "open_count")))
+                     (h "div" {:class "mk-stat-l"} "판매중")))
+              (h "div" {:class "mk-stat"}
+                (str (h "div" {:class "mk-stat-n"} (str (get @data "reserved_count")))
+                     (h "div" {:class "mk-stat-l"} "예약")))
+              (h "div" {:class "mk-stat"}
+                (str (h "div" {:class "mk-stat-n"} (str (get @data "sold_count")))
+                     (h "div" {:class "mk-stat-l"} "완료")))))
+
+          (h "div" {:class "mk-filters"}
+            (str
+              (h "button" {:class (if (= @filter-k "all") "mk-chip mk-chip-on" "mk-chip")
+                           :on-click (fn [] (reset! filter-k "all"))} "전체")
+              (h "button" {:class (if (= @filter-k "open") "mk-chip mk-chip-on" "mk-chip")
+                           :on-click (fn [] (reset! filter-k "open"))} "판매중")
+              (h "button" {:class (if (= @filter-k "reserved") "mk-chip mk-chip-on" "mk-chip")
+                           :on-click (fn [] (reset! filter-k "reserved"))} "예약")
+              (h "button" {:class (if (= @filter-k "sold") "mk-chip mk-chip-on" "mk-chip")
+                           :on-click (fn [] (reset! filter-k "sold"))} "완료")))
+
+          (h "div" {:class "mk-filters mk-cat-filters"}
+            (str
+              (h "button" {:class (if (= @cat-filter "all") "mk-chip mk-chip-cat-on" "mk-chip mk-chip-cat")
+                           :on-click (fn [] (reset! cat-filter "all"))} "전체")
+              (h "button" {:class (if (= @cat-filter "가전") "mk-chip mk-chip-cat-on" "mk-chip mk-chip-cat")
+                           :on-click (fn [] (reset! cat-filter "가전"))} "가전")
+              (h "button" {:class (if (= @cat-filter "가구") "mk-chip mk-chip-cat-on" "mk-chip mk-chip-cat")
+                           :on-click (fn [] (reset! cat-filter "가구"))} "가구")
+              (h "button" {:class (if (= @cat-filter "의류") "mk-chip mk-chip-cat-on" "mk-chip mk-chip-cat")
+                           :on-click (fn [] (reset! cat-filter "의류"))} "의류")
+              (h "button" {:class (if (= @cat-filter "디지털") "mk-chip mk-chip-cat-on" "mk-chip mk-chip-cat")
+                           :on-click (fn [] (reset! cat-filter "디지털"))} "디지털")
+              (h "button" {:class (if (= @cat-filter "기타") "mk-chip mk-chip-cat-on" "mk-chip mk-chip-cat")
+                           :on-click (fn [] (reset! cat-filter "기타"))} "기타")))
+
+          (if @show-form
+            (h "div" {:class "mk-form"}
+              (str
+                (h! "input" {:class "mk-input" :placeholder "제목"
+                             :value @title-in
+                             :on-input (fn [e] (reset! title-in (.-value (.-target e))))})
+                (h! "input" {:class "mk-input" :type "number" :placeholder "가격 (0=나눔)"
+                             :value @price-in
+                             :on-input (fn [e] (reset! price-in (.-value (.-target e))))})
+                (h "select" {:class "mk-input"
+                             :value @category-in
+                             :on-change (fn [e] (reset! category-in (.-value (.-target e))))}
+                  (str
+                    (h "option" {:value "가전"} "가전")
+                    (h "option" {:value "가구"} "가구")
+                    (h "option" {:value "의류"} "의류")
+                    (h "option" {:value "도서"} "도서")
+                    (h "option" {:value "취미"} "취미")
+                    (h "option" {:value "디지털"} "디지털")
+                    (h "option" {:value "기타"} "기타")))
+                (h "textarea" {:class "mk-area" :placeholder "설명"
+                               :value @desc-in
+                               :on-input (fn [e] (reset! desc-in (.-value (.-target e))))} "")
+                (h! "input" {:class "mk-input" :placeholder "동네 (예: 역삼동)"
+                             :value @hood-in
+                             :on-input (fn [e] (reset! hood-in (.-value (.-target e))))})
+                (h! "input" {:class "mk-input" :placeholder "연락처 / 메모"
+                             :value @contact-in
+                             :on-input (fn [e] (reset! contact-in (.-value (.-target e))))})
+                (h! "input" {:class "mk-input" :placeholder "사진 URL (선택)"
+                             :value @photo-in
+                             :on-input (fn [e] (reset! photo-in (.-value (.-target e))))})
+                (h "select" {:class "mk-input"
+                             :value @source-in
+                             :on-change (fn [e] (reset! source-in (.-value (.-target e))))}
+                  (str
+                    (h "option" {:value "manual"} "manual · 수동")
+                    (h "option" {:value "people"} "people · People")))
+                (h! "input" {:class "mk-input" :placeholder "source_id (People일 때)"
+                             :value @source-id-in
+                             :on-input (fn [e] (reset! source-id-in (.-value (.-target e))))})
+                (h "div" {:class "mk-form-actions"}
+                  (str
+                    (h "button" {:class "mk-btn mk-ghost"
+                                 :on-click (fn [] (reset! show-form false))}
+                      "취소")
+                    (h "button" {:class "mk-btn mk-accent"
+                                 :on-click add-item}
+                      "등록")))))
+            "")
+
+          (if (= @err "")
+            ""
+            (h "p" {:class "mk-err"} @err))
+
+          (if (= (length (visible)) 0)
+            (h "p" {:class "mk-empty"}
+              (if (= (length (get @data "items")) 0)
+                "아직 글이 없습니다. 첫 물건을 올려 보세요."
+                "이 필터에 해당하는 글이 없습니다."))
+            (h "div" {:class "mk-list"}
+              (arr-join (map row-view (visible)) ""))))))))
+
+(defn render [req]
+  (layout-html "Market"
+    (str
+      """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  .mk-wrap{max-width:440px;margin:0 auto;padding:20px 16px 88px;
+    font-family:'Manrope',system-ui,sans-serif;color:#F2F2F5;
+    background:radial-gradient(120% 80% at 50% -10%,#2a1f14 0%,#14181f 45%,#10141a 100%);
+    min-height:100dvh;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  .mk-loading{text-align:center;padding:64px 20px;color:#8B8B96}
+  .mk-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
+  .mk-head h1{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-.02em;color:#FF6F0F}
+  .mk-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96;line-height:1.45}
+  .mk-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+  .mk-stat{background:#1A1F28;border:1px solid #2A3140;border-radius:14px;padding:14px 10px;text-align:center}
+  .mk-stat-n{font-size:1.25rem;font-weight:800;color:#FF6F0F}
+  .mk-stat-l{font-size:.68rem;color:#8B8B96;margin-top:2px;font-weight:600}
+  .mk-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .mk-filters::-webkit-scrollbar{display:none}
+  .mk-cat-filters{margin-bottom:14px}
+  .mk-chip{flex:0 0 auto;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid #2A3140;
+    background:#1A1F28;color:#8B8B96;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+  .mk-chip-on{background:#FF6F0F;border-color:#FF6F0F;color:#fff}
+  .mk-chip-cat{font-size:.72rem;min-height:36px;padding:0 12px}
+  .mk-chip-cat-on{background:#3A3028;border-color:#FF6F0F;color:#FF6F0F}
+  .mk-form{background:#1A1F28;border:1px solid #2A3140;border-radius:16px;padding:14px;margin-bottom:14px;
+    display:flex;flex-direction:column;gap:8px}
+  .mk-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+  .mk-input,.mk-area{width:100%;box-sizing:border-box;background:#10141a;color:#F2F2F5;
+    border:1px solid #2A3140;border-radius:12px;padding:12px 14px;font:inherit;font-size:16px}
+  .mk-area{min-height:72px;resize:vertical}
+  .mk-input:focus,.mk-area:focus{outline:none;border-color:#FF6F0F}
+  .mk-btn{border:none;border-radius:12px;min-height:46px;padding:12px 16px;font:inherit;font-weight:700;cursor:pointer}
+  .mk-accent{background:#FF6F0F;color:#fff}
+  .mk-ghost{background:#2A3140;color:#F2F2F5}
+  .mk-danger{background:transparent;color:#FF3B30;border:1px solid #FF3B30}
+  .mk-err,.mk-fu-err{color:#FF3B30;font-size:.82rem;margin:0 0 12px}
+  .mk-ok{color:#3DCF8E;font-size:.82rem;margin:8px 0 0}
+  .mk-empty{text-align:center;color:#8B8B96;padding:48px 16px;font-size:.88rem;line-height:1.5}
+  .mk-list{display:flex;flex-direction:column;gap:10px}
+  .mk-row{background:#1A1F28;border:1px solid #2A3140;border-radius:16px;overflow:hidden}
+  .mk-main{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;
+    background:transparent;border:none;color:inherit;text-align:left;cursor:pointer;font:inherit}
+  .mk-thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;flex:0 0 56px;background:#10141a}
+  .mk-thumb-empty{width:56px;height:56px;border-radius:12px;flex:0 0 56px;background:#2a2018;
+    display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+  .mk-text{flex:1;min-width:0}
+  .mk-title{font-weight:700;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .mk-meta{font-size:.72rem;color:#8B8B96;margin-top:4px}
+  .mk-chev{color:#8B8B96;font-size:.85rem;flex:0 0 auto}
+  .mk-panel{padding:0 14px 14px;border-top:1px solid #2A3140}
+  .mk-desc{font-size:.82rem;color:#C8C8D0;line-height:1.5;margin:12px 0 8px}
+  .mk-src{font-size:.72rem;color:#8B8B96;margin:0 0 8px}
+  .mk-src-link{display:inline-block;font-size:.78rem;color:#FF6F0F;margin-bottom:10px;text-decoration:none;font-weight:700}
+  .mk-k{display:block;font-size:.68rem;color:#8B8B96;font-weight:700;margin:8px 0 6px;text-transform:uppercase;letter-spacing:.04em}
+  .mk-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .mk-actions .mk-btn{min-height:40px;padding:8px 12px;font-size:.78rem;flex:1 1 auto}
+</style>
+<div class="mk-wrap">
+"""
+      "ISLAND_PLACEHOLDER"
+      "</div>"
+      "ISLAND_SCRIPTS")
+    req))

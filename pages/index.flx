@@ -324,6 +324,7 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
     <a href="/prompts" class="app-card"><span class="icon">✨</span><span class="name">Prompts</span><span class="desc">프롬프트 보관함</span></a>
     <a href="/people"  class="app-card"><span class="icon">👤</span><span class="name">People</span><span class="desc">다음 연락 · 관계 메모</span></a>
     <a href="/followups" class="app-card"><span class="icon">✅</span><span class="name">Followups</span><span class="desc">오늘 처리할 다음 행동</span></a>
+    <a href="/market"  class="app-card"><span class="icon">🥕</span><span class="name">Market</span><span class="desc">동네 중고 · C2C</span></a>
     <a href="/feed"    class="app-card"><span class="icon">📡</span><span class="name">피드</span><span class="desc">RSS 뉴스</span></a>
   </div>
 </div>

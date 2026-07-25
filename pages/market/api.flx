@@ -1,0 +1,68 @@
+; pages/market/api.flx — Market JSON API
+; GET  /market/api → market-payload
+; POST /market/api → add|set-status|update-contact|delete
+
+(load "pages/market/_db.flx")
+(market-init)
+
+(defn market-payload []
+  {"items" (market-all)
+   "open_count" (market-count-by "open")
+   "reserved_count" (market-count-by "reserved")
+   "sold_count" (market-count-by "sold")})
+
+(defn render [req]
+  (server-json (market-payload)))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [title        (or (get body "title") "")
+              price-raw    (or (get body "price") "0")
+              category     (or (get body "category") "기타")
+              description  (or (get body "description") "")
+              contact      (or (get body "contact") "")
+              neighborhood (or (get body "neighborhood") "")
+              photo-url    (or (get body "photo_url") "")
+              source-type  (or (get body "source_type") "manual")
+              source-id    (or (get body "source_id") "")]
+          (if (= (str-trim title) "")
+            (server-json {"ok" false "error" "title이 필요합니다"} 400)
+            (do
+              (market-add (str-trim title) (str-to-num price-raw) (str-trim category)
+                description (str-trim contact) (str-trim neighborhood) (str-trim photo-url)
+                (str-trim source-type) (str-trim source-id))
+              (server-json (obj-merge {"ok" true} (market-payload))))))
+
+      (= action "set-status")
+        (let [id     (get body "id")
+              status (or (get body "status") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (if (and (not (= status "open")) (not (= status "reserved")) (not (= status "sold")))
+              (server-json {"ok" false "error" "status는 open|reserved|sold"} 400)
+              (do
+                (market-set-status id status)
+                (server-json (obj-merge {"ok" true} (market-payload)))))))
+
+      (= action "update-contact")
+        (let [id      (get body "id")
+              contact (or (get body "contact") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (market-update-contact id (str-trim contact))
+              (server-json (obj-merge {"ok" true} (market-payload))))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (market-delete id)
+              (server-json (obj-merge {"ok" true} (market-payload))))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))
