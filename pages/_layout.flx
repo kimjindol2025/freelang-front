@@ -1,11 +1,17 @@
 ; pages/_layout.flx — 공통 레이아웃 헬퍼 (h() SSR 적용)
 
-(style layout_nav :bg "#6366f1" :p "0 24px" :display "flex" :items "center" :gap "4px")
-(style layout_wrap :max-w "960px" :mx "auto" :p "32px 24px")
-(style layout_foot :align "center" :p "32px" :color "#9ca3af" :size ".8rem"
-  :border-top "1px solid #e5e7eb" :mt "48px")
-(style nav-brand :color "white" :weight "700" :size "1.1rem" :mr "16px" :decoration "none")
-(style nav-link-base :color "white" :decoration "none" :p "12px 16px" :display "block")
+(style layout_shell :display "flex" :min-h "100dvh")
+(style layout_nav :bg "#6366f1" :width "220px" :min-w "220px" :display "flex" :flex-dir "column"
+  :p "16px 0" :position "sticky" :top "0" :height "100dvh" :overflow "auto")
+(style layout_main :flex "1" :min-w "0" :display "flex" :flex-dir "column")
+(style layout_wrap :flex "1" :p "0" :max-w "none" :mx "0")
+(style layout_foot :align "center" :p "16px 24px" :color "#9ca3af" :size ".75rem"
+  :border-top "1px solid #e5e7eb")
+(style nav-brand :color "white" :weight "700" :size "1rem" :p "4px 20px 16px" :decoration "none" :display "block")
+(style nav-section-label :color "rgba(255,255,255,.45)" :size ".65rem" :weight "700"
+  :p "12px 20px 6px")
+(style nav-link-base :color "white" :decoration "none" :p "10px 20px" :display "block" :size ".88rem")
+(style nav-bottom :mt "auto" :p "12px 16px 8px" :border-top "1px solid rgba(255,255,255,.12)")
 (style global-style :bg "#f9fafb" :color "#111")
 
 ; DEV CSP — inline style + HMR connect 허용
@@ -14,8 +20,12 @@
 ; nav 링크 — 현재 경로 강조 + SPA 라우팅
 (defn nav-link [href label current]
   (if (= href current)
-    (h "a" {:href href :class nav-link-base :data-spa "1" :style "background:rgba(255,255,255,.2)"} label)
-    (h "a" {:href href :class nav-link-base :data-spa "1" :style "opacity:.8"} label)))
+    (h "a" {:href href :class nav-link-base :data-spa "1"
+            :style "opacity:1;border-left:3px solid white;background:rgba(255,255,255,.15)"}
+      label)
+    (h "a" {:href href :class nav-link-base :data-spa "1"
+            :style "opacity:.82;border-left:3px solid transparent"}
+      label)))
 
 ; 공통 글로벌 CSS — 모던 CSS 전면 적용
 (define GLOBAL-CSS "<style>
@@ -70,7 +80,15 @@ button.danger:hover{background:#b91c1c}
 .stat:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
 .stat .v{font-size:1.8rem;font-weight:800;color:var(--c-primary);line-height:1}
 .stat .l{font-size:.8rem;color:var(--c-muted);margin-top:6px;text-wrap:balance}
-@media(max-width:640px){body{font-size:15px}.table-wrap{overflow-x:auto}table{min-width:480px}}
+[class*=nav-section-label]{text-transform:uppercase;letter-spacing:.06em}
+[class*=nav-link-base]{border-left:3px solid transparent}
+@media(max-width:640px){body{font-size:15px}.table-wrap{overflow-x:auto}table{min-width:480px}
+[class*=layout_nav]{width:56px!important;min-width:56px!important}
+[class*=nav-brand]{font-size:0;padding:12px 8px!important}
+[class*=nav-brand]::after{content:'FL';font-size:.75rem}
+[class*=nav-section-label]{display:none}
+[class*=nav-link-base]{padding:10px 6px!important;font-size:.72rem;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+[class*=nav-bottom]{padding:8px 4px!important}}
 </style>")
 
 ; 다크모드 토글 — localStorage 기반 영구 저장
@@ -770,21 +788,34 @@ window.addEventListener('popstate',function(e){
               GLOBAL-CSS))
           (h "body" {}
             (str
-              (h "nav" {:class layout_nav}
+              (h "div" {:class layout_shell}
                 (str
-                  (h "a" {:href "/" :class nav-brand} "FL Front")
-                  (nav-link "/" "홈" path)
-                  (nav-link "/dashboard" "대시보드" path)
-                  (nav-link "/counter" "카운터" path)
-                  (nav-link "/contact" "문의" path)
-                  (nav-link "/styled" "스타일" path)
-                  (nav-link "/todo" "To-do" path)
-                  (nav-link "/notes" "Notes" path)
-                  (nav-link "/about" "About" path)
-                  (h "a" {:href "/logout" :class nav-link-base :style "opacity:.8;margin-left:auto"} "로그아웃")
-                  (h "button" {:id "dark-btn" :title "다크모드" :style "background:none;border:1px solid rgba(255,255,255,.2);color:#94a3b8;border-radius:6px;padding:5px 10px;font-size:.85rem;cursor:pointer;margin-left:8px;transition:all .15s;flex-shrink:0"} "🌙")))
-              (h "div" {:class layout_wrap} content)
-              (h "footer" {:class layout_foot} "FreeLang Front v0.1 · npm install 0개 · SSR · Island")
+                  (h "nav" {:class layout_nav :aria-label "사이드 메뉴"}
+                    (str
+                      (h "a" {:href "/" :class nav-brand} "FL Front")
+                      (h "div" {:class nav-section-label} "C2C")
+                      (nav-link "/people" "People" path)
+                      (nav-link "/market" "Market" path)
+                      (nav-link "/followups" "Followups" path)
+                      (nav-link "/flow" "C2C Flow" path)
+                      (h "div" {:class nav-section-label} "앱")
+                      (nav-link "/" "홈" path)
+                      (nav-link "/dashboard" "대시보드" path)
+                      (nav-link "/notes" "Notes" path)
+                      (nav-link "/todo" "To-do" path)
+                      (nav-link "/about" "About" path)
+                      (h "div" {:class nav-bottom}
+                        (str
+                          (h "a" {:href "/logout" :class nav-link-base :style "opacity:.82;font-size:.82rem"}
+                            "로그아웃")
+                          (h "button" {:id "dark-btn" :title "다크모드"
+                                       :style "background:none;border:1px solid rgba(255,255,255,.2);color:#94a3b8;border-radius:6px;padding:6px 10px;font-size:.85rem;cursor:pointer;margin-top:8px;width:100%"}
+                            "🌙")))))
+                  (h "div" {:class layout_main}
+                    (str
+                      (h "div" {:class layout_wrap} content)
+                      (h "footer" {:class layout_foot}
+                        "FreeLang Front · SSR · Island")))))
               ERROR-OVERLAY
               ERROR-COLLECTOR
               PERFORMANCE-MONITOR
