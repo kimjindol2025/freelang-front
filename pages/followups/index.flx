@@ -63,14 +63,76 @@
                      {"action" "reschedule" "id" id "due_date" @edit-due}
                      reload))
 
-        due? (fn [row]
-               (let [dd (or (get row "due_date") "")
-                     st (or (get row "status") "")
-                     td (or (get @data "today") "")]
-                 (and (= st "open")
-                      (not (= dd ""))
-                      (not (= td ""))
-                      (<= dd td))))
+        today-str (fn []
+                    (or (get @data "today") ""))
+
+        tomorrow-str (fn []
+                       (let [td (today-str)]
+                         (if (= td "") "" (date-add-days td 1))))
+
+        week-end-str (fn []
+                      (let [td (today-str)]
+                        (if (= td "") "" (date-add-days td 6))))
+
+        open-row? (fn [row]
+                    (= (or (get row "status") "") "open"))
+
+        overdue? (fn [row]
+                   (let [dd (or (get row "due_date") "")
+                         td (today-str)]
+                     (and (open-row? row)
+                          (not (= dd ""))
+                          (not (= td ""))
+                          (< dd td))))
+
+        today-due? (fn [row]
+                     (let [dd (or (get row "due_date") "")
+                           td (today-str)]
+                       (and (open-row? row)
+                            (not (= dd ""))
+                            (not (= td ""))
+                            (= dd td))))
+
+        tomorrow-due? (fn [row]
+                        (let [dd (or (get row "due_date") "")
+                              tm (tomorrow-str)]
+                          (and (open-row? row)
+                               (not (= dd ""))
+                               (not (= tm ""))
+                               (= dd tm))))
+
+        week-due? (fn [row]
+                    (let [dd (or (get row "due_date") "")
+                          td (today-str)
+                          we (week-end-str)]
+                      (and (open-row? row)
+                           (not (= dd ""))
+                           (not (= td ""))
+                           (not (= we ""))
+                           (>= dd td)
+                           (<= dd we))))
+
+        no-date? (fn [row]
+                   (and (open-row? row)
+                        (= (or (get row "due_date") "") "")))
+
+        overdue-count (fn []
+                        (let [items (or (get @data "items") [])]
+                          (length (filter overdue? items))))
+
+        due-label (fn [row]
+                    (cond
+                      (overdue? row) " · 지남"
+                      (today-due? row) " · 오늘까지"
+                      (tomorrow-due? row) " · 내일"
+                      (no-date? row) ""
+                      true ""))
+
+        due-date-text (fn [row]
+                        (let [dd (or (get row "due_date") "")]
+                          (if (= dd "")
+                            "기한 없음"
+                            dd)))
 
         source-type-of (fn [row]
                          (let [t (or (get row "source_type") "")]
@@ -122,15 +184,20 @@
                         items (or (get @data "items") [])]
                     (cond
                       (= f "all") items
-                      (= f "due") (filter due? items)
-                      (= f "open") (filter (fn [r] (= (get r "status") "open")) items)
+                      (= f "overdue") (filter overdue? items)
+                      (= f "today") (filter today-due? items)
+                      (= f "tomorrow") (filter tomorrow-due? items)
+                      (= f "week") (filter week-due? items)
+                      (= f "none") (filter no-date? items)
+                      (= f "open") (filter open-row? items)
                       (= f "done") (filter (fn [r] (= (get r "status") "done")) items)
                       (= f "snoozed") (filter (fn [r] (= (get r "status") "snoozed")) items)
                       true items)))
 
         status-color (fn [row]
                        (cond
-                         (due? row) "#FF5B35"
+                         (overdue? row) "#FF3B30"
+                         (today-due? row) "#FF5B35"
                          (= (get row "status") "done") "#8B8B96"
                          (= (get row "status") "snoozed") "#E6A817"
                          true "#4C8DFF"))
@@ -154,12 +221,10 @@
                                  (h "div" {:class "fu-title"} (get row "title"))
                                  (h "div" {:class "fu-meta"}
                                    (str
-                                     (if (= (or (get row "due_date") "") "")
-                                       "날짜 없음"
-                                       (get row "due_date"))
+                                     (due-date-text row)
                                      " · "
                                      (source-label row)
-                                     (if (due? row) " · 오늘까지" "")
+                                     (due-label row)
                                      (if (= st "done") " · 완료" "")
                                      (if (= st "snoozed") " · 보류" "")))))
                              (h "span" {:class "fu-chev"} (if is-open "▾" "▸"))))
@@ -227,6 +292,9 @@
               (h "div" {:class "fu-stat"}
                 (str (h "div" {:class "fu-stat-n"} (str (get @data "due_count")))
                      (h "div" {:class "fu-stat-l"} "오늘까지")))
+              (h "div" {:class "fu-stat fu-stat-warn"}
+                (str (h "div" {:class "fu-stat-n"} (str (overdue-count)))
+                     (h "div" {:class "fu-stat-l"} "지남")))
               (h "div" {:class "fu-stat"}
                 (str (h "div" {:class "fu-stat-n"} (str (get @data "open_count")))
                      (h "div" {:class "fu-stat-l"} "진행중")))
@@ -241,8 +309,16 @@
             (str
               (h "button" {:class (if (= @filter-k "all") "fu-chip fu-chip-on" "fu-chip")
                            :on-click (fn [] (reset! filter-k "all"))} "전체")
-              (h "button" {:class (if (= @filter-k "due") "fu-chip fu-chip-on" "fu-chip")
-                           :on-click (fn [] (reset! filter-k "due"))} "오늘까지")
+              (h "button" {:class (if (= @filter-k "overdue") "fu-chip fu-chip-on" "fu-chip fu-chip-warn")
+                           :on-click (fn [] (reset! filter-k "overdue"))} "지남")
+              (h "button" {:class (if (= @filter-k "today") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "today"))} "오늘")
+              (h "button" {:class (if (= @filter-k "tomorrow") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "tomorrow"))} "내일")
+              (h "button" {:class (if (= @filter-k "week") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "week"))} "7일")
+              (h "button" {:class (if (= @filter-k "none") "fu-chip fu-chip-on" "fu-chip")
+                           :on-click (fn [] (reset! filter-k "none"))} "기한없음")
               (h "button" {:class (if (= @filter-k "open") "fu-chip fu-chip-on" "fu-chip")
                            :on-click (fn [] (reset! filter-k "open"))} "진행중")
               (h "button" {:class (if (= @filter-k "done") "fu-chip fu-chip-on" "fu-chip")
@@ -309,16 +385,18 @@
   .fu-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:18px}
   .fu-head h1{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
   .fu-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96;line-height:1.45}
-  .fu-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
-  .fu-stat{background:#1A1F28;border:1px solid #2A3140;border-radius:14px;padding:12px 6px;text-align:center}
-  .fu-stat-n{font-size:1.1rem;font-weight:800}
-  .fu-stat-l{font-size:.62rem;color:#8B8B96;margin-top:2px;font-weight:600}
+  .fu-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px}
+  .fu-stat{background:#1A1F28;border:1px solid #2A3140;border-radius:14px;padding:10px 4px;text-align:center}
+  .fu-stat-warn .fu-stat-n{color:#FF3B30}
+  .fu-stat-n{font-size:1rem;font-weight:800}
+  .fu-stat-l{font-size:.58rem;color:#8B8B96;margin-top:2px;font-weight:600}
   .fu-filters{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:14px;
     -webkit-overflow-scrolling:touch;scrollbar-width:none}
   .fu-filters::-webkit-scrollbar{display:none}
   .fu-chip{flex:0 0 auto;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid #2A3140;
     background:#1A1F28;color:#8B8B96;font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
   .fu-chip-on{background:#3DCF8E;border-color:#3DCF8E;color:#0f141a}
+  .fu-chip-warn.fu-chip-on{background:#FF3B30;border-color:#FF3B30;color:#fff}
   .fu-form{background:#1A1F28;border:1px solid #2A3140;border-radius:16px;padding:14px;margin-bottom:14px;
     display:flex;flex-direction:column;gap:8px}
   .fu-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
@@ -355,6 +433,15 @@
   .fu-k{font-size:.68rem;font-weight:800;color:#8B8B96;letter-spacing:.04em}
   .fu-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 </style>
+<script>
+/* API today(YYYY-MM-DD) 기준 — local Date 정본 금지 */
+function date_add_days(ymd,n){
+  if(!ymd)return'';
+  var p=ymd.split('-').map(Number);
+  var d=new Date(p[0],p[1]-1,p[2]+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+</script>
 <div class="fu-wrap">
 """
       "ISLAND_PLACEHOLDER"
