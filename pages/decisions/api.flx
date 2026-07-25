@@ -1,0 +1,70 @@
+; pages/decisions/api.flx — 결정 일지 JSON API
+; GET  /decisions/api → {items, open_count, decided_count, reviewed_count}
+; POST /decisions/api → add|delete|decide|review|reopen
+
+(load "pages/decisions/_db.flx")
+(decisions-init)
+
+(defn payload []
+  (let [items (decisions-all)]
+    {"items" items
+     "open_count" (decisions-count-by "open")
+     "decided_count" (decisions-count-by "decided")
+     "reviewed_count" (decisions-count-by "reviewed")}))
+(defn render [req]
+  (server-json (payload)))
+
+(defn render_post [req]
+  (let [body   (get req "body")
+        action (or (get body "action") "")]
+    (cond
+      (= action "add")
+        (let [title   (or (get body "title") "")
+              context (or (get body "context") "")
+              options (or (get body "options") "")]
+          (if (= (str-trim title) "")
+            (server-json {"ok" false "error" "제목이 필요합니다"} 400)
+            (do
+              (decisions-add (str-trim title) context options)
+              (server-json (obj-merge {"ok" true} (payload))))))
+
+      (= action "delete")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (decisions-delete id)
+              (server-json (obj-merge {"ok" true} (payload))))))
+
+      (= action "decide")
+        (let [id     (get body "id")
+              chosen (or (get body "chosen") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (if (= (str-trim chosen) "")
+              (server-json {"ok" false "error" "선택한 안을 입력하세요"} 400)
+              (do
+                (decisions-decide id (str-trim chosen))
+                (server-json (obj-merge {"ok" true} (payload)))))))
+
+      (= action "review")
+        (let [id      (get body "id")
+              outcome (or (get body "outcome") "")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (if (= (str-trim outcome) "")
+              (server-json {"ok" false "error" "결과를 입력하세요"} 400)
+              (do
+                (decisions-review id (str-trim outcome))
+                (server-json (obj-merge {"ok" true} (payload)))))))
+
+      (= action "reopen")
+        (let [id (get body "id")]
+          (if (= id nil)
+            (server-json {"ok" false "error" "id 필요"} 400)
+            (do
+              (decisions-reopen id)
+              (server-json (obj-merge {"ok" true} (payload))))))
+
+      true
+        (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

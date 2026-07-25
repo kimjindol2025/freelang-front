@@ -173,6 +173,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/dashboard` | pages/dashboard/index.flx |
 | `/dashboard/operations` | pages/dashboard/operations.flx |
 | `/dashboard/sla` | pages/dashboard/sla.flx |
+| `/decisions/api` | pages/decisions/api.flx |
+| `/decisions` | pages/decisions/index.flx |
 | `/demo` | pages/demo.flx |
 | `/events/api` | pages/events/api.flx |
 | `/events` | pages/events/index.flx |
@@ -331,7 +333,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `afldb-coll-item-keys` | `[ns]` |  |
 | `afldb-coll-all` | `[ns]` |  |
 | `afldb-coll-get` | `[ns id]` |  |
-| `afldb-coll-create` | `[ns item]` |  |
+| `afldb-coll-create` | `[ns item]` | HTTP: 이전 put+get+put = 3 → get+batch-put = 2 |
 | `afldb-coll-update` | `[ns id patch]` |  |
 | `afldb-coll-delete` | `[ns id]` |  |
 | `afldb-coll-history` | `[ns id]` |  |

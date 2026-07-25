@@ -1,0 +1,59 @@
+; pages/decisions/_db.flx — 결정 일지 SQLite
+(ns decisions)
+
+(define DECISIONS-DB {:type "sqlite" :path "data/decisions.db"})
+
+(defn init []
+  (db-exec DECISIONS-DB
+    "CREATE TABLE IF NOT EXISTS decisions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      context TEXT DEFAULT '',
+      options TEXT DEFAULT '',
+      chosen TEXT DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'open',
+      outcome TEXT DEFAULT '',
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      decided_at TEXT DEFAULT ''
+    )" []))
+
+(defn all []
+  (db-query DECISIONS-DB
+    "SELECT * FROM decisions ORDER BY
+       CASE status WHEN 'open' THEN 0 WHEN 'decided' THEN 1 ELSE 2 END,
+       created_at DESC" []))
+
+(defn count-by [status]
+  (let [rows (db-query DECISIONS-DB
+               "SELECT COUNT(*) AS n FROM decisions WHERE status=?"
+               [status])]
+    (if (= (length rows) 0)
+      0
+      (str-to-num (or (get (first rows) "n") 0)))))
+(defn add [title context options]
+  (db-exec DECISIONS-DB
+    "INSERT INTO decisions (title, context, options) VALUES (?,?,?)"
+    [title context options]))
+
+(defn delete [id]
+  (db-exec DECISIONS-DB "DELETE FROM decisions WHERE id=?" [(str-to-num id)]))
+
+(defn decide [id chosen]
+  (db-exec DECISIONS-DB
+    "UPDATE decisions
+       SET chosen=?, status='decided',
+           decided_at=datetime('now','localtime')
+     WHERE id=?"
+    [chosen (str-to-num id)]))
+
+(defn review [id outcome]
+  (db-exec DECISIONS-DB
+    "UPDATE decisions SET outcome=?, status='reviewed' WHERE id=?"
+    [outcome (str-to-num id)]))
+
+(defn reopen [id]
+  (db-exec DECISIONS-DB
+    "UPDATE decisions
+       SET status='open', chosen='', outcome='', decided_at=''
+     WHERE id=?"
+    [(str-to-num id)]))

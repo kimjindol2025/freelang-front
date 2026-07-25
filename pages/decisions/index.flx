@@ -1,0 +1,273 @@
+; pages/decisions/index.flx — 결정 일지
+; 디자인 참고: design-052 GymCRM 체크인 (다크 · Manrope · #FF5B35)
+
+(load "pages/decisions/_db.flx")
+(decisions-init)
+
+(island DecisionsApp []
+  (let [data       (atom nil)
+        show-form  (atom false)
+        title-in   (atom "")
+        context-in (atom "")
+        options-in (atom "")
+        err        (atom "")
+        expand-id  (atom nil)
+        chosen-in  (atom "")
+        outcome-in (atom "")
+
+        apply-res (fn [res]
+                    (reset! data res)
+                    (reset! show-form false)
+                    (reset! title-in "")
+                    (reset! context-in "")
+                    (reset! options-in "")
+                    (reset! err "")
+                    (reset! expand-id nil)
+                    (reset! chosen-in "")
+                    (reset! outcome-in ""))
+
+        reload (fn [res]
+                 (if (= (get res "ok") false)
+                   (reset! err (or (get res "error") "요청 실패"))
+                   (apply-res res)))
+
+        add-item (fn []
+                   (if (= (str-trim @title-in) "")
+                     (reset! err "제목을 입력하세요")
+                     (fetch-post! "/decisions/api"
+                       {"action" "add"
+                        "title" @title-in
+                        "context" @context-in
+                        "options" @options-in}
+                       reload)))
+
+        del-item (fn [id]
+                   (fetch-post! "/decisions/api" {"action" "delete" "id" id} reload))
+
+        decide-item (fn [id]
+                      (if (= (str-trim @chosen-in) "")
+                        (reset! err "선택한 안을 입력하세요")
+                        (fetch-post! "/decisions/api"
+                          {"action" "decide" "id" id "chosen" @chosen-in}
+                          reload)))
+
+        review-item (fn [id]
+                      (if (= (str-trim @outcome-in) "")
+                        (reset! err "결과를 짧게 남겨 주세요")
+                        (fetch-post! "/decisions/api"
+                          {"action" "review" "id" id "outcome" @outcome-in}
+                          reload)))
+
+        reopen-item (fn [id]
+                      (fetch-post! "/decisions/api" {"action" "reopen" "id" id} reload))
+
+        status-label (fn [st]
+                       (cond
+                         (= st "open") "미결"
+                         (= st "decided") "결정됨"
+                         (= st "reviewed") "회고"
+                         true st))
+
+        status-color (fn [st]
+                       (cond
+                         (= st "open") "#FF5B35"
+                         (= st "decided") "#5B8CFF"
+                         (= st "reviewed") "#3DCF8E"
+                         true "#8B8B96"))
+
+        row-view (fn [row]
+                   (let [id     (get row "id")
+                         st     (get row "status")
+                         is-open (= @expand-id id)]
+                     (h "div" {:class "dec-row"}
+                       (str
+                         (h "button" {:class "dec-row-main"
+                                      :on-click (fn []
+                                                  (reset! err "")
+                                                  (reset! chosen-in (or (get row "chosen") ""))
+                                                  (reset! outcome-in (or (get row "outcome") ""))
+                                                  (reset! expand-id (if is-open nil id)))}
+                           (str
+                             (h "div" {:class "dec-dot"
+                                       :style (str "background:" (status-color st))} "")
+                             (h "div" {:class "dec-row-text"}
+                               (str
+                                 (h "div" {:class "dec-title"} (get row "title"))
+                                 (h "div" {:class "dec-meta"}
+                                   (str (status-label st)
+                                        (if (= (or (get row "chosen") "") "")
+                                          ""
+                                          (str " · " (get row "chosen")))))))
+                             (h "div" {:class "dec-chev"} (if is-open "▾" "▸"))))
+                         (if is-open
+                           (h "div" {:class "dec-panel"}
+                             (str
+                               (if (= (or (get row "context") "") "")
+                                 ""
+                                 (h "p" {:class "dec-block"}
+                                   (str (h "span" {:class "dec-k"} "맥락")
+                                        (get row "context"))))
+                               (if (= (or (get row "options") "") "")
+                                 ""
+                                 (h "p" {:class "dec-block"}
+                                   (str (h "span" {:class "dec-k"} "선택지")
+                                        (get row "options"))))
+                               (if (= st "open")
+                                 (h "div" {:class "dec-actions"}
+                                   (str
+                                     (h! "input" {:class "dec-input" :placeholder "선택한 안"
+                                                  :value @chosen-in
+                                                  :on-input (fn [e]
+                                                              (reset! chosen-in
+                                                                (.-value (.-target e))))})
+                                     (h "button" {:class "dec-btn dec-btn-accent"
+                                                  :on-click (fn [] (decide-item id))}
+                                       "결정하기")))
+                                 "")
+                               (if (= st "decided")
+                                 (h "div" {:class "dec-actions"}
+                                   (str
+                                     (h! "input" {:class "dec-input" :placeholder "나중에 본 결과"
+                                                  :value @outcome-in
+                                                  :on-input (fn [e]
+                                                              (reset! outcome-in
+                                                                (.-value (.-target e))))})
+                                     (h "button" {:class "dec-btn dec-btn-accent"
+                                                  :on-click (fn [] (review-item id))}
+                                       "회고 저장")))
+                                 "")
+                               (if (= st "reviewed")
+                                 (h "p" {:class "dec-block"}
+                                   (str (h "span" {:class "dec-k"} "결과")
+                                        (get row "outcome")))
+                                 "")
+                               (h "div" {:class "dec-foot"}
+                                 (str
+                                   (if (= st "open")
+                                     ""
+                                     (h "button" {:class "dec-btn-ghost"
+                                                  :on-click (fn [] (reopen-item id))}
+                                       "다시 열기"))
+                                   (h "button" {:class "dec-btn-ghost dec-danger"
+                                                :on-click (fn [] (del-item id))}
+                                     "삭제")))))
+                           "")))))]
+
+    (fetch! "/decisions/api" (fn [res] (reset! data res)))
+
+    (if (= @data nil)
+      (h "div" {:class "dec-loading"} "불러오는 중…")
+
+      (h "div" {:class "dec-app"}
+        (str
+          (h "header" {:class "dec-head"}
+            (str
+              (h "div" {}
+                (str
+                  (h "h1" {} "Decisions")
+                  (h "p" {:class "dec-lead"} "결정하고, 나중에 결과를 남긴다")))
+              (h "button" {:class "dec-btn dec-btn-accent"
+                           :on-click (fn []
+                                       (reset! show-form true)
+                                       (reset! err ""))}
+                "+ 새 결정")))
+
+          (h "div" {:class "dec-stats"}
+            (str
+              (h "div" {:class "dec-stat"}
+                (str (h "div" {:class "dec-stat-n"} (str (get @data "open_count")))
+                     (h "div" {:class "dec-stat-l"} "미결")))
+              (h "div" {:class "dec-stat"}
+                (str (h "div" {:class "dec-stat-n"} (str (get @data "decided_count")))
+                     (h "div" {:class "dec-stat-l"} "결정됨")))
+              (h "div" {:class "dec-stat"}
+                (str (h "div" {:class "dec-stat-n"} (str (get @data "reviewed_count")))
+                     (h "div" {:class "dec-stat-l"} "회고")))))
+
+          (if @show-form
+            (h "div" {:class "dec-form"}
+              (str
+                (h! "input" {:class "dec-input" :placeholder "무엇을 결정하나?"
+                             :value @title-in
+                             :on-input (fn [e] (reset! title-in (.-value (.-target e))))})
+                (h "textarea" {:class "dec-area" :placeholder "맥락 (선택)"
+                               :value @context-in
+                               :on-input (fn [e] (reset! context-in (.-value (.-target e))))} "")
+                (h "textarea" {:class "dec-area" :placeholder "선택지 — 줄바꿈으로 나열"
+                               :value @options-in
+                               :on-input (fn [e] (reset! options-in (.-value (.-target e))))} "")
+                (h "div" {:class "dec-form-actions"}
+                  (str
+                    (h "button" {:class "dec-btn-ghost"
+                                 :on-click (fn [] (reset! show-form false))}
+                      "취소")
+                    (h "button" {:class "dec-btn dec-btn-accent"
+                                 :on-click add-item}
+                      "추가")))))
+            "")
+
+          (if (= @err "")
+            ""
+            (h "p" {:class "dec-err"} @err))
+
+          (if (= (length (get @data "items")) 0)
+            (h "p" {:class "dec-empty"} "아직 기록이 없습니다. 첫 결정을 남겨 보세요.")
+            (h "div" {:class "dec-list"}
+              (arr-join (map row-view (get @data "items")) ""))))))))
+
+(defn render [req]
+  (layout-html "Decisions"
+    (str
+      """
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  .dec-wrap{max-width:440px;margin:0 auto;padding:28px 18px 72px;
+    font-family:'Manrope',system-ui,sans-serif;color:#F2F2F5;
+    background:radial-gradient(120% 80% at 10% -10%,#2a1f1c 0%,#16161C 45%,#121218 100%);
+    min-height:100dvh;box-sizing:border-box}
+  .dec-loading{text-align:center;padding:64px 20px;color:#8B8B96}
+  .dec-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:22px}
+  .dec-head h1{margin:0;font-size:1.55rem;font-weight:800;letter-spacing:-.02em}
+  .dec-lead{margin:6px 0 0;font-size:.78rem;color:#8B8B96;line-height:1.45}
+  .dec-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+  .dec-stat{background:#1C1C24;border:1px solid #2A2A33;border-radius:14px;padding:12px 10px;text-align:center}
+  .dec-stat-n{font-size:1.25rem;font-weight:800}
+  .dec-stat-l{font-size:.68rem;color:#8B8B96;margin-top:2px;font-weight:600}
+  .dec-form{background:#1C1C24;border:1px solid #2A2A33;border-radius:16px;padding:14px;margin-bottom:14px;
+    display:flex;flex-direction:column;gap:8px}
+  .dec-form-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+  .dec-input,.dec-area{width:100%;box-sizing:border-box;background:#121218;color:#F2F2F5;
+    border:1px solid #2A2A33;border-radius:10px;padding:10px 12px;font:inherit;font-size:.88rem}
+  .dec-area{min-height:72px;resize:vertical}
+  .dec-input:focus,.dec-area:focus{outline:none;border-color:#FF5B35}
+  .dec-btn{border:none;border-radius:10px;padding:10px 14px;font:inherit;font-weight:700;cursor:pointer}
+  .dec-btn-accent{background:#FF5B35;color:#fff}
+  .dec-btn-accent:hover{filter:brightness(1.06)}
+  .dec-btn-ghost{background:transparent;border:none;color:#8B8B96;font:inherit;font-weight:600;
+    cursor:pointer;padding:8px 10px}
+  .dec-danger{color:#ff7b7b}
+  .dec-err{color:#ff7b7b;font-size:.8rem;margin:0 0 12px}
+  .dec-empty{color:#8B8B96;font-size:.85rem;padding:28px 8px;text-align:center;line-height:1.5}
+  .dec-list{display:flex;flex-direction:column}
+  .dec-row{border-bottom:1px solid #24242C}
+  .dec-row-main{width:100%;display:flex;align-items:center;gap:12px;padding:14px 2px;
+    background:transparent;border:none;color:inherit;font:inherit;text-align:left;cursor:pointer}
+  .dec-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .dec-row-text{flex:1;min-width:0}
+  .dec-title{font-size:.92rem;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dec-meta{font-size:.72rem;color:#8B8B96;margin-top:3px}
+  .dec-chev{color:#8B8B96;font-size:.85rem;flex-shrink:0}
+  .dec-panel{padding:0 2px 14px 24px;display:flex;flex-direction:column;gap:10px;
+    animation:decIn .22s ease}
+  @keyframes decIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  .dec-block{margin:0;font-size:.8rem;color:#C8C8D0;line-height:1.5;white-space:pre-wrap}
+  .dec-k{display:block;font-size:.68rem;font-weight:800;color:#8B8B96;margin-bottom:3px;letter-spacing:.04em}
+  .dec-actions{display:flex;flex-direction:column;gap:8px}
+  .dec-foot{display:flex;justify-content:flex-end;gap:4px}
+</style>
+<div class="dec-wrap">
+"""
+      DecisionsApp
+      "</div>")
+    req))
