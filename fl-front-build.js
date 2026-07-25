@@ -1565,10 +1565,11 @@ function validateArity(routes, helpers) {
   const allFiles = [...helpers, ...routes.map(r => r.file)];
 
   // 1패스: (defn name [p1 p2 ...] ...) 수집
+  // 삼중/일반 문자열 안 JS(function(f){…}, appendChild(badge)) 를 FL 호출로 오인하지 않게 마스킹
   const sigs = new Map(); // name → {arity, file, variadic}
   for (const f of allFiles) {
     let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
-    const noComments = stripComments(src);
+    const noComments = maskStringsPreserveLines(stripComments(src));
     for (const m of noComments.matchAll(/\(defn\s+([\w-]+)\s+\[([^\]]*)\]/g)) {
       const name = m[1];
       const params = m[2].trim();
@@ -1587,7 +1588,7 @@ function validateArity(routes, helpers) {
 
   for (const f of allFiles) {
     let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
-    const noComments = stripComments(src);
+    const noComments = maskStringsPreserveLines(stripComments(src));
     const base = path.basename(f);
     let i = 0;
     while (i < noComments.length) {
@@ -1924,7 +1925,7 @@ function checkBuiltinArity(routes, helpers) {
   const issues = [];
   for (const f of allFiles) {
     let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
-    const code = stripComments(src);
+    const code = maskStringsPreserveLines(stripComments(src));
     const base = path.basename(f);
     let i = 0;
     while (i < code.length) {

@@ -15,6 +15,7 @@
         chosen-in  (atom "")
         outcome-in (atom "")
         day-filter (atom "all")
+        loaded     (atom false)
 
         apply-res (fn [res]
                     (reset! data res)
@@ -198,7 +199,9 @@
                                      "삭제")))))
                            "")))))]
 
-    (fetch! "/decisions/api" (fn [res] (reset! data res)))
+    (when (not @loaded)
+      (reset! loaded true)
+      (fetch! "/decisions/api" (fn [res] (reset! data res))))
 
     (if (= @data nil)
       (h "div" {:class "dec-loading"} "불러오는 중…")

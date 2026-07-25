@@ -142,7 +142,11 @@ function emitList(node, ctx) {
   if (head?.sym === 'mod')    return `(${emit(args[0],ctx)} % ${emit(args[1],ctx)})`;
   if (head?.sym === '??')     return `(${emit(args[0],ctx)} ?? ${emit(args[1],ctx)})`;  // nil-coalescing
   if (head?.sym === 'not')    return `!(${emit(args[0],ctx)})`;
-  if (head?.sym === 'when')   return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : null`;
+  // (when test a b…) — body 여러 개면 do 로 묶음 (notes-island 패턴)
+  if (head?.sym === 'when') {
+    if (args.length <= 2) return `(${emit(args[0],ctx)}) ? (${emit(args[1],ctx)}) : null`;
+    return `(${emit(args[0],ctx)}) ? (${emitDo(args.slice(1), ctx)}) : null`;
+  }
   if (head?.sym === 'or')     return `(${args.map(a=>`(${emit(a,ctx)})`).join(' || ')})`;
   if (head?.sym === 'and')    return `(${args.map(a=>`(${emit(a,ctx)})`).join(' && ')})`;
   // 배열/맵 조작 — _fl 런타임 위임
@@ -154,7 +158,10 @@ function emitList(node, ctx) {
   if (head?.sym === 'map')     return `_fl.map_arr(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'filter')  return `_fl.filter_arr(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'reduce')  return `_fl.reduce_arr(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
-  if (head?.sym === 'length')  return `(${emit(args[0],ctx)})?.length ?? 0`;
+  // 반드시 괄호로 감싼다 — ?? 가 === / > 보다 우선순위 낮음
+  // 잘못: (x)?.length ?? 0 === 0  →  (x)?.length ?? (0 === 0)
+  // 올바: ((x)?.length ?? 0) === 0
+  if (head?.sym === 'length')  return `((${emit(args[0],ctx)})?.length ?? 0)`;
   if (head?.sym === 'first')   return `(${emit(args[0],ctx)})?.[0] ?? null`;
   if (head?.sym === 'rest')    return `(${emit(args[0],ctx)})?.slice(1) ?? []`;
   // ── 글로벌 store ──
@@ -387,20 +394,20 @@ const _fl={
       .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-delete!',e,'callback'); } })
       .catch(err=>{ _fl._err('fetch-delete!',new Error('DELETE '+url+' → '+err),'request'); });
   },
-  // ── Island 에러 리포터 → /~errors (dev 전용) ──
+  // ── Island 에러 리포터 (콘솔 + Next.js 스타일 오버레이)
   _err:(islandId,err,phase)=>{
     const msg=err&&err.message?err.message:String(err);
     const stack=err&&err.stack?err.stack:'';
-    // FreeLang 문자열이 \\n / \\d 를 재해석하므로 이스케이프 금지 — fromCharCode·[0-9] 사용
     console.error('[Island:'+islandId+']['+phase+'] '+msg+String.fromCharCode(10)+stack);
     try{
-      if(location.hostname==='localhost'||location.port==='40850'||location.port==='40851'){
-        const EV='http://'+location.hostname+':40851/~errors';
-        const lineMatch=stack.match(/:([0-9]+):[0-9]+/);
-        const lineNo=lineMatch?parseInt(lineMatch[1]):0;
-        fetch(EV,{method:'POST',headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({type:'island',message:'['+islandId+']['+phase+'] '+msg,source:'island-'+islandId+'.flx',line:lineNo,col:0,stack:stack,url:location.href})
-        }).catch(function(){});
+      if(window.__FL_EO&&window.__FL_EO.report){
+        window.__FL_EO.report({
+          type:'island',
+          message:'['+islandId+']['+phase+'] '+msg,
+          source:'island-'+islandId+'.flx',
+          line:0,
+          stack:stack
+        });
       }
     }catch(e){}
   },

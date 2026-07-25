@@ -1,0 +1,33 @@
+; pages/dev/error-demo.flx — ERROR-OVERLAY 수동 테스트
+; localhost 에서 버튼 클릭 → Next.js 스타일 오버레이
+
+(island ErrorDemo []
+  (let [n (atom 0)]
+    (h "div" {:style "max-width:520px;margin:0 auto"}
+      (str
+        (h "h1" {:style "font-size:1.5rem;margin:0 0 8px"} "Error Overlay")
+        (h "p" {:style "color:#6b7280;margin:0 0 20px;line-height:1.5"}
+          "Next.js 처럼 페이지 안에 런타임 오류를 띄웁니다. Esc 닫기 · Ctrl+Shift+E 토글.")
+        (h "div" {:style "display:flex;flex-wrap:wrap;gap:10px"}
+          (str
+            (h "button"
+              {:style "padding:10px 16px;border:none;border-radius:8px;background:#e11d48;color:#fff;font-weight:600;cursor:pointer"
+               :on-click (fn []
+                           (do
+                             (swap! n (fn [x] (+ x 1)))
+                             (.report (.-__FL_EO window)
+                               {"type" "demo"
+                                "message" (str "의도적 테스트 에러 #" @n)
+                                "source" "pages/dev/error-demo.flx"
+                                "line" 18
+                                "stack" "at on-click (pages/dev/error-demo.flx:18:5)"})))}
+              "오버레이 띄우기")
+            (h "button"
+              {:style "padding:10px 16px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;cursor:pointer"
+               :on-click (fn [] (.clear (.-__FL_EO window)))}
+              "Clear")))))))
+
+(defn render [req]
+  (layout-html "Error Overlay Demo"
+    (str "ISLAND_PLACEHOLDER" "ISLAND_SCRIPTS")
+    req))

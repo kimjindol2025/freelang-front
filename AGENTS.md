@@ -176,6 +176,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/decisions/api` | pages/decisions/api.flx |
 | `/decisions` | pages/decisions/index.flx |
 | `/demo` | pages/demo.flx |
+| `/dev/error-demo` | pages/dev/error-demo.flx |
 | `/events/api` | pages/events/api.flx |
 | `/events` | pages/events/index.flx |
 | `/examples/01-hello` | pages/examples/01-hello.flx |

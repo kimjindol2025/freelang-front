@@ -143,23 +143,23 @@ function onMsg(type){
   if(type==='soft-reload') return softReload();
   if(type==='reload'){ location.reload(); return; }
 }
-// PM2(npm start)는 :40851 없음 — 무한 재연결/콘솔 스팸 금지. npm run dev 일 때만 유지.
-function connect(fails){
-  fails=fails||0;
-  if(fails>=2){
-    console.info('[hmr] off — npm run dev 가 아님 (PM2/start). HMR 생략');
-    return;
-  }
-  var es=new EventSource(HMR);
-  var opened=false;
-  es.onopen=function(){ opened=true; fails=0; };
-  es.onmessage=function(e){ if(e.data&&e.data!=='connected') onMsg(e.data); };
-  es.onerror=function(){
-    try{es.close();}catch(x){}
-    setTimeout(function(){ connect(opened?0:fails+1); }, opened?1500:800);
-  };
+// PM2(npm start)는 :40851 없음 — EventSource 전에 GET probe. 실패 시 아예 연결 안 함.
+function connect(){
+  fetch('http://'+location.hostname+':40851/~errors',{method:'GET',mode:'cors',cache:'no-store'})
+    .then(function(r){
+      if(!r.ok) throw new Error('no-hmr');
+      var es=new EventSource(HMR);
+      es.onmessage=function(e){ if(e.data&&e.data!=='connected') onMsg(e.data); };
+      es.onerror=function(){
+        try{es.close();}catch(x){}
+        setTimeout(connect,2000);
+      };
+    })
+    .catch(function(){
+      console.info('[hmr] off — :40851 없음 (PM2/start). HMR 생략');
+    });
 }
-connect(0);
+connect();
 })()</script>""")
 
 ; FL DevTools — dev 전용 floating 디버그 패널
@@ -269,24 +269,310 @@ document.addEventListener('keydown',function(e){
 setInterval(function(){if(open)fetchErrors();},3000);
 })()</script>")
 
-; 브라우저 에러 수집 (개발: 40851/~errors, 프로덕션: /api/errors)
-; v0.2.1: 프로덕션 에러 리포팅 추가
+; Next.js 스타일 페이지 내 오류 오버레이 (localhost 전용)
+; Esc 닫기 · ←/→ 여러 에러 · 우하단 배지로 다시 열기 · Ctrl+Shift+E
+(define ERROR-OVERLAY
+  """<script>(function(){
+var isDev=location.hostname==='localhost'||location.hostname==='127.0.0.1';
+if(!isDev){window.__FL_EO={report:function(){},clear:function(){},open:function(){}};return;}
+
+var errors=[];
+var idx=0;
+var open=false;
+var root=null;
+var badge=null;
+
+function noisy(msg){
+  var s=String(msg||'');
+  return s.indexOf('429')>=0
+    || s.indexOf('Too Many Requests')>=0
+    || s.indexOf('ERR_CONNECTION_REFUSED')>=0
+    || s.indexOf('/~hmr')>=0
+    || s.indexOf('/~errors')>=0
+    || s.indexOf('[circuit]')>=0
+    || s.indexOf('api/metrics')>=0
+    || s.indexOf('모니터링 일시')>=0
+    || s.indexOf('Failed to fetch')>=0
+    || s.indexOf('NetworkError')>=0
+    || s.indexOf('Load failed')>=0;
+}
+
+function esc(s){
+  return String(s==null?'':s)
+    .split('&').join('&amp;')
+    .split('<').join('&lt;')
+    .split('>').join('&gt;')
+    .split('"').join('&quot;');
+}
+
+function dedupeKey(e){
+  return (e.type||'')+'|'+(e.message||'')+'|'+(e.source||'')+'|'+(e.line||0);
+}
+
+// FreeLang 문자열에서 \\n / \\d 재해석 방지 — fromCharCode·indexOf 만 사용
+function parseFrames(stack){
+  var NL=String.fromCharCode(10);
+  var lines=String(stack||'').split(NL);
+  var out=[];
+  for(var i=0;i<lines.length;i++){
+    var L=lines[i].trim();
+    if(!L) continue;
+    if(L.indexOf('Error')===0 && L.indexOf('at ')!==0) continue;
+    var ignored=L.indexOf('node_modules')>=0
+      || L.indexOf('island-compiler')>=0
+      || L.indexOf('chrome-extension')>=0
+      || L.indexOf('_fl.')>=0;
+    // "at fn (url:line:col)" 또는 "url:line:col"
+    var file='';
+    var line='';
+    var col='';
+    var fn=L;
+    var lp=L.lastIndexOf('(');
+    var rp=L.lastIndexOf(')');
+    var loc='';
+    if(lp>=0 && rp>lp){
+      fn=L.slice(0,lp).trim();
+      if(fn.indexOf('at ')===0) fn=fn.slice(3).trim();
+      if(!fn) fn='(anonymous)';
+      loc=L.slice(lp+1,rp);
+    }else if(L.indexOf('at ')===0){
+      fn=L.slice(3).trim();
+      loc='';
+    }else{
+      loc=L;
+      fn='(anonymous)';
+    }
+    if(loc){
+      var parts=loc.split(':');
+      if(parts.length>=3){
+        col=parts.pop();
+        line=parts.pop();
+        file=parts.join(':');
+      }else{
+        file=loc;
+      }
+    }
+    out.push({fn:fn,file:file,line:line,col:col,ignored:ignored});
+  }
+  return out;
+}
+
+function shortUrl(u){
+  var s=String(u||'');
+  var i=s.indexOf('://');
+  if(i<0) return s;
+  var j=s.indexOf('/', i+3);
+  return j>=0 ? s.slice(j) : s;
+}
+
+function ensureDom(){
+  if(root) return;
+  root=document.createElement('div');
+  root.id='fl-eo-root';
+  root.setAttribute('aria-live','assertive');
+  root.style.cssText='display:none;position:fixed;inset:0;z-index:2147483000;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;';
+  document.body.appendChild(root);
+
+  badge=document.createElement('button');
+  badge.id='fl-eo-badge';
+  badge.type='button';
+  badge.title='FL Error Overlay (Ctrl+Shift+E)';
+  badge.style.cssText='display:none;position:fixed;bottom:16px;left:16px;z-index:2147482999;min-width:40px;height:40px;padding:0 12px;border:none;border-radius:999px;background:#e11d48;color:#fff;font:700 13px/40px ui-sans-serif,system-ui,sans-serif;cursor:pointer;box-shadow:0 8px 24px rgba(225,29,72,.45);';
+  badge.onclick=function(){ open=true; paint(); };
+  document.body.appendChild(badge);
+}
+
+function paint(){
+  ensureDom();
+  if(!errors.length){
+    open=false;
+    root.style.display='none';
+    badge.style.display='none';
+    return;
+  }
+  if(idx>=errors.length) idx=errors.length-1;
+  if(idx<0) idx=0;
+  badge.textContent=String(errors.length);
+  badge.style.display=open?'none':'block';
+  if(!open){ root.style.display='none'; return; }
+
+  var e=errors[idx];
+  var frames=parseFrames(e.stack);
+  var shown=frames.filter(function(f){return !f.ignored;});
+  var hidden=frames.length-shown.length;
+  var use=shown.length?shown:frames;
+  var stackHtml=use.length===0
+    ? '<div style="color:#71717a;padding:8px 0">스택 없음</div>'
+    : use.map(function(f){
+        return '<div style="padding:8px 0;border-bottom:1px solid #27272a">'
+          +'<div style="color:#fafafa;font-size:13px">'+esc(f.fn)+'</div>'
+          +'<div style="color:#a1a1aa;font-size:12px;margin-top:2px">'
+          +esc(f.file)+(f.line?':'+esc(f.line)+':'+esc(f.col):'')
+          +'</div></div>';
+      }).join('');
+
+  root.style.display='block';
+  root.innerHTML=
+    '<div id="fl-eo-backdrop" style="position:absolute;inset:0;background:rgba(9,9,11,.72);backdrop-filter:blur(6px)"></div>'
+    +'<div role="dialog" aria-modal="true" aria-label="Runtime Error" style="position:absolute;left:50%;top:8%;transform:translateX(-50%);width:min(720px,92vw);max-height:84vh;overflow:auto;background:#18181b;color:#e4e4e7;border:1px solid #3f3f46;border-radius:12px;box-shadow:0 24px 80px rgba(0,0,0,.55)">'
+      +'<div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #27272a;position:sticky;top:0;background:#18181b;z-index:1">'
+        +'<span style="color:#fb7185;font-weight:800;font-size:12px;letter-spacing:.04em">RUNTIME ERROR</span>'
+        +'<span style="color:#a1a1aa;font-size:12px;font-variant-numeric:tabular-nums">'+(idx+1)+' / '+errors.length+'</span>'
+        +'<div style="margin-left:auto;display:flex;gap:6px">'
+          +'<button type="button" data-eo="prev" style="width:32px;height:28px;border:1px solid #3f3f46;border-radius:6px;background:#27272a;color:#e4e4e7;cursor:pointer">←</button>'
+          +'<button type="button" data-eo="next" style="width:32px;height:28px;border:1px solid #3f3f46;border-radius:6px;background:#27272a;color:#e4e4e7;cursor:pointer">→</button>'
+          +'<button type="button" data-eo="clear" style="height:28px;padding:0 10px;border:1px solid #3f3f46;border-radius:6px;background:#27272a;color:#a1a1aa;cursor:pointer;font-size:12px">Clear</button>'
+          +'<button type="button" data-eo="close" style="width:32px;height:28px;border:1px solid #3f3f46;border-radius:6px;background:#27272a;color:#e4e4e7;cursor:pointer">×</button>'
+        +'</div>'
+      +'</div>'
+      +'<div style="padding:20px 22px 8px">'
+        +'<div style="color:#fb7185;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">'+esc(e.type||'error')+'</div>'
+        +'<div style="color:#fafafa;font-size:18px;font-weight:650;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+esc(e.message)+'</div>'
+        +'<div style="margin-top:10px;color:#a1a1aa;font-size:12px">'
+          +esc(e.source||'(unknown)')+(e.line?':'+e.line:'')
+          +' · '+esc(shortUrl(e.url||location.href))
+        +'</div>'
+      +'</div>'
+      +'<div style="padding:8px 22px 22px">'
+        +'<div style="color:#71717a;font-size:11px;font-weight:700;letter-spacing:.06em;margin:12px 0 4px">CALL STACK'
+          +(hidden?' <button type="button" data-eo="all" style="all:unset;color:#a1a1aa;cursor:pointer;text-decoration:underline dotted">+'+hidden+' ignored</button>':'')
+        +'</div>'
+        +'<div id="fl-eo-stack">'+stackHtml+'</div>'
+        +'<div style="margin-top:16px;color:#52525b;font-size:11px">Esc 닫기 · Ctrl+Shift+E 토글 · Clear 로 목록 비우기</div>'
+      +'</div>'
+    +'</div>';
+
+  root.onclick=function(ev){
+    var t=ev.target;
+    if(!t||!t.getAttribute) return;
+    if(t.id==='fl-eo-backdrop'||t.getAttribute('data-eo')==='close'){ open=false; paint(); return; }
+    if(t.getAttribute('data-eo')==='prev'){ idx=(idx-1+errors.length)%errors.length; paint(); return; }
+    if(t.getAttribute('data-eo')==='next'){ idx=(idx+1)%errors.length; paint(); return; }
+    if(t.getAttribute('data-eo')==='clear'){ errors=[]; idx=0; paint(); return; }
+    if(t.getAttribute('data-eo')==='all'){
+      var all=parseFrames(e.stack);
+      var el=document.getElementById('fl-eo-stack');
+      if(!el) return;
+      el.innerHTML=all.map(function(f){
+        return '<div style="padding:8px 0;border-bottom:1px solid #27272a;opacity:'+(f.ignored?'.55':'1')+'">'
+          +'<div style="color:#fafafa;font-size:13px">'+esc(f.fn)+(f.ignored?' <span style="color:#71717a">ignored</span>':'')+'</div>'
+          +'<div style="color:#a1a1aa;font-size:12px;margin-top:2px">'
+          +esc(f.file)+(f.line?':'+esc(f.line)+':'+esc(f.col):'')
+          +'</div></div>';
+      }).join('');
+    }
+  };
+}
+
+function report(entry){
+  if(!entry) return;
+  var msg=entry.message||'';
+  if(noisy(msg)) return;
+  if(noisy(entry.stack)) return;
+  ensureDom();
+  var row={
+    type:entry.type||'error',
+    message:String(msg),
+    source:entry.source||'',
+    line:entry.line||0,
+    stack:String(entry.stack||''),
+    url:entry.url||location.href,
+    ts:Date.now()
+  };
+  var key=dedupeKey(row);
+  for(var i=0;i<errors.length;i++){
+    if(dedupeKey(errors[i])===key){
+      errors[i]=row;
+      idx=i;
+      open=true;
+      paint();
+      return;
+    }
+  }
+  errors.push(row);
+  if(errors.length>30) errors.shift();
+  idx=errors.length-1;
+  open=true;
+  paint();
+}
+
+window.__FL_EO={
+  report:report,
+  clear:function(){ errors=[]; idx=0; paint(); },
+  open:function(){ if(errors.length){ open=true; paint(); } },
+  list:function(){ return errors.slice(); }
+};
+
+document.addEventListener('keydown',function(ev){
+  if(ev.key==='Escape'&&open){ open=false; paint(); return; }
+  if(ev.ctrlKey&&ev.shiftKey&&(ev.key==='E'||ev.key==='e')){
+    ev.preventDefault();
+    if(!errors.length) return;
+    open=!open;
+    paint();
+  }
+});
+
+if(document.readyState==='loading'){
+  document.addEventListener('DOMContentLoaded',ensureDom);
+}else{
+  ensureDom();
+}
+})()</script>""")
+
+; 브라우저 에러 수집 + 오버레이 연동
+; v0.2.2: ERROR-OVERLAY(__FL_EO) 연동, 노이즈(429/HMR)는 API·오버레이 모두 스킵
 (define ERROR-COLLECTOR
   "<script>(function(){
-// :40851 은 npm run dev 전용 — PM2 localhost 에서도 붙이지 않음 (연결 거부 스팸 방지)
 var EVs=['/api/errors'];
 
+function noisy(msg){
+  var s=String(msg||'');
+  return s.indexOf('429')>=0
+    || s.indexOf('Too Many Requests')>=0
+    || s.indexOf('ERR_CONNECTION_REFUSED')>=0
+    || s.indexOf('/~hmr')>=0
+    || s.indexOf('/~errors')>=0
+    || s.indexOf('[circuit]')>=0
+    || s.indexOf('api/metrics')>=0
+    || s.indexOf('모니터링 일시')>=0
+    || s.indexOf('Failed to fetch')>=0;
+}
+
 function send(type,msg,src,line,stack){
-  var payload={type:type,message:String(msg),source:src,line:line,stack:String(stack||''),url:location.href};
+  if(noisy(msg)||noisy(stack)) return;
+  var payload={type:type,message:String(msg),source:src||'',line:line||0,stack:String(stack||''),url:location.href};
+  if(window.__FL_EO&&window.__FL_EO.report){
+    try{window.__FL_EO.report(payload);}catch(x){}
+  }
+  var isDev=location.hostname==='localhost'||location.hostname==='127.0.0.1';
+  if(!isDev){
+    EVs.forEach(function(url){
+      fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(function(){});
+    });
+    return;
+  }
+  // localhost: 오버레이가 1차, API는 스로틀(같은 메시지 3초 1회)
+  var k=type+'|'+String(msg).slice(0,120);
+  var now=Date.now();
+  window.__FL_EO_LAST=window.__FL_EO_LAST||{};
+  if(window.__FL_EO_LAST[k]&&now-window.__FL_EO_LAST[k]<3000) return;
+  window.__FL_EO_LAST[k]=now;
   EVs.forEach(function(url){
     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(function(){});
   });
 }
 
-window.onerror=function(m,s,l,c,e){send('error',m,s,l,c,e&&e.stack);return false;};
-window.addEventListener('unhandledrejection',function(e){send('promise',e.reason&&e.reason.message||String(e.reason),'',0,0,e.reason&&e.reason.stack);});
+window.onerror=function(m,s,l,c,e){send('error',m,s,l,e&&e.stack);return false;};
+window.addEventListener('unhandledrejection',function(e){
+  var r=e.reason;
+  send('promise',r&&r.message||String(r),'',0,r&&r.stack);
+});
 var _ce=console.error.bind(console);
-console.error=function(){_ce.apply(console,arguments);send('console',Array.from(arguments).join(' '),'',0,0,'');};
+console.error=function(){
+  _ce.apply(console,arguments);
+  send('console',Array.from(arguments).join(' '),'',0,'');
+};
 })()</script>")
 
 ; 성능 모니터링 스크립트 — 서킷 브레이커 탑재 (dec-009)
@@ -499,6 +785,7 @@ window.addEventListener('popstate',function(e){
                   (h "button" {:id "dark-btn" :title "다크모드" :style "background:none;border:1px solid rgba(255,255,255,.2);color:#94a3b8;border-radius:6px;padding:5px 10px;font-size:.85rem;cursor:pointer;margin-left:8px;transition:all .15s;flex-shrink:0"} "🌙")))
               (h "div" {:class layout_wrap} content)
               (h "footer" {:class layout_foot} "FreeLang Front v0.1 · npm install 0개 · SSR · Island")
+              ERROR-OVERLAY
               ERROR-COLLECTOR
               PERFORMANCE-MONITOR
               SPA-ROUTER

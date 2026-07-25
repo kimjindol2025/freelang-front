@@ -15,6 +15,7 @@
         expand-id  (atom nil)
         edit-touch (atom "")
         err        (atom "")
+        loaded     (atom false)
 
         apply-res (fn [res]
                     (reset! data res)
@@ -136,7 +137,10 @@
                                      "삭제")))))
                            "")))))]
 
-    (fetch! "/people/api" (fn [res] (reset! data res)))
+    ; fetch! 는 매 update 마다 돌면 무한루프 → 429. 1회만.
+    (when (not @loaded)
+      (reset! loaded true)
+      (fetch! "/people/api" (fn [res] (reset! data res))))
 
     (if (= @data nil)
       (h "div" {:class "pe-loading"} "불러오는 중…")

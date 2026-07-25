@@ -13,6 +13,7 @@
         expand-id  (atom nil)
         err        (atom "")
         copied     (atom "")
+        loaded     (atom false)
 
         apply-res (fn [res]
                     (reset! data res)
@@ -92,7 +93,9 @@
                                      "삭제")))))
                            "")))))]
 
-    (fetch! "/prompts/api" (fn [res] (reset! data res)))
+    (when (not @loaded)
+      (reset! loaded true)
+      (fetch! "/prompts/api" (fn [res] (reset! data res))))
 
     (if (= @data nil)
       (h "div" {:class "pr-loading"} "불러오는 중…")
