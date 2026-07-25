@@ -17,6 +17,14 @@
         err        (atom "")
         fu-err     (atom "")
         fu-ok-id   (atom nil)
+        mk-title   (atom "")
+        mk-price   (atom "")
+        mk-category (atom "기타")
+        mk-desc    (atom "")
+        mk-contact (atom "")
+        mk-hood    (atom "")
+        mk-err     (atom "")
+        mk-ok-id   (atom nil)
         loaded     (atom false)
 
         apply-res (fn [res]
@@ -93,6 +101,29 @@
                                   (reset! fu-err (or (get res "error") "후속 만들기 실패"))
                                   (reset! fu-ok-id pid)))))))
 
+        make-market (fn [row]
+                      (let [pid (get row "id")]
+                        (do
+                          (reset! mk-err "")
+                          (reset! mk-ok-id nil)
+                          (if (= (str-trim @mk-title) "")
+                            (reset! mk-err "제목을 입력하세요")
+                            (fetch-post! "/market/api"
+                              {"action" "add"
+                               "title" @mk-title
+                               "price" @mk-price
+                               "category" @mk-category
+                               "description" @mk-desc
+                               "contact" @mk-contact
+                               "neighborhood" @mk-hood
+                               "photo_url" ""
+                               "source_type" "people"
+                               "source_id" (str pid)}
+                              (fn [res]
+                                (if (= (get res "ok") false)
+                                  (reset! mk-err (or (get res "error") "Market 등록 실패"))
+                                  (reset! mk-ok-id pid))))))))
+
         due? (fn [row]
                (let [nt (or (get row "next_touch") "")
                      st (or (get row "status") "")
@@ -129,6 +160,14 @@
                                                   (reset! err "")
                                                   (reset! fu-err "")
                                                   (reset! fu-ok-id nil)
+                                                  (reset! mk-err "")
+                                                  (reset! mk-ok-id nil)
+                                                  (reset! mk-title (str "판매: " (or (get row "name") "")))
+                                                  (reset! mk-price "")
+                                                  (reset! mk-category "기타")
+                                                  (reset! mk-desc (or (get row "context") ""))
+                                                  (reset! mk-contact "")
+                                                  (reset! mk-hood "")
                                                   (reset! edit-touch (or (get row "next_touch") ""))
                                                   (reset! expand-id (if is-open nil id)))}
                            (str
@@ -159,6 +198,44 @@
                                             :on-input (fn [e]
                                                         (reset! edit-touch
                                                           (.-value (.-target e))))})
+                               (h "label" {:class "pe-k"} "Market에 올리기")
+                               (h! "input" {:class "pe-input" :placeholder "제목"
+                                            :value @mk-title
+                                            :on-input (fn [e]
+                                                        (reset! mk-title
+                                                          (.-value (.-target e))))})
+                               (h! "input" {:class "pe-input" :type "number"
+                                            :placeholder "가격 (0=나눔)"
+                                            :value @mk-price
+                                            :on-input (fn [e]
+                                                        (reset! mk-price
+                                                          (.-value (.-target e))))})
+                               (h "select" {:class "pe-input"
+                                            :value @mk-category
+                                            :on-change (fn [e]
+                                                         (reset! mk-category
+                                                           (.-value (.-target e))))}
+                                 (str
+                                   (h "option" {:value "가전"} "가전")
+                                   (h "option" {:value "가구"} "가구")
+                                   (h "option" {:value "의류"} "의류")
+                                   (h "option" {:value "디지털"} "디지털")
+                                   (h "option" {:value "기타"} "기타")))
+                               (h "textarea" {:class "pe-area" :placeholder "설명"
+                                              :value @mk-desc
+                                              :on-input (fn [e]
+                                                          (reset! mk-desc
+                                                            (.-value (.-target e))))} "")
+                               (h! "input" {:class "pe-input" :placeholder "연락처"
+                                            :value @mk-contact
+                                            :on-input (fn [e]
+                                                        (reset! mk-contact
+                                                          (.-value (.-target e))))})
+                               (h! "input" {:class "pe-input" :placeholder "동네"
+                                            :value @mk-hood
+                                            :on-input (fn [e]
+                                                        (reset! mk-hood
+                                                          (.-value (.-target e))))})
                                (h "div" {:class "pe-actions"}
                                  (str
                                    (h "button" {:class "pe-btn pe-accent"
@@ -173,14 +250,23 @@
                                    (h "button" {:class "pe-btn pe-ghost"
                                                 :on-click (fn [] (make-followup row))}
                                      "후속 만들기")
+                                   (h "button" {:class "pe-btn pe-ghost"
+                                                :on-click (fn [] (make-market row))}
+                                     "Market에 올리기")
                                    (h "button" {:class "pe-btn pe-danger"
                                                 :on-click (fn [] (del-item id))}
                                      "삭제")))
                                (if (= @fu-ok-id id)
                                  (h "p" {:class "pe-ok"} "Followups에 추가됨")
                                  "")
+                               (if (= @mk-ok-id id)
+                                 (h "p" {:class "pe-ok"} "Market에 등록됨")
+                                 "")
                                (if (and is-open (= @expand-id id) (not (= @fu-err "")))
                                  (h "p" {:class "pe-fu-err"} @fu-err)
+                                 "")
+                               (if (and is-open (= @expand-id id) (not (= @mk-err "")))
+                                 (h "p" {:class "pe-fu-err"} @mk-err)
                                  "")))
                            "")))))]
 

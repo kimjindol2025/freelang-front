@@ -143,6 +143,7 @@
                          (cond
                            (= t "people") "People"
                            (= t "decision") "Decision"
+                           (= t "market") "Market"
                            true "수동")))
 
         source-panel-text (fn [row]
@@ -157,13 +158,17 @@
                                   (if (= (str-trim sid) "")
                                     "출처: Decision"
                                     (str "출처: Decision #" sid))
+                                (= t "market")
+                                  (if (= (str-trim sid) "")
+                                    "출처: Market"
+                                    (str "출처: Market #" sid))
                                 true "출처: 수동")))
 
         source-has-link? (fn [row]
                            (let [t   (source-type-of row)
                                  sid (or (get row "source_id") "")]
                              (and (not (= (str-trim sid) ""))
-                                  (or (= t "people") (= t "decision")))))
+                                  (or (= t "people") (= t "decision") (= t "market")))))
 
         source-link-view (fn [row]
                            (let [t (source-type-of row)]
@@ -177,7 +182,12 @@
                                          :href "/decisions"
                                          :data-spa "1"}
                                    "Decision 열기")
-                                 ""))))
+                                 (if (= t "market")
+                                   (h "a" {:class "fu-src-link"
+                                           :href "/market"
+                                           :data-spa "1"}
+                                     "Market 열기")
+                                   "")))))
 
         visible (fn []
                   (let [f @filter-k
