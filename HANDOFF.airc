@@ -1,17 +1,20 @@
 {
   "project": "fl-front",
-  "date": "2026-06-03",
-  "session": "신규 머신 클론 + 연동 + AIRC 문서화",
-  "path": "/home/kim/바탕화면/kim/freelang-front",
-  "runtime_path": "/home/kim/바탕화면/kim/freelang-v11/bootstrap.js",
+  "date": "2026-07-27",
+  "session": "C2C 파이프라인 + FRONT-LANG + kim-complete 정리",
+  "path": "/home/kim/kim/skl/freelang-front",
+  "runtime_path": "/home/kim/kim/skl/freelang-front/runtime/bootstrap.js",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
-  "read_order": "1. HANDOFF.airc(이 파일) → 2. SYNTAX.airc(문법) → 3. HELPERS.airc(헬퍼 API + 현재 상태)",
-  "last_commit": "205f7b1",
+  "read_order": "1. HANDOFF.airc(이 파일) → 2. FRONT-LANG.md → 3. AGENTS.md(빌드 자동) → 4. SYNTAX.airc",
+  "last_commit": "188c255",
+  "checkpoint_skill": "/kim-complete (~/.claude/skills/kim-complete/) — gogs superset, SHA+API 검증 필수",
   "ports": {
-    "app": 40850,
-    "hmr": 40851
+    "app": 40860,
+    "hmr": 40851,
+    "note": "PM2 freelang-front → app 40860, HMR off. npm run dev → 40851"
   },
-  "start": "cd /home/kim/바탕화면/kim/freelang-front && node dev-server.js",
+  "start": "cd /home/kim/kim/skl/freelang-front && npm start",
+  "start_dev": "cd /home/kim/kim/skl/freelang-front && npm run dev",
   "build": "node fl-front-build.js",
   "build_json": "node fl-front-build.js --json",
   "island_test_cli": "node island-runner.js <file.flx> [--island=Name] [--click=#id] [--store={\"k\":v}]",
@@ -131,6 +134,26 @@
   },
   "next": [
     {
+      "id": "MARKET-PHOTO-ONE",
+      "title": "Market — 썸네일 1장 업로드",
+      "status": "pending"
+    },
+    {
+      "id": "MARKET-CHAT-POLLING",
+      "title": "Market — 1:1 메시지 + 폴링",
+      "status": "pending"
+    },
+    {
+      "id": "FLOW-E2E-DATA",
+      "title": "Flow — People→Market→Followups 체인 E2E 테스트 데이터",
+      "status": "pending"
+    },
+    {
+      "id": "SOURCE-ACTION-HELPER",
+      "title": "fetch-post! 보일러플레이트 헬퍼",
+      "status": "pending"
+    },
+    {
       "id": "P0",
       "title": "삼중따옴표 ${} 보간 — 이미 구현됨",
       "what": "확인 결과 bootstrap.js·fl-front runtime 양쪽 완전 동작. 단순변수·표현식·함수 호출 모두 정상. HANDOFF 노트가 stale했음.",
@@ -138,6 +161,29 @@
       "verified": "단순 ${name}, 표현식 ${(+ count 10)}, 중첩 ${joined} 전수 통과"
     }
   ],
+  "session_2026_07_26_c2c": {
+    "done": [
+      "People CRM MVP (/people)",
+      "Followups 보드 + 소스 앱 연동 (/followups)",
+      "Market MVP + People/Followups 소스 (/market)",
+      "Flow 대시보드 (/flow)",
+      "좌측 사이드바 (_layout.flx)",
+      "FRONT-LANG.md — 3층(SSR+API+Island) + 4패턴 + 오류 A~G",
+      "kim-complete 스킬 (nanjung docs/codex-skills/kim-complete/)"
+    ],
+    "gogs_head": "188c255",
+    "verify": "bash ~/.claude/skills/kim-complete/scripts/verify-gogs-push.sh . master freelang-front",
+    "gogs_urls": {
+      "repo": "https://gogs.dclub.kr/kim/freelang-front",
+      "commits": "https://gogs.dclub.kr/kim/freelang-front/commits/master"
+    },
+    "traps": [
+      "Gogs 짧은 SHA 링크 → 404 (40자 full SHA만)",
+      "gogs-api-guide ≠ freelang-front",
+      "git status dirty ≠ 미푸시 — SHA 대조",
+      "Flow Island: let ] 닫기 + map {\"fu\" fu} 금지"
+    ]
+  },
   "insights": [
     "'인간용 아님 AI 전용으로 가자' 한 마디로 에디터 플러그인 대신 headless 실행기를 만들었다. 방향 결정이 기술보다 중요했다.",
     "Island headless 실행기를 만들다가 island-compiler 벡터 파싱 버그를 발견했다. 새 도구가 기존 버그를 드러낸다.",
