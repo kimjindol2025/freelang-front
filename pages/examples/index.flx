@@ -1,6 +1,6 @@
 ; pages/examples/index.flx
 ; 예제 갤러리 인덱스 — GET /examples
-; 30개 FreeLang 프론트엔드 예제 카드 목록
+; 31개 FreeLang 프론트엔드 예제 — 기본 / 서버 / Island · 제품 표준 FRONT-LANG.md
 
 (defn ex-card [num title desc slug tag]
   (h "a" {:href (str "/examples/" slug) :data-spa "1"
@@ -43,13 +43,14 @@
                ["27" "데이터 로딩" "fetch! 로 JSON API 호출" "27-fetch" "Island"]
                ["28" "실시간 투표" "득표 막대 그래프" "28-poll" "Island"]
                ["29" "BMI 계산기" "산술 + 비교로 분류" "29-bmi" "Island"]
-               ["30" "라이트박스" "썸네일 클릭 확대 오버레이" "30-lightbox" "Island"]]]
+               ["30" "라이트박스" "썸네일 클릭 확대 오버레이" "30-lightbox" "Island"]
+               ["31" "Island 4대 패턴" "필터·펼침·즉시추가 — Front 언어 3층" "31-island-patterns" "Island"]]]
     (layout-html "FreeLang 예제 갤러리"
       (h "div" {:style "max-width:960px;margin:0 auto;padding:48px 24px"}
         (str
           (h "h1" {:style "font-size:2rem;font-weight:800;margin:0 0 8px"} "예제 갤러리")
           (h "p" {:style "color:#6b7280;margin:0 0 32px;font-size:1.05rem"}
-            (str (length items) "개의 FreeLang 프론트엔드 예제 — 기본 / 서버 / Island 패턴"))
+            (str (length items) "개 — SSR + Island. 제품 앱 4대 패턴: /examples/31-island-patterns · FRONT-LANG.md"))
           (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px"}
             (arr-join
               (map

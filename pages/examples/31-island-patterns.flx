@@ -1,0 +1,105 @@
+; pages/examples/31-island-patterns.flx
+; 예제 31 — Island 4대 패턴 (Front 언어 3층 표준)
+; P1 필터 · P2 펼침 · P3 즉시 추가 · (P4는 /flow 참고)
+
+(island PatternDemo []
+  (let [items (atom [{"id" "1" "name" "알파" "tag" "A" "status" "open"}
+                     {"id" "2" "name" "베타" "tag" "B" "status" "done"}
+                     {"id" "3" "name" "감마" "tag" "A" "status" "open"}])
+        filter-k (atom "all")
+        expand-id (atom nil)
+        show-form (atom false)
+        name-in (atom "")
+        err (atom "")
+
+        visible (fn []
+                  (filter (fn [r]
+                            (if (= @filter-k "all") true
+                              (= (get r "status") @filter-k)))
+                    @items))
+
+        toggle (fn [id]
+                 (reset! expand-id (if (= @expand-id id) nil id)))
+
+        add-item (fn []
+                   (if (= (str-trim @name-in) "")
+                     (reset! err "이름 입력")
+                     (do
+                       (reset! err "")
+                       (reset! items (push @items
+                         {"id" (str (+ (length @items) 1))
+                          "name" @name-in
+                          "tag" "-"
+                          "status" "open"}))
+                       (reset! name-in "")
+                       (reset! show-form false))))
+
+        chip (fn [k label]
+               (h "button"
+                 {:style (str "padding:6px 12px;border-radius:99px;border:none;cursor:pointer;font:inherit;font-weight:600;"
+                              (if (= @filter-k k)
+                                "background:#6366f1;color:white"
+                                "background:#e5e7eb;color:#374151"))
+                  :on-click (fn [] (reset! filter-k k))}
+                 label))
+
+        row-view (fn [r]
+                   (let [id (get r "id")]
+                     (h "div" {:style "background:white;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:8px;overflow:hidden"}
+                       (str
+                         (h "div" {:style "padding:12px 14px;cursor:pointer;display:flex;justify-content:space-between"
+                                   :on-click (fn [] (toggle id))}
+                           (str (get r "name") " · " (get r "status"))
+                           (if (= @expand-id id) "▲" "▼"))
+                         (if (= @expand-id id)
+                           (h "div" {:style "padding:0 14px 12px;color:#6b7280;font-size:.85rem"}
+                             (str "tag: " (get r "tag") " · id: " id))
+                           "")))))]
+
+    (h "div" {:style "max-width:480px;margin:0 auto;padding:32px 16px;font-family:system-ui,sans-serif"}
+      (str
+        (h "h1" {:style "font-size:1.4rem;margin:0 0 8px"} "31 · Island 4대 패턴")
+        (h "p" {:style "color:#6b7280;font-size:.85rem;margin:0 0 20px;line-height:1.5"}
+          "P1 필터 · P2 펼침 · P3 즉시추가. P4 다중 fetch는 /flow 참고. 정본: FRONT-LANG.md")
+
+        (h "div" {:style "display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px"}
+          (str (chip "all" "전체") (chip "open" "open") (chip "done" "done")))
+
+        (if @show-form
+          (h "div" {:style "display:flex;gap:8px;margin-bottom:12px"}
+            (str
+              (h "input" {:value @name-in
+                          :placeholder "이름"
+                          :style "flex:1;padding:8px 12px;border:1px solid #d1d5db;border-radius:8px"
+                          :on-input (fn [e] (reset! name-in (.-value (.-target e))))})
+              (h "button" {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:8px 16px;cursor:pointer"
+                           :on-click add-item}
+                "추가")
+              (h "button" {:style "background:#f3f4f6;border:1px solid #d1d5db;border-radius:8px;padding:8px 12px;cursor:pointer"
+                           :on-click (fn [] (reset! show-form false))}
+                "취소")))
+          (h "button" {:style "background:#6366f1;color:white;border:none;border-radius:8px;padding:10px 18px;cursor:pointer;margin-bottom:12px"
+                       :on-click (fn [] (reset! show-form true))}
+            "+ P3 즉시 추가"))
+
+        (if (= @err "")
+          ""
+          (h "p" {:style "color:#dc2626;font-size:.85rem;margin:0 0 8px"} @err))
+
+        (h "div" {}
+          (arr-join (map row-view (visible)) ""))
+
+        (h "p" {:style "margin-top:20px;font-size:.8rem"}
+          (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1"} "← 예제 갤러리"))))))
+
+(defn render [req]
+  (layout-html "31 · Island 패턴"
+    (str
+      (h "div" {:style "max-width:520px;margin:0 auto;padding:24px 16px"}
+        (str
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:16px;font-size:.8rem"}
+            (h "a" {:href "/examples" :data-spa "1" :style "color:#6366f1;text-decoration:none"}
+              "← 예제 갤러리"))))
+      "ISLAND_SCRIPTS")
+    req))

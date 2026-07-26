@@ -480,6 +480,40 @@ function generateAgentsMd(routes, helpers = []) {
 
 > 이 파일은 \`fl-front-build.js\` 빌드 시 자동 갱신됩니다.
 > AI 세션 시작 시 반드시 읽으세요.
+> **프론트 언어 정본**: \`FRONT-LANG.md\` (SSR + API + Island 3층)
+
+## FreeLang Front 언어 (3층 — Island는 3층, 별도 프레임워크 아님)
+
+| 층 | 역할 | 언제 |
+|----|------|------|
+| **1 SSR** | \`(defn render [req])\`, \`h\`, \`layout-html\` | 모든 페이지 |
+| **2 API** | \`api.flx\`, \`server-json\`, DB | CRUD·JSON |
+| **3 Island** | \`(island App [] …)\`, \`atom\`, \`fetch!\` | **제품 앱 UI** |
+
+**제품 앱 = 1+2+3.** People/Market/Followups/Flow가 표준.
+
+### Island 4대 패턴 (Front 언어 표준)
+
+| 패턴 | atom/함수 | 용도 |
+|------|-----------|------|
+| **P1 필터** | \`filter-k\`, \`visible\` | chip → 목록 필터 |
+| **P2 펼침** | \`expand-id\`, \`toggle\` | row 클릭 → 패널 |
+| **P3 즉시 추가** | \`loaded\`, \`reload\`, \`fetch-post!\` | mount 1회 fetch + POST |
+| **P4 다중 fetch** | \`reload-all\`, 여러 atom | Flow 대시보드 join |
+
+\`\`\`lisp
+; P3 최소 골격 (People/Market 공통)
+(island MyApp []
+  (let [data (atom nil) loaded (atom false) err (atom "")
+        reload (fn [res] (if (= (get res "ok") false)
+                          (reset! err (or (get res "error") "실패"))
+                          (do (reset! data res) (reset! err ""))))]
+    (when (not @loaded)
+      (do (reset! loaded true) (fetch! "/my/api" reload)))
+    …))
+\`\`\`
+
+패턴 주석: \`pages/_island-patterns.flx\` · 예제: \`/examples/31-island-patterns\`
 
 ## 핵심 규칙
 

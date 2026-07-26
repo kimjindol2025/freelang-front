@@ -1,0 +1,27 @@
+; pages/_island-patterns.flx — Island 4대 패턴 (Front 언어 3층)
+; 정본: FRONT-LANG.md
+; 라우트 없음 — AI·개발자가 Island 블록 작성 시 참고
+
+; ━━ P1 필터 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+; filter-k (atom "all")
+; items    (fn [] (or (get @data "items") []))
+; visible  (fn [] (filter pred (items)))
+; chip :on-click → (reset! filter-k "active")
+
+; ━━ P2 펼침 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+; expand-id (atom nil)
+; toggle (fn [id] (reset! expand-id (if (= @expand-id id) nil id)))
+; row click → toggle / panel → (if (= @expand-id id) …)
+
+; ━━ P3 즉시 추가 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+; loaded (atom false)  err (atom "")  show-form (atom false)
+; reload — ok false → err, else apply-res
+; (when (not @loaded) (do (reset! loaded true) (fetch! url reload)))
+; add → (fetch-post! url body reload)
+
+; ━━ P4 다중 fetch ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+; atoms per API + reload-all with (do (fetch! …) (fetch! …))
+; join in client: source_type + source_id lookup (Flow)
+
+; ━━ 공통 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+; find-by-id (fn [items id] (first (filter (fn [r] (= (str (get r "id")) (str id))) items)))
