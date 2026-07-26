@@ -64,5 +64,9 @@
               (market-delete id)
               (server-json (obj-merge {"ok" true} (market-payload))))))
 
+      (= action "upload-photo")
+        (let [data-url (or (get body "data_url") "")]
+          (server-json (market-save-photo-data-url data-url)))
+
       true
         (server-json {"ok" false "error" (str "unknown action: " action)} 400))))

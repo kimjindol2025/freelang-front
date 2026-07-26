@@ -10,6 +10,8 @@
       (server-redirect "https://subscriptions.skl.kr/")
       nil)))
 
+(server-static "public/uploads/market" "/uploads/market")
+
 ; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
 (load "_app.fl")
 

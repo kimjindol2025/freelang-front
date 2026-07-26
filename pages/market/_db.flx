@@ -53,3 +53,33 @@
   (db-exec MARKET-DB
     "UPDATE listings SET contact=? WHERE id=?"
     [contact (str-to-num id)]))
+
+(defn ensure-upload-dir []
+  (shell "mkdir -p public/uploads/market"))
+
+(defn photo-ext [mime]
+  (cond
+    (> (str-count mime "png") 0) "png"
+    (> (str-count mime "gif") 0) "gif"
+    (> (str-count mime "webp") 0) "webp"
+    true "jpg"))
+
+(defn save-photo-data-url [data-url]
+  (ensure-upload-dir)
+  (let [parts (str-split data-url ",")
+        b64   (if (> (length parts) 1) (get parts 1) "")
+        head  (or (first parts) "")
+        ext   (photo-ext head)
+        fname (str "m" (random_int 100000 999999) "." ext)
+        rel   (str "/uploads/market/" fname)
+        path  (str "public" rel)
+        raw   (base64_decode b64)]
+    (cond
+      (= (str-trim b64) "")
+        {"ok" false "error" "빈 이미지 데이터"}
+      (> (length raw) 2097152)
+        {"ok" false "error" "2MB 초과"}
+      true
+        (do
+          (file_write path raw)
+          {"ok" true "url" rel}))))

@@ -13,6 +13,7 @@
         contact-in    (atom "")
         hood-in       (atom "")
         photo-in      (atom "")
+        photo-busy    (atom false)
         source-in     (atom "manual")
         source-id-in  (atom "")
         filter-k      (atom "all")
@@ -34,6 +35,7 @@
                     (reset! contact-in "")
                     (reset! hood-in "")
                     (reset! photo-in "")
+                    (reset! photo-busy false)
                     (reset! source-in "manual")
                     (reset! source-id-in "")
                     (reset! err "")
@@ -60,6 +62,29 @@
                         "source_type" @source-in
                         "source_id" @source-id-in}
                        reload)))
+
+        on-photo-uploaded (fn [res]
+                            (reset! photo-busy false)
+                            (if (= (get res "ok") false)
+                              (reset! err (or (get res "error") "업로드 실패"))
+                              (reset! photo-in (or (get res "url") ""))))
+
+        on-dataurl (fn [dataurl]
+                     (if (= dataurl nil)
+                       (do
+                         (reset! photo-busy false)
+                         (reset! err "파일 읽기 실패"))
+                       (fetch-post! "/market/api"
+                         {"action" "upload-photo" "data_url" dataurl}
+                         on-photo-uploaded)))
+
+        upload-photo (fn [e]
+                       (let [file (first (.-files (.-target e)))]
+                         (when file
+                           (do
+                             (reset! photo-busy true)
+                             (reset! err "")
+                             (read-file-dataurl! file on-dataurl)))))
 
         del-item (fn [id]
                    (fetch-post! "/market/api" {"action" "delete" "id" id} reload))
@@ -327,7 +352,16 @@
                 (h! "input" {:class "mk-input" :placeholder "연락처 / 메모"
                              :value @contact-in
                              :on-input (fn [e] (reset! contact-in (.-value (.-target e))))})
-                (h! "input" {:class "mk-input" :placeholder "사진 URL (선택)"
+                (h "label" {:class "mk-k"} "사진 (1장)")
+                (h "input" {:type "file" :accept "image/*" :class "mk-input"
+                            :on-change upload-photo})
+                (if @photo-busy
+                  (h "p" {:class "mk-meta"} "업로드 중…")
+                  "")
+                (if (= (str-trim @photo-in) "")
+                  ""
+                  (h "img" {:class "mk-preview" :src @photo-in :alt "미리보기"}))
+                (h! "input" {:class "mk-input" :placeholder "또는 사진 URL"
                              :value @photo-in
                              :on-input (fn [e] (reset! photo-in (.-value (.-target e))))})
                 (h "select" {:class "mk-input"
@@ -407,6 +441,7 @@
   .mk-row{background:#1A1F28;border:1px solid #2A3140;border-radius:16px;overflow:hidden}
   .mk-main{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;
     background:transparent;border:none;color:inherit;text-align:left;cursor:pointer;font:inherit}
+  .mk-preview{width:100%;max-height:160px;object-fit:cover;border-radius:12px;border:1px solid #2A3140;margin-top:4px}
   .mk-thumb{width:56px;height:56px;border-radius:12px;object-fit:cover;flex:0 0 56px;background:#10141a}
   .mk-thumb-empty{width:56px;height:56px;border-radius:12px;flex:0 0 56px;background:#2a2018;
     display:flex;align-items:center;justify-content:center;font-size:1.4rem}

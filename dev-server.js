@@ -13,7 +13,7 @@ const crypto = require('crypto');
 
 const ROOT           = __dirname;
 const PAGES_DIR      = path.join(ROOT, 'pages');
-const APP_FL         = path.join(ROOT, '_app.fl');
+const APP_FL         = path.join(ROOT, 'server.fl');
 const CSS_FILE       = path.join(ROOT, 'public', 'app.css');
 const BUILD_JS       = path.join(ROOT, 'fl-front-build.js');
 const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');

@@ -6,7 +6,7 @@
   "runtime_path": "/home/kim/kim/skl/freelang-front/runtime/bootstrap.js",
   "repo": "https://gogs.dclub.kr/kim/freelang-front",
   "read_order": "1. HANDOFF.airc(이 파일) → 2. FRONT-LANG.md → 3. AGENTS.md(빌드 자동) → 4. SYNTAX.airc",
-  "last_commit": "188c255",
+  "last_commit": "PLACEHOLDER",
   "checkpoint_skill": "/kim-complete (~/.claude/skills/kim-complete/) — gogs superset, SHA+API 검증 필수",
   "ports": {
     "app": 40860,
@@ -136,7 +136,8 @@
     {
       "id": "MARKET-PHOTO-ONE",
       "title": "Market — 썸네일 1장 업로드",
-      "status": "pending"
+      "status": "completed",
+      "note": "upload-photo API + Island file picker + server.fl 진입점 수정 (npm start가 _app.fl 직접 실행 시 static 404)"
     },
     {
       "id": "MARKET-CHAT-POLLING",

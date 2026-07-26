@@ -174,6 +174,7 @@ function emitList(node, ctx) {
   if (head?.sym === 'fetch!')        return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'fetch-post!')   return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
   if (head?.sym === 'fetch-delete!') return `_fl.fetch_delete(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'read-file-dataurl!') return `_fl.read_file_dataurl(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   // Clojure interop: (.-prop obj) → (obj).prop  — DOM 이벤트 값 접근 등
   if (head?.sym && head.sym.startsWith('.-'))
     return `(${emit(args[0], ctx)}).${head.sym.slice(2)}`;
@@ -394,6 +395,13 @@ const _fl={
       .then(r=>r.ok?r.json():Promise.reject(r.status))
       .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-post!',e,'callback'); } })
       .catch(err=>{ _fl._err('fetch-post!',new Error('POST '+url+' → '+err),'request'); });
+  },
+  read_file_dataurl:(file,cb)=>{
+    if(!file){cb(null);return;}
+    const r=new FileReader();
+    r.onload=()=>{try{cb(r.result);}catch(e){_fl._err('read-file',e,'callback');}};
+    r.onerror=()=>{ _fl._err('read-file',new Error('FileReader failed'),'request'); cb(null); };
+    r.readAsDataURL(file);
   },
   // fetch-delete! — DELETE → Island 콜백
   fetch_delete:(url,cb)=>{

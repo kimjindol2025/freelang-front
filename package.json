@@ -22,7 +22,7 @@
     "loop:dry": "node fl-front-loop.js --dry",
     "scaffold": "node fl-scaffold.js",
     "test:loop-humanshare": "node test-fl-loop-humanshare.js",
-    "start": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js && PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node runtime/bootstrap.js run _app.fl",
+    "start": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js && PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node runtime/bootstrap.js run server.fl",
     "dev": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node dev-server.js",
     "init": "node fl-front-init.js"
   },
