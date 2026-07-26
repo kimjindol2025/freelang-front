@@ -166,7 +166,7 @@ FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js
 |--------|-------------|
 | `(def x 1)` Clojure | `(define x 1)` |
 | `(map arr fn)` | **`(map fn arr)`** |
-| `(filter arr fn)` | **`(filter fn arr)``** |
+| `(filter arr fn)` | **`(filter fn arr)`** |
 | `(merge a b)` | `(obj-merge a b)` |
 | `(if-let [x expr] …)` | `(if-let [[x expr]] …)` |
 | `json_parse` (하이픈 없음) | `json-parse` |
