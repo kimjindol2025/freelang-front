@@ -25,3 +25,12 @@
 
 ; ━━ 공통 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ; find-by-id (fn [items id] (first (filter (fn [r] (= (str (get r "id")) (str id))) items)))
+
+; ━━ 오류·함정 (정본 FRONT-LANG.md §오류) ━━━━━━━━━━━━━━━━━━━━
+; · let [ … fn … ]  ← ] 필수
+; · (do …) side-effect 2개+
+; · loaded + fetch 1회
+; · map 안 {"k" v} 금지
+; · myapp-payload (payload 금지)
+; · (get row "k") — obj-merge 금지
+; · build 판정: fl-front-build.js only

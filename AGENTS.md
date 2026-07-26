@@ -37,6 +37,39 @@
 
 패턴 주석: `pages/_island-patterns.flx` · 예제: `/examples/31-island-patterns`
 
+## 오류·버그·함정 (언어 명세 — **상세는 FRONT-LANG.md §오류**)
+
+> C2C MVP에서 실제로 터진 것. 새 .flx 작성 전 필독.
+
+### 빌드·괄호
+- let 바인딩 벡터 **]** — fn 정의 직후, body (when…) 전 (Flow line 3 미닫힘)
+- island body if err 뒤 **paren 7개** (6개면 island 미닫힘)
+- make-market / make-followup fn 끝 **paren 7개**
+- **판정**: node fl-front-build.js only — check-parens.py Island+CSS false positive
+
+### Island
+- map 안 맵 리터럴 {"k" v} → JS compile fail → fn 인자 lookup
+- (do …) side-effect 2개+ 필수
+- loaded atom + fetch 1회 필수
+- :on-input → (.-value (.-target e))
+- (h! …) Island 금지 → (h "input" …)
+- (cond … (h …)) runtime 실패 → (if … (h …) "")
+- re-render 후 stale DOM → row 재query
+
+### API·DB
+- payload 전역명 금지 → myapp-payload
+- SQLite row obj-merge 금지 → (get row "k")
+- POST body: (get req "body") — server-req-body 없음
+
+### FreeLang 금지 (TOP)
+- (map arr fn) → (map fn arr) · (def x) → (define x)
+- json_parse → json-parse · nil? → (= x nil)
+- (catch $e []) → (catch $e nil)
+
+### 운영
+- PM2 :40851 HMR 없음 = 정상 ([hmr] off)
+- .db git 커밋 금지
+
 ## 핵심 규칙
 
 - 페이지 파일: `pages/*.flx` — `(defn render [req])` 필수
