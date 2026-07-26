@@ -166,6 +166,16 @@
   },
   "auto_errors": [
     {
+      "time": "2026-07-25T10:04:12.894Z",
+      "message": "'js-keys' 정의 없음",
+      "status": "open"
+    },
+    {
+      "time": "2026-07-25T10:04:12.894Z",
+      "message": "'conj' 정의 없음",
+      "status": "open"
+    },
+    {
       "time": "2026-06-04T14:34:36.789Z",
       "message": "'html-escape' 정의 없음",
       "status": "resolved",
