@@ -11,6 +11,7 @@
       nil)))
 
 (server-static "public/uploads/market" "/uploads/market")
+(server-static "public/fx2-wasm" "/fx2-wasm")
 
 ; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
 (load "_app.fl")

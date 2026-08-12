@@ -1,0 +1,83 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>fx2 WASM adapter smoke</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; background: #0b1220; color: #e6edf3; }
+  main { max-width: 760px; margin: 0 auto; display: grid; gap: 14px; }
+  .card { padding: 16px; border: 1px solid #2d3748; border-radius: 14px; background: #111827; }
+  .label { font-size: 12px; color: #9ca3af; display: block; margin-bottom: 6px; }
+  .value { font-size: 14px; font-weight: 600; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-word; font: 13px/1.5 monospace; min-height: 88px; }
+  button, input { font: inherit; }
+  button { padding: 10px 14px; border: 0; border-radius: 10px; background: #238636; color: white; font-weight: 700; cursor: pointer; }
+  input { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 10px; border: 1px solid #344054; background: #080d16; color: #e6edf3; }
+</style>
+<main>
+  <div class="card">
+    <span class="label">WASM load 상태</span>
+    <span id="load-state" class="value">Loading fx2 WASM…</span>
+  </div>
+  <div class="grid">
+    <div class="card"><span class="label">실행 성공/실패</span><span id="status" class="value">대기중</span></div>
+    <div class="card"><span class="label">runtime</span><span id="runtime" class="value">-</span></div>
+    <div class="card"><span class="label">입력 상태</span><span id="echo-state" class="value">-</span></div>
+  </div>
+  <div class="card">
+    <span class="label">stdout/result</span>
+    <pre id="output">WASM 로딩 전</pre>
+  </div>
+  <div class="card" style="display:grid;gap:10px">
+    <button id="run">Run WASM smoke</button>
+    <input id="echo" placeholder="Type to test input adapter">
+  </div>
+</main>
+<script>
+  var Module = {
+    onRuntimeInitialized: function () {
+      document.getElementById('load-state').textContent = 'WASM load success';
+    }
+  };
+</script>
+<script src="fx2-wasm-adapter.js"></script>
+<script src="fx2-browser.js"></script>
+<script>
+  (function () {
+    var status = document.getElementById('status');
+    var runtime = document.getElementById('runtime');
+    var output = document.getElementById('output');
+    var echoState = document.getElementById('echo-state');
+    var run = document.getElementById('run');
+    var fx2 = createFx2Wasm(Module);
+
+    function renderOutput() {
+      var parts = [];
+      if (fx2.lastStdout) parts.push(fx2.lastStdout);
+      if (fx2.lastStderr) parts.push('[stderr]\n' + fx2.lastStderr);
+      output.textContent = parts.length ? parts.join('\n') : '출력이 없습니다.';
+    }
+
+    fx2.ready.then(function () {
+      document.getElementById('load-state').textContent = 'WASM load success';
+      fx2.onClick('#run', function () {
+        status.textContent = '실행 중…';
+        output.textContent = 'WASM smoke 실행 중…';
+        if (fx2.smoke()) {
+          status.textContent = '실행 성공';
+        } else {
+          status.textContent = '실행 실패';
+        }
+        runtime.textContent = fx2.lastRuntimeMs + ' ms';
+        renderOutput();
+      });
+      fx2.onInput('#echo', function (value) {
+        echoState.textContent = value || '-';
+      });
+      run.click();
+    }).catch(function (err) {
+      document.getElementById('load-state').textContent = 'WASM load failed';
+      status.textContent = '실행 실패';
+      output.textContent = String(err && err.message ? err.message : err);
+    });
+  })();
+</script>

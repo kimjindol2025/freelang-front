@@ -1,0 +1,32 @@
+; POST /api/playground/fx2
+; Same-origin proxy for the fx2 bounded native checker.
+
+(define fx2_api_url (or (fl-env-get "FX2_API_URL") "http://127.0.0.1:8488/api/check"))
+
+(defn response-field [$response $name $fallback]
+  (let [$value (get $response $name)]
+    (if (= $value nil) $fallback $value)))
+
+(defn render [$req]
+  (server-json {"ok" false "error" "POST 메서드를 사용하세요"} 405))
+
+(defn render_post [$req]
+  (let [$body (get $req "body")
+        $code (if (= $body nil) "" (response-field $body "code" ""))]
+    (if (= $code "")
+      (server-json {"ok" false "error" "fx2 코드가 없습니다"} 400)
+      (let [$upstream (http_post fx2_api_url (json-stringify {"code" $code}))
+            $raw (response-field $upstream "body" "")
+            $status (response-field $upstream "status" 502)
+            $parsed (if (= $raw "")
+                      {"ok" false "error" "fx2 checker 응답이 없습니다"}
+                      (json_parse $raw))]
+        (if (= $parsed nil)
+          (server-json {"ok" false "error" "fx2 checker 응답 형식이 올바르지 않습니다"} 502)
+          (server-json $parsed $status))))))
+
+(defn page_api_playground_fx2_post [req]
+  (try (page_api_playground_fx2_post__inner req)
+    (catch $err (dev-error-page "/api/playground/fx2" (str $err)))))
+
+(server-post "/api/playground/fx2" "page_api_playground_fx2_post")

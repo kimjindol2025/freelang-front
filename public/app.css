@@ -129,7 +129,11 @@
 .textarea_input__4bb6{width:100%;border:none;outline:none;font-size:.95rem;overflow:hidden;}
 .pg_wrap__92cf{max-width:900px;margin-left:auto;margin-right:auto;padding:32px 20px;}
 .pg_title__9a36{font-size:1.6rem;font-weight:700;margin-bottom:8px;color:var(--c-primary);}
-.pg_subtitle__2581{color:var(--c-muted);margin-bottom:24px;font-size:.9rem;}
+.pg_subtitle__bd2f{color:var(--c-muted);margin-bottom:16px;font-size:.9rem;}
+.pg_note__9ed6{color:var(--c-muted);margin-bottom:24px;font-size:.82rem;}
+.pg_modebar__597a{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+.pg_mode_btn__48c1{padding:8px 14px;border-radius:999px;background:var(--c-surface);border:1px solid var(--c-border);cursor:pointer;font-weight:600;color:var(--c-muted);}
+.pg_mode_btn_active__2dd0{background:var(--c-primary);color:white;border:1px solid var(--c-primary);}
 .pg_grid__35a8{display:grid;grid-template-columns:repeat(1fr 1fr,1fr);gap:20px;}
 .pg_panel__aaad{background:var(--c-surface);border-radius:12px;border:1px solid var(--c-border);overflow:hidden;}
 .pg_panel_head__2bce{padding:12px 16px;font-weight:600;color:var(--c-muted);display:flex;justify-content:space-between;align-items:center;}
@@ -140,6 +144,14 @@
 .pg_examples__8d1f{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
 .pg_ex_btn__ea5c{padding:4px 12px;border-radius:6px;background:var(--c-surface);border:1px solid var(--c-border);cursor:pointer;color:var(--c-muted);}
 .pg_status__b570{color:var(--c-muted);}
+.fx2_panel__7143{background:var(--c-surface);border-radius:12px;border:1px solid var(--c-border);overflow:hidden;margin-top:20px;}
+.fx2_badge__dc5b{color:var(--c-primary);}
+.fx2_meta__e028{display:grid;grid-template-columns:repeat(repeat(3, 1fr),1fr);gap:8px;padding:12px 16px;}
+.fx2_meta_item__4933{background:var(--c-bg);border-radius:8px;padding:10px 12px;border:1px solid var(--c-border);}
+.fx2_meta_label__3e5d{display:block;color:var(--c-muted);margin-bottom:4px;}
+.fx2_meta_value__c777{display:block;font-weight:600;color:var(--c-text);}
+.fx2_stack__bf29{display:grid;gap:12px;}
+.fx2_wasm_frame__580f{width:100%;min-height:540px;border:0;border-radius:12px;background:white;}
 .card__86e7{background:white;padding:24px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,.15);}
 .hero__43b0{background:#6366f1;color:white;padding:48px;border-radius:12px;}
 .badge__a154{background:#f3f4f6;color:#374151;padding:4px;border-radius:4px;font-size:12px;font-weight:600;}

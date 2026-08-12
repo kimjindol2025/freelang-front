@@ -3,7 +3,11 @@
 
 (style pg-wrap :max-w "900px" :mx "auto" :p "32px 20px")
 (style pg-title :size "1.6rem" :weight "700" :mb "8px" :color "var(--c-primary)")
-(style pg-subtitle :color "var(--c-muted)" :mb "24px" :size ".9rem")
+(style pg-subtitle :color "var(--c-muted)" :mb "16px" :size ".9rem")
+(style pg-note :color "var(--c-muted)" :mb "24px" :size ".82rem" :line-height "1.6")
+(style pg-modebar :display "flex" :gap "8px" :flex-wrap "wrap" :mb "16px")
+(style pg-mode-btn :p "8px 14px" :radius "999px" :bg "var(--c-surface)" :border "1px solid var(--c-border)" :cursor "pointer" :font-size ".82rem" :weight "600" :color "var(--c-muted)")
+(style pg-mode-btn-active :bg "var(--c-primary)" :color "white" :border "1px solid var(--c-primary)")
 (style pg-grid :display "grid" :cols "1fr 1fr" :gap "20px")
 (style pg-panel :bg "var(--c-surface)" :radius "12px" :border "1px solid var(--c-border)" :overflow "hidden")
 (style pg-panel-head :p "12px 16px" :border-b "1px solid var(--c-border)" :font-size ".82rem" :weight "600" :color "var(--c-muted)" :display "flex" :justify "space-between" :items "center")
@@ -14,68 +18,218 @@
 (style pg-examples :display "flex" :gap "8px" :flex-wrap "wrap" :mb "16px")
 (style pg-ex-btn :p "4px 12px" :radius "6px" :bg "var(--c-surface)" :border "1px solid var(--c-border)" :cursor "pointer" :font-size ".78rem" :color "var(--c-muted)")
 (style pg-status :font-size ".75rem" :color "var(--c-muted)")
+(style fx2-panel :bg "var(--c-surface)" :radius "12px" :border "1px solid var(--c-border)" :overflow "hidden" :mt "20px")
+(style fx2-badge :font-size ".72rem" :color "var(--c-primary)")
+(style fx2-meta :display "grid" :cols "repeat(3, 1fr)" :gap "8px" :p "12px 16px" :border-b "1px solid var(--c-border)")
+(style fx2-meta-item :bg "var(--c-bg)" :radius "8px" :p "10px 12px" :border "1px solid var(--c-border)")
+(style fx2-meta-label :display "block" :font-size ".7rem" :color "var(--c-muted)" :mb "4px")
+(style fx2-meta-value :display "block" :font-size ".82rem" :weight "600" :color "var(--c-text)")
+(style fx2-stack :display "grid" :gap "12px")
+(style fx2-wasm-frame :width "100%" :min-h "540px" :border "0" :radius "12px" :bg "white")
+
+(defn fx2-exec-label [res]
+  (let [status (get res "status")
+        ok (get res "ok")]
+    (if (= ok true)
+      "검사 통과"
+      (if (= status 413)
+        "소스 크기 초과"
+        (if (= status 422)
+          "컴파일 실패"
+          (if (= status 408)
+            "timeout"
+            (if (= status 429)
+              "동시 실행 초과"
+              (if (= status 500)
+                "서버 오류"
+                (if (= status 502)
+                  "서버 연결 실패"
+                  "실패")))))))))
+
+(defn fx2-http-label [res]
+  (let [status (get res "status")]
+    (if (= status nil) "-" (str status))))
+
+(defn fx2-runtime-label [res]
+  (let [runtime (get res "runtime_ms")]
+    (if (= runtime nil) "-" (str runtime " ms"))))
 
 (island Playground []
-  (let [code (atom "(str \"Hello, \" \"FreeLang!\")")
+  (let [mode (atom "fl")
+        code (atom "(str \"Hello, \" \"FreeLang!\")")
         result (atom "")
         loading (atom false)
-        error (atom false)]
+        error (atom false)
+        fx2-code (atom "(println \"Hello from fx2!\")")
+        fx2-result (atom "")
+        fx2-status (atom "대기중")
+        fx2-http (atom "-")
+        fx2-request-id (atom "-")
+        fx2-runtime (atom "-")
+        fx2-loading (atom false)
+        fx2-error (atom false)
+        modes [{"key" "fl" "label" "FL 기존 실행" "desc" "기존 /api/playground/eval 유지"}
+               {"key" "fx2-native" "label" "fx2 네이티브 검사" "desc" "FX2 서버의 POST /api/check 연결"}
+               {"key" "fx2-wasm" "label" "fx2 WASM smoke" "desc" "정적 WASM 자산을 브라우저에 연결"}]
+        run-fl (fn []
+                 (do
+                   (reset! loading true)
+                   (reset! error false)
+                   (fetch-post! "/api/playground/eval"
+                     {:code @code}
+                     (fn [res]
+                       (reset! loading false)
+                       (if (get res "ok")
+                         (do
+                           (reset! result (get res "result"))
+                           (reset! error false))
+                         (do
+                           (reset! result (get res "error"))
+                           (reset! error true)))))))
+        run-fx2 (fn []
+                  (do
+                    (reset! fx2-loading true)
+                    (reset! fx2-error false)
+                    (reset! fx2-status "검사 중")
+                    (reset! fx2-http "-")
+                    (reset! fx2-request-id "-")
+                    (reset! fx2-runtime "-")
+                    (fetch-post! "/api/playground/fx2"
+                      {:code @fx2-code}
+                      (fn [res]
+                        (reset! fx2-loading false)
+                        (reset! fx2-status (fx2-exec-label res))
+                        (reset! fx2-http (fx2-http-label res))
+                        (reset! fx2-request-id (or (get res "request_id") "-"))
+                        (reset! fx2-runtime (fx2-runtime-label res))
+                        (if (get res "ok")
+                          (do
+                            (reset! fx2-result (or (get res "output") (get res "result") ""))
+                            (reset! fx2-error false))
+                          (do
+                            (reset! fx2-result (or (get res "output") (get res "error") "fx2 검사 실패"))
+                            (reset! fx2-error true)))))))]
     (h "div" {:class pg-wrap}
       (h "h1" {:class pg-title} "FL Playground")
       (h "p" {:class pg-subtitle} "FreeLang 코드를 브라우저에서 바로 실행해보세요")
+      (h "p" {:class pg-note}
+        "기존 FL 실행은 그대로 유지하고, fx2 기능은 별도 모드로 분리했습니다.")
 
-      (h "div" {:class pg-examples}
-        (h "button" {:class pg-ex-btn
-                     :on-click (fn []
-                       (reset! code "(let [xs [1 2 3 4 5]]\n  (filter (fn [x] (> x 2)) xs))"))}
-          "배열 필터")
-        (h "button" {:class pg-ex-btn
-                     :on-click (fn []
-                       (reset! code "(let [m {:name \"Kim\" :age 30}]\n  (str (get m :name) \"는 \" (get m :age) \"살\"))"))}
-          "맵 접근")
-        (h "button" {:class pg-ex-btn
-                     :on-click (fn []
-                       (reset! code "(let [n (atom 0)]\n  (swap! n (fn [v] (+ v 10)))\n  (str \"atom 값: \" @n))"))}
-          "atom")
-        (h "button" {:class pg-ex-btn
-                     :on-click (fn []
-                       (reset! code "(loop [i 0 acc 0]\n  (if (> i 10)\n    (str \"합계: \" acc)\n    (recur (inc i) (+ acc i))))"))}
-          "loop/recur")
-        (h "button" {:class pg-ex-btn
-                     :on-click (fn []
-                       (reset! code "(map (fn [x] (* x x)) [1 2 3 4 5])"))}
-          "map")
-        (h "button" {:class pg-ex-btn
-                     :on-click (fn []
-                       (reset! code "(let [name \"FreeLang\"]\n  \"\"\"<b>안녕, ${name}!</b>\"\"\")"))}
-          "삼중따옴표"))
+      (h "div" {:class pg-modebar}
+        (arr-join
+          (map
+            (fn [item]
+              (let [active (= @mode (get item "key"))]
+                (h "button"
+                  {:type "button"
+                   :class (str pg-mode-btn (if active (str " " pg-mode-btn-active) ""))
+                   :on-click (fn [] (reset! mode (get item "key")))}
+                  (get item "label"))))
+            modes)
+          ""))
+      (h "p" {:class pg-note}
+        (if (= @mode "fl")
+          "현재 모드: 기존 FL Playground /api/playground/eval"
+          (if (= @mode "fx2-native")
+            "현재 모드: fx2 네이티브 검사 /api/playground/fx2"
+            "현재 모드: fx2 WASM smoke 준비 화면")))
 
-      (h "div" {:class pg-grid}
-        (h "div" {:class pg-panel}
-          (h "div" {:class pg-panel-head}
-            (h "span" {} "코드 입력")
-            (h "button" {:class pg-btn
+      (if (= @mode "fl")
+        (str
+          (h "div" {:class pg-examples}
+            (h "button" {:class pg-ex-btn
                          :on-click (fn []
-                           (reset! loading true)
-                           (reset! error false)
-                           (fetch-post! "/api/playground/eval"
-                             {:code @code}
-                             (fn [res]
-                               (reset! loading false)
-                               (if (get res "ok")
-                                 (do (reset! result (get res "result")) (reset! error false))
-                                 (do (reset! result (get res "error")) (reset! error true))))))}
-              (if @loading "실행 중..." "▶ 실행")))
-          (h "textarea" {:class pg-editor
-                         :value @code
-                         :on-input (fn [e] (reset! code (.-value (.-target e))))}))
+                           (reset! code "(let [xs [1 2 3 4 5]]\n  (filter (fn [x] (> x 2)) xs))"))}
+              "배열 필터")
+            (h "button" {:class pg-ex-btn
+                         :on-click (fn []
+                           (reset! code "(let [m {:name \"Kim\" :age 30}]\n  (str (get m :name) \"는 \" (get m :age) \"살\"))"))}
+              "맵 접근")
+            (h "button" {:class pg-ex-btn
+                         :on-click (fn []
+                           (reset! code "(let [n (atom 0)]\n  (swap! n (fn [v] (+ v 10)))\n  (str \"atom 값: \" @n))"))}
+              "atom")
+            (h "button" {:class pg-ex-btn
+                         :on-click (fn []
+                           (reset! code "(loop [i 0 acc 0]\n  (if (> i 10)\n    (str \"합계: \" acc)\n    (recur (inc i) (+ acc i))))"))}
+              "loop/recur")
+            (h "button" {:class pg-ex-btn
+                         :on-click (fn []
+                           (reset! code "(map (fn [x] (* x x)) [1 2 3 4 5])"))}
+              "map")
+            (h "button" {:class pg-ex-btn
+                         :on-click (fn []
+                           (reset! code "(let [name \"FreeLang\"]\n  \"\"\"<b>안녕, ${name}!</b>\"\"\")"))}
+              "삼중따옴표"))
 
-        (h "div" {:class pg-panel}
-          (h "div" {:class pg-panel-head}
-            (h "span" {} "실행 결과")
-            (h "span" {:class pg-status} (if @error "오류" (if (= @result "") "대기중" "완료"))))
-          (h "div" {:class (str pg-result (if @error (str " " pg-result-error) ""))}
-            (if (= @result "") "코드를 입력하고 실행 버튼을 눌러보세요." @result)))))))
+          (h "div" {:class pg-grid}
+            (h "div" {:class pg-panel}
+              (h "div" {:class pg-panel-head}
+                (h "span" {} "코드 입력")
+                (h "button" {:class pg-btn
+                             :type "button"
+                             :on-click run-fl}
+                  (if @loading "실행 중..." "▶ 실행")))
+              (h "textarea" {:class pg-editor
+                             :value @code
+                             :on-input (fn [e] (reset! code (.-value (.-target e))))}))
+
+            (h "div" {:class pg-panel}
+              (h "div" {:class pg-panel-head}
+                (h "span" {} "실행 결과")
+                (h "span" {:class pg-status} (if @error "오류" (if (= @result "") "대기중" "완료"))))
+              (h "div" {:class (str pg-result (if @error (str " " pg-result-error) ""))}
+                (if (= @result "") "코드를 입력하고 실행 버튼을 눌러보세요." @result)))))
+
+        (if (= @mode "fx2-native")
+          (str
+            (h "div" {:class fx2-panel}
+              (h "div" {:class pg-panel-head}
+                (h "span" {} "fx2 네이티브 검사")
+                (h "span" {:class fx2-badge} @fx2-status))
+              (h "div" {:class fx2-meta}
+                (h "div" {:class fx2-meta-item}
+                  (h "span" {:class fx2-meta-label} "HTTP 상태")
+                  (h "span" {:class fx2-meta-value} @fx2-http))
+                (h "div" {:class fx2-meta-item}
+                  (h "span" {:class fx2-meta-label} "실행 상태")
+                  (h "span" {:class fx2-meta-value} @fx2-status))
+                (h "div" {:class fx2-meta-item}
+                  (h "span" {:class fx2-meta-label} "request_id")
+                  (h "span" {:class fx2-meta-value} @fx2-request-id))
+                (h "div" {:class fx2-meta-item}
+                  (h "span" {:class fx2-meta-label} "runtime")
+                  (h "span" {:class fx2-meta-value} @fx2-runtime)))
+              (h "div" {:class fx2-stack}
+                (h "textarea" {:class pg-editor
+                               :value @fx2-code
+                               :on-input (fn [e] (reset! fx2-code (.-value (.-target e))))})
+                (h "div" {:class pg-panel-head}
+                  (h "span" {} "컴파일 결과")
+                  (h "button" {:class pg-btn
+                               :type "button"
+                               :on-click run-fx2}
+                    (if @fx2-loading "검사 중..." "fx2 검사")))
+                (h "pre" {:class (str pg-result (if @fx2-error (str " " pg-result-error) ""))}
+                  (if (= @fx2-result "") "fx2 검사 결과가 여기에 표시됩니다." @fx2-result)))))
+
+          (h "div" {:class fx2-panel}
+            (h "div" {:class pg-panel-head}
+              (h "span" {} "fx2 WASM smoke")
+              (h "span" {:class fx2-badge} "브라우저 WASM 실행"))
+            (h "div" {:class fx2-meta}
+              (h "div" {:class fx2-meta-item}
+                (h "span" {:class fx2-meta-label} "로드 경로")
+                (h "span" {:class fx2-meta-value} "/fx2-wasm/index.html"))
+              (h "div" {:class fx2-meta-item}
+                (h "span" {:class fx2-meta-label} "실행 흐름")
+                (h "span" {:class fx2-meta-value} "adapter → browser.js → browser.wasm"))
+              (h "div" {:class fx2-meta-item}
+                (h "span" {:class fx2-meta-label} "연결 방식")
+                (h "span" {:class fx2-meta-value} "iframe same-origin")))
+            (h "iframe" {:class fx2-wasm-frame
+                          :title "fx2 WASM smoke"
+                          :src "/fx2-wasm/index.html"})))))))
 
 (defn render [req]
   (layout-html "FL Playground" (str "ISLAND_PLACEHOLDER_0" "ISLAND_SCRIPTS") req))
