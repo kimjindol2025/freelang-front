@@ -1,0 +1,90 @@
+; fx2 WASM smoke page — route /fx2-wasm/index.html
+
+(defn fx2-wasm-path [name]
+  (str "public/fx2-wasm/" name))
+
+(defn fx2-wasm-read [name]
+  (file-read (fx2-wasm-path name)))
+
+(defn fx2-wasm-b64 [name]
+  (str-trim (shell (str "base64 -w0 " (fx2-wasm-path name)))))
+
+(defn render [req]
+  (let [css (fx2-wasm-read "fx2-wasm.css")
+        browser-js (fx2-wasm-read "fx2-browser.js")
+        adapter-js (fx2-wasm-read "fx2-wasm-adapter.js")
+        wasm-b64 (fx2-wasm-b64 "fx2-browser.wasm")
+        nonce (server_csp_nonce)]
+    (server_header
+      (server-html (str
+        "<!doctype html><html><head><meta charset='utf-8'>"
+        "<title>fx2 WASM adapter smoke</title>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<style>" css "</style>"
+        "</head><body>"
+        "<main class='fx2-page'>"
+        "  <div class='card'>"
+        "    <span class='label'>WASM load 상태</span>"
+        "    <span id='load-state' class='value'>Loading fx2 WASM…</span>"
+        "  </div>"
+        "  <div class='grid'>"
+        "    <div class='card'><span class='label'>실행 성공/실패</span><span id='status' class='value'>대기중</span></div>"
+        "    <div class='card'><span class='label'>runtime</span><span id='runtime' class='value'>-</span></div>"
+        "    <div class='card'><span class='label'>입력 상태</span><span id='echo-state' class='value'>-</span></div>"
+        "  </div>"
+        "  <div class='card'>"
+        "    <span class='label'>stdout/result</span>"
+        "    <pre id='output'>WASM 로딩 전</pre>"
+        "  </div>"
+        "  <div class='card actions'>"
+        "    <button id='run'>Run WASM smoke</button>"
+        "    <input id='echo' placeholder='Type to test input adapter'>"
+        "  </div>"
+        "</main>"
+        "<script>"
+        "window.Module = window.Module || {};"
+        "window.Module.wasmBinary = (function(){var s=atob('" wasm-b64 "');var b=new Uint8Array(s.length);for(var i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b;})();"
+        "window.Module.onRuntimeInitialized = function(){document.getElementById('load-state').textContent = 'WASM load success';};"
+        "</script>"
+        "<script>" browser-js "</script>"
+        "<script>" adapter-js "</script>"
+        "<script>"
+        "document.addEventListener('DOMContentLoaded', function () {"
+        "  var status = document.getElementById('status');"
+        "  var runtime = document.getElementById('runtime');"
+        "  var output = document.getElementById('output');"
+        "  var echoState = document.getElementById('echo-state');"
+        "  var run = document.getElementById('run');"
+        "  var fx2 = createFx2Wasm(Module);"
+        "  function renderOutput() {"
+        "    var parts = [];"
+        "    if (fx2.lastStdout) parts.push(fx2.lastStdout);"
+        "    if (fx2.lastStderr) parts.push('[stderr]\\n' + fx2.lastStderr);"
+        "    output.textContent = parts.length ? parts.join('\\n') : '출력이 없습니다.';"
+        "  }"
+        "  fx2.ready.then(function () {"
+        "    document.getElementById('load-state').textContent = 'WASM load success';"
+        "    fx2.onClick('#run', function () {"
+        "      status.textContent = '실행 중…';"
+        "      output.textContent = 'WASM smoke 실행 중…';"
+        "      if (fx2.smoke()) {"
+        "        status.textContent = '실행 성공';"
+        "      } else {"
+        "        status.textContent = '실행 실패';"
+        "      }"
+        "      runtime.textContent = fx2.lastRuntimeMs + ' ms';"
+        "      renderOutput();"
+        "    });"
+        "    fx2.onInput('#echo', function (value) {"
+        "      echoState.textContent = value || '-';"
+        "    });"
+        "    run.click();"
+        "  }).catch(function (err) {"
+        "    document.getElementById('load-state').textContent = 'WASM load failed';"
+        "    status.textContent = '실행 실패';"
+        "    output.textContent = String(err && err.message ? err.message : err);"
+        "  });"
+        "});"
+        "</script>"
+        "</body></html>"))
+      "Content-Security-Policy" (str "default-src 'self'; script-src 'self' 'nonce-" nonce "' 'wasm-unsafe-eval'; style-src 'self' 'nonce-" nonce "'; img-src 'self' data:; connect-src 'self'"))))
