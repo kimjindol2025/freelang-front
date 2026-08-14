@@ -18,11 +18,12 @@
 ## 표준 명령
 
 ```text
-fl browser attach
-fl browser watch active
-fl browser check active
-fl browser logs active
-fl browser screenshot active
+node fl-browser.js attach
+node fl-browser.js watch active
+node fl-browser.js check active
+node fl-browser.js logs active
+node fl-browser.js screenshot active
+node fl-browser.js start
 ```
 
 ## 탭 식별 규칙
@@ -73,6 +74,12 @@ result: PASS
 - 상호작용 실패는 `FAIL`
 - 스크린샷 생성 실패는 `FAIL`
 - 위 항목이 모두 통과해야 `PASS`
+
+## 구현 훅
+
+- `fl-browser.js`가 로컬 브라우저 CLI와 상태 파일(`.browser-state.json`)을 관리한다.
+- `dev-server.js`의 HMR/AI 포트(40851)가 `/~ai/browser`와 `/~ai/contracts`에서 브라우저 상태를 읽는다.
+- `/roadmap`는 브라우저 readiness를 요약 라인으로 반영한다.
 
 ## 대시보드 반영
 

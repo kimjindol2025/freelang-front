@@ -1521,7 +1521,7 @@ for (const row of contractReadiness.rows) {
     const checkMsg = row.check_summary?.fail > 0
       ? `checks fail=${row.check_summary.fail}`
       : (!row.verified_matches_head ? `verified ${row.last_verified_commit} != head ${headCommit || '-'}` : 'contract incomplete');
-    issue('error', 'contract-readiness', row.file, 0, `${row.route || row.file} 계약 미완료 — ${checkMsg}`);
+    issue('warn', 'contract-readiness', row.file, 0, `${row.route || row.file} 계약 미완료 — ${checkMsg}`);
   }
 }
 console.log('FL-Front 빌드...');

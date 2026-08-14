@@ -24,7 +24,14 @@
     "test:loop-humanshare": "node test-fl-loop-humanshare.js",
     "start": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js && PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node runtime/bootstrap.js run server.fl",
     "dev": "PORT=40860 FL_HTTP_ALLOW=127.0.0.1,localhost node dev-server.js",
-    "init": "node fl-front-init.js"
+    "init": "node fl-front-init.js",
+    "browser": "node fl-browser.js",
+    "browser:attach": "node fl-browser.js attach",
+    "browser:check": "node fl-browser.js check active",
+    "browser:watch": "node fl-browser.js watch active",
+    "browser:logs": "node fl-browser.js logs active",
+    "browser:screenshot": "node fl-browser.js screenshot active",
+    "browser:start": "node fl-browser.js start"
   },
   "keywords": [
     "freelang",
@@ -44,7 +51,12 @@
     "build_time_ms": 1180,
     "bundle_size_kb": 205,
     "code_lines_freelang_flx": 129,
-    "dx_improvements": ["css_pairing", "file_separation", "triple_quote_interpolation", "multiline_formatting"],
+    "dx_improvements": [
+      "css_pairing",
+      "file_separation",
+      "triple_quote_interpolation",
+      "multiline_formatting"
+    ],
     "features": {
       "error_reporting": true,
       "error_collection_api": true,
@@ -64,4 +76,3 @@
     "last_updated": "2026-06-02T00:40:00Z"
   }
 }
-

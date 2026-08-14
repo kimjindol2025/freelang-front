@@ -1,7 +1,7 @@
 {
   "ok": true,
-  "time": "2026-08-14T03:47:10.575Z",
-  "elapsed": 6877,
+  "time": "2026-08-14T04:42:26.929Z",
+  "elapsed": 19633,
   "routes": [
     {
       "route": "/about",
@@ -746,6 +746,41 @@
   "issues": [
     {
       "level": "warn",
+      "check": "contract-readiness",
+      "file": "afldb.flx",
+      "line": 0,
+      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+    },
+    {
+      "level": "warn",
+      "check": "contract-readiness",
+      "file": "check.flx",
+      "line": 0,
+      "message": "/check 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+    },
+    {
+      "level": "warn",
+      "check": "contract-readiness",
+      "file": "32-afldb-batch-write.flx",
+      "line": 0,
+      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+    },
+    {
+      "level": "warn",
+      "check": "contract-readiness",
+      "file": "intro.flx",
+      "line": 0,
+      "message": "/intro 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+    },
+    {
+      "level": "warn",
+      "check": "contract-readiness",
+      "file": "roadmap.flx",
+      "line": 0,
+      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+    },
+    {
+      "level": "warn",
       "check": "undefined-fn",
       "file": "[id].flx",
       "line": 40,
@@ -925,6 +960,61 @@
   "version": "0.2.5",
   "positions": "1-based",
   "diagnostics": [
+    {
+      "code": "contract-readiness",
+      "severity": "warning",
+      "file": "afldb.flx",
+      "line": 0,
+      "column": 0,
+      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "hint": "",
+      "fixable": false,
+      "applicability": "manual"
+    },
+    {
+      "code": "contract-readiness",
+      "severity": "warning",
+      "file": "check.flx",
+      "line": 0,
+      "column": 0,
+      "message": "/check 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "hint": "",
+      "fixable": false,
+      "applicability": "manual"
+    },
+    {
+      "code": "contract-readiness",
+      "severity": "warning",
+      "file": "32-afldb-batch-write.flx",
+      "line": 0,
+      "column": 0,
+      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "hint": "",
+      "fixable": false,
+      "applicability": "manual"
+    },
+    {
+      "code": "contract-readiness",
+      "severity": "warning",
+      "file": "intro.flx",
+      "line": 0,
+      "column": 0,
+      "message": "/intro 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "hint": "",
+      "fixable": false,
+      "applicability": "manual"
+    },
+    {
+      "code": "contract-readiness",
+      "severity": "warning",
+      "file": "roadmap.flx",
+      "line": 0,
+      "column": 0,
+      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "hint": "",
+      "fixable": false,
+      "applicability": "manual"
+    },
     {
       "code": "undefined-fn",
       "severity": "warning",
@@ -1357,19 +1447,19 @@
   ],
   "summary": {
     "errors": 0,
-    "warnings": 25,
+    "warnings": 30,
     "diagnosticCodeCount": 19,
     "stdlibLoadOk": true,
     "stdlibFnCount": 789,
     "stdlibLsFnsCount": 485,
     "stdlibBootstrap": "/root/kim/freelang-front/runtime/bootstrap.js",
     "contractCount": 5,
-    "contractComplete": 5,
-    "contractInProgress": 0,
+    "contractComplete": 0,
+    "contractInProgress": 5,
     "contractMissing": 0,
-    "contractVerified": 5
+    "contractVerified": 0
   },
-  "repoCommit": "f0e4a02",
+  "repoCommit": "7ca3fee",
   "contracts": [
     {
       "file": "afldb.flx",
@@ -1403,12 +1493,12 @@
         "fail": 0
       },
       "last_verified_commit": "f0e4a02",
-      "verified_matches_head": true,
+      "verified_matches_head": false,
       "route_links": [
         "GET /api/afldb",
         "POST /api/afldb"
       ],
-      "readiness": "complete"
+      "readiness": "in_progress"
     },
     {
       "file": "check.flx",
@@ -1444,12 +1534,12 @@
         "fail": 0
       },
       "last_verified_commit": "f0e4a02",
-      "verified_matches_head": true,
+      "verified_matches_head": false,
       "route_links": [
         "GET /api/afldb",
         "GET /roadmap"
       ],
-      "readiness": "complete"
+      "readiness": "in_progress"
     },
     {
       "file": "32-afldb-batch-write.flx",
@@ -1483,12 +1573,12 @@
         "fail": 0
       },
       "last_verified_commit": "f0e4a02",
-      "verified_matches_head": true,
+      "verified_matches_head": false,
       "route_links": [
         "GET /api/afldb",
         "POST /examples/32-afldb-batch-write"
       ],
-      "readiness": "complete"
+      "readiness": "in_progress"
     },
     {
       "file": "intro.flx",
@@ -1524,12 +1614,12 @@
         "fail": 0
       },
       "last_verified_commit": "f0e4a02",
-      "verified_matches_head": true,
+      "verified_matches_head": false,
       "route_links": [
         "GET /~ai",
         "GET /roadmap"
       ],
-      "readiness": "complete"
+      "readiness": "in_progress"
     },
     {
       "file": "roadmap.flx",
@@ -1566,21 +1656,21 @@
         "fail": 0
       },
       "last_verified_commit": "f0e4a02",
-      "verified_matches_head": true,
+      "verified_matches_head": false,
       "route_links": [
         "GET /check",
         "GET /examples",
         "GET /intro"
       ],
-      "readiness": "complete"
+      "readiness": "in_progress"
     }
   ],
   "contractSummary": {
     "total": 5,
-    "complete": 5,
-    "in_progress": 0,
+    "complete": 0,
+    "in_progress": 5,
     "missing": 0,
-    "verified": 5
+    "verified": 0
   },
   "sourceMap": {
     "3002-3036": "pages/about.flx",
@@ -1699,32 +1789,32 @@
     "10580-10637": "pages/prompts/index.flx",
     "10640-10770": "pages/reading/api.flx",
     "10773-10851": "pages/reading/index.flx",
-    "10854-11111": "pages/roadmap.flx",
-    "11114-11192": "pages/scratch/api.flx",
-    "11195-11242": "pages/scratch/index.flx",
-    "11245-11292": "pages/shop/cart.flx",
-    "11295-11405": "pages/shop/index.flx",
-    "11408-11447": "pages/shop/orders.flx",
-    "11450-11497": "pages/styled.flx",
-    "11500-11605": "pages/subs/api.flx",
-    "11608-11627": "pages/subs/index.flx",
-    "11630-11651": "pages/tasks.flx",
-    "11654-11763": "pages/test-helpers.flx",
-    "11766-11835": "pages/todo-afldb/api.flx",
-    "11838-11882": "pages/todo-afldb/index.flx",
-    "11885-11893": "pages/todo.flx",
-    "11896-11952": "pages/upload.flx",
-    "11955-12209": "pages/vault/api.flx",
-    "12212-12230": "pages/vault/index.flx",
-    "12233-12241": "pages/api/notes/[id]/delete.flx",
-    "12244-12253": "pages/api/notes/[id]/pin.flx",
-    "12256-12540": "pages/contacts/[id].flx",
-    "12543-12651": "pages/flash/[id].flx",
-    "12654-12767": "pages/goals/[id].flx",
-    "12770-13008": "pages/reading/[id].flx",
-    "13011-13116": "pages/shop/orders/[id].flx",
-    "13119-13200": "pages/shop/products/[id].flx",
-    "13203-13302": "pages/shop/users/[id].flx",
-    "13305-13515": "pages/users/[id].flx"
+    "10854-11116": "pages/roadmap.flx",
+    "11119-11197": "pages/scratch/api.flx",
+    "11200-11247": "pages/scratch/index.flx",
+    "11250-11297": "pages/shop/cart.flx",
+    "11300-11410": "pages/shop/index.flx",
+    "11413-11452": "pages/shop/orders.flx",
+    "11455-11502": "pages/styled.flx",
+    "11505-11610": "pages/subs/api.flx",
+    "11613-11632": "pages/subs/index.flx",
+    "11635-11656": "pages/tasks.flx",
+    "11659-11768": "pages/test-helpers.flx",
+    "11771-11840": "pages/todo-afldb/api.flx",
+    "11843-11887": "pages/todo-afldb/index.flx",
+    "11890-11898": "pages/todo.flx",
+    "11901-11957": "pages/upload.flx",
+    "11960-12214": "pages/vault/api.flx",
+    "12217-12235": "pages/vault/index.flx",
+    "12238-12246": "pages/api/notes/[id]/delete.flx",
+    "12249-12258": "pages/api/notes/[id]/pin.flx",
+    "12261-12545": "pages/contacts/[id].flx",
+    "12548-12656": "pages/flash/[id].flx",
+    "12659-12772": "pages/goals/[id].flx",
+    "12775-13013": "pages/reading/[id].flx",
+    "13016-13121": "pages/shop/orders/[id].flx",
+    "13124-13205": "pages/shop/products/[id].flx",
+    "13208-13307": "pages/shop/users/[id].flx",
+    "13310-13520": "pages/users/[id].flx"
   }
 }

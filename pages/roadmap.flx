@@ -70,6 +70,11 @@
         contract-status (if (= current-contract nil) "missing" (get current-contract "readiness"))
         contract-commit (if (= current-contract nil) "-" (get current-contract "last_verified_commit"))
         head-commit (if (= state nil) "-" (get state "repoCommit"))
+        browser-raw (try (file-read ".browser-state.json") (catch $e nil))
+        browser-state (if (or (= browser-raw nil) (= browser-raw "")) nil (json_parse browser-raw))
+        browser-last (if (= browser-state nil) nil (get browser-state "last_check"))
+        browser-summary (if (= browser-state nil) "미연결" (str (get browser-state "status") " · tab " (get browser-state "tab_id")))
+        browser-result (if (= browser-last nil) "-" (get (get browser-last "browser") "result"))
         db (afldb-status)
         ver (afldb-verify)
         build-ok (= (get diag "ok") true)
@@ -230,7 +235,7 @@ a{text-decoration:none;color:inherit}
       "</div></section>"
       "<section class='cards'>"
       "<div class='card'><div class='label'>현재 상태</div><div class='value'>" overall-state "</div><div class='sub'>완료 " (str complete-count) " · 진행중 " (str doing-count) " · 미완료 " (str todo-count) " · 실제 라우트 " (str route-hit-count) "/10</div></div>"
-      "<div class='card'><div class='label'>/check 요약</div><div class='value'>" db-badge " / " diag-badge "</div><div class='sub'>db " base " · warnings " warn-n " · errors " err-n "</div></div>"
+      "<div class='card'><div class='label'>/check 요약</div><div class='value'>" db-badge " / " diag-badge "</div><div class='sub'>db " base " · warnings " warn-n " · errors " err-n " · browser " browser-result " / " browser-summary "</div></div>"
       "<div class='card'><div class='label'>최근 빌드</div><div class='value'>" build-time "</div><div class='sub'>schema " schema " · codes " code-n " · head " head-commit "</div></div>"
       "<div class='card'><div class='label'>계약 상태</div><div class='value'>" contract-status "</div><div class='sub'>route /roadmap · verified " contract-commit " · complete " (str (get contract-summary "complete")) " / " (str (get contract-summary "total")) "</div></div>"
       "</section>"

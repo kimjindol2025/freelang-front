@@ -17,6 +17,7 @@ const APP_FL         = path.join(ROOT, 'server.fl');
 const CSS_FILE       = path.join(ROOT, 'public', 'app.css');
 const BUILD_JS       = path.join(ROOT, 'fl-front-build.js');
 const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');
+const BROWSER_STATE_FILE = path.join(ROOT, '.browser-state.json');
 const RUNTIME        = path.join(ROOT, 'runtime', 'bootstrap.js');
 const HMR_PORT       = 40851;
 
@@ -34,6 +35,16 @@ function loadBuildState() {
     lastBuildState = JSON.parse(fs.readFileSync(BUILD_STATE_FILE, 'utf8'));
   } catch {}
 }
+
+
+function loadBrowserState() {
+  try {
+    return JSON.parse(fs.readFileSync(BROWSER_STATE_FILE, 'utf8'));
+  } catch {
+    return { ok: false, status: 'missing' };
+  }
+}
+
 
 // 소스맵 역추적: _app.fl 라인 번호 → { file, line } (pages/*.flx 내 상대 라인)
 function resolveSourceLine(lineNum) {
@@ -153,6 +164,7 @@ const hmrServer = http.createServer((req, res) => {
         contracts: lastBuildState.contracts || [],
         contract_summary: lastBuildState.contractSummary || {},
         repo_commit: lastBuildState.repoCommit || '',
+        browser_state: loadBrowserState(),
         browser_errors: errorLog.slice(0,10),
         endpoints: {
           '/~ai':        'GET — 이 요약',
@@ -162,6 +174,7 @@ const hmrServer = http.createServer((req, res) => {
           '/~ai/issues': 'GET — 빌드 이슈 목록 (errors+warns)',
           '/~ai/errors': 'GET — 브라우저 런타임 에러',
           '/~ai/contracts': 'GET — AI contract 목록 + readiness',
+          '/~ai/browser': 'GET — 브라우저 탭 감시 상태',
         },
       });
       return;
@@ -228,7 +241,14 @@ const hmrServer = http.createServer((req, res) => {
         repo_commit: lastBuildState.repoCommit || '',
         contract_summary: lastBuildState.contractSummary || {},
         contracts: lastBuildState.contracts || [],
+        browser_state: loadBrowserState(),
       });
+      return;
+    }
+
+    // GET /~ai/browser — 브라우저 탭 감시 상태
+    if (u === '/~ai/browser') {
+      json({ browser_state: loadBrowserState() });
       return;
     }
 
