@@ -63,6 +63,27 @@
 - `DB_ENTITY`: DB 엔티티/레코드 중심 작업
 - `WORKER`: 비동기 작업/백그라운드 처리
 
+## 브라우저 탭 검증
+
+브라우저 기반 프론트 검증이 필요한 파일은 다음 정보를 추가로 기록할 수 있다.
+
+- `browser.target`: `tab` / `url` / `profile`
+- `browser.tab_id`: 사용자가 지정한 감시 탭 식별자
+- `browser.url`: 감시 대상 URL
+- `checks.browser.load`
+- `checks.browser.console`
+- `checks.browser.network`
+- `checks.browser.dom`
+- `checks.browser.interactions`
+- `checks.browser.screenshot`
+- `checks.browser.result`
+
+판정 규칙:
+
+- `tab_id`가 비어 있으면 브라우저 검증 계약으로 보지 않는다.
+- `console_errors`, `network_errors`, `dom`, `interactions`, `screenshot` 중 하나라도 실패하면 `in_progress` 또는 `missing`으로 둔다.
+- 사용자가 지정한 단일 탭만 감시하고, 다른 탭의 로그는 제외한다.
+
 ## 현재 운영 원칙
 
 - 인간은 의도와 승인에 집중한다.
