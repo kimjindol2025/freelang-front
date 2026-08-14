@@ -217,6 +217,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/api/metrics` | pages/api/metrics.flx |
 | `/api/notes` | pages/api/notes.flx |
 | `/api/playground/eval` | pages/api/playground/eval.flx |
+| `/api/playground/fx2` | pages/api/playground/fx2.flx |
 | `/api/sla/report` | pages/api/sla/report.flx |
 | `/api/sla/status` | pages/api/sla/status.flx |
 | `/api/sla` | pages/api/sla.flx |
@@ -277,6 +278,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/examples/29-bmi` | pages/examples/29-bmi.flx |
 | `/examples/30-lightbox` | pages/examples/30-lightbox.flx |
 | `/examples/31-island-patterns` | pages/examples/31-island-patterns.flx |
+| `/examples/32-afldb-batch-write` | pages/examples/32-afldb-batch-write.flx |
 | `/examples` | pages/examples/index.flx |
 | `/feed/api` | pages/feed/api.flx |
 | `/feed` | pages/feed/index.flx |
@@ -290,6 +292,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/followups/api` | pages/followups/api.flx |
 | `/followups` | pages/followups/index.flx |
 | `/freelang` | pages/freelang.flx |
+| `/fx2-wasm/index.html` | pages/fx2-wasm/index.html.flx |
 | `/goals/api` | pages/goals/api.flx |
 | `/goals` | pages/goals/index.flx |
 | `/health/api` | pages/health/api.flx |
@@ -315,6 +318,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/prompts` | pages/prompts/index.flx |
 | `/reading/api` | pages/reading/api.flx |
 | `/reading` | pages/reading/index.flx |
+| `/roadmap` | pages/roadmap.flx |
 | `/scratch/api` | pages/scratch/api.flx |
 | `/scratch` | pages/scratch/index.flx |
 | `/shop/cart` | pages/shop/cart.flx |

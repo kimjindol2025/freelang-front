@@ -150,6 +150,9 @@ const hmrServer = http.createServer((req, res) => {
         routes: (lastBuildState.routes||[]).map(r=>r.route),
         helpers: lastBuildState.helpers||[],
         store_keys: lastBuildState.store_keys||[],
+        contracts: lastBuildState.contracts || [],
+        contract_summary: lastBuildState.contractSummary || {},
+        repo_commit: lastBuildState.repoCommit || '',
         browser_errors: errorLog.slice(0,10),
         endpoints: {
           '/~ai':        'GET — 이 요약',
@@ -158,6 +161,7 @@ const hmrServer = http.createServer((req, res) => {
           '/~ai/store':  'GET — store 키 + 초기값',
           '/~ai/issues': 'GET — 빌드 이슈 목록 (errors+warns)',
           '/~ai/errors': 'GET — 브라우저 런타임 에러',
+          '/~ai/contracts': 'GET — AI contract 목록 + readiness',
         },
       });
       return;
@@ -215,6 +219,16 @@ const hmrServer = http.createServer((req, res) => {
     // GET /~ai/errors — 브라우저 런타임 에러
     if (u === '/~ai/errors') {
       json({ count: errorLog.length, errors: errorLog.slice(0,20) });
+      return;
+    }
+
+    // GET /~ai/contracts — 계약 readiness
+    if (u === '/~ai/contracts') {
+      json({
+        repo_commit: lastBuildState.repoCommit || '',
+        contract_summary: lastBuildState.contractSummary || {},
+        contracts: lastBuildState.contracts || [],
+      });
       return;
     }
 

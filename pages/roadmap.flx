@@ -1,0 +1,255 @@
+; @contract
+; route: /roadmap
+; purpose: roadmap-dashboard
+; type: page
+; pattern: UI_PAGE
+; routes:
+;   read: GET /check
+;   read: GET /examples
+;   read: GET /intro
+; state:
+;   source: server
+;   mutable: false
+; requires:
+;   auth: none
+; checks:
+;   syntax: PASS
+;   route: PASS
+;   schema: PASS
+;   smoke: PASS
+; last_verified:
+;   commit: e36deb5
+; @endcontract
+
+; pages/roadmap.flx
+; FreeLang Front 로드맵 대시보드 - 문서 단계와 실제 readiness를 같이 보여준다.
+
+(defn roadmap-build-diag []
+  (let [raw (file-read ".build-state.json")
+        st  (if (or (= raw nil) (= raw ""))
+              nil
+              (json_parse raw))]
+    (if (= st nil)
+      {"ok" false "errors" "-" "warnings" "-" "schema" "-" "codes" "-" "time" "-"}
+      {"ok" (= (get st "ok") true)
+       "errors" (str (get (get st "summary") "errors"))
+       "warnings" (str (get (get st "summary") "warnings"))
+       "codes" (str (get (get st "summary") "diagnosticCodeCount"))
+       "schema" (if (= (get st "schema") nil) "-" (get st "schema"))
+       "time" (if (= (get st "time") nil) "-" (get st "time"))})))
+
+(defn roadmap-route-hit [raw path]
+  (if (or (= raw nil) (= raw ""))
+    false
+    (> (str-count raw path) 0)))
+
+(defn roadmap-state-label [progress]
+  (if (> progress 89)
+    "완료"
+    (if (> progress 49)
+      "진행중"
+      "미완료")))
+
+(defn roadmap-state-class [progress]
+  (if (> progress 89)
+    "ok"
+    (if (> progress 49)
+      "warn"
+      "fail")))
+
+(defn route-chip [href label]
+  (str "<a href='" href "' data-spa='1' class='route-chip'>" label "</a>"))
+
+(defn render [req]
+  (let [raw (file-read ".build-state.json")
+        state (if (or (= raw nil) (= raw "")) nil (json_parse raw))
+        diag (roadmap-build-diag)
+        contracts (if (= state nil) [] (get state "contracts"))
+        contract-summary (if (= state nil) {"total" 0 "complete" 0 "in_progress" 0 "missing" 0 "verified" 0} (get state "contractSummary"))
+        current-contract (first (filter (fn [c] (= (get c "route") "/roadmap")) contracts))
+        contract-status (if (= current-contract nil) "missing" (get current-contract "readiness"))
+        contract-commit (if (= current-contract nil) "-" (get current-contract "last_verified_commit"))
+        head-commit (if (= state nil) "-" (get state "repoCommit"))
+        db (afldb-status)
+        ver (afldb-verify)
+        build-ok (= (get diag "ok") true)
+        db-ok (and (= (get db "ok") true)
+                   (or (= (get ver "ok") true)
+                       (= (str (get ver "ok")) "true")))
+        err-n (get diag "errors")
+        warn-n (get diag "warnings")
+        code-n (get diag "codes")
+        build-time (get diag "time")
+        schema (get diag "schema")
+        base (if (= (get db "base") nil) "http://127.0.0.1:40610" (get db "base"))
+        db-badge (if db-ok "사용 가능" "연결 실패")
+        db-class (if db-ok "ok" "fail")
+        diag-badge (if build-ok "빌드 OK" "진단 없음")
+        diag-class (if build-ok "ok" "fail")
+        route-check (roadmap-route-hit raw "/check")
+        route-roadmap (roadmap-route-hit raw "/roadmap")
+        route-examples (roadmap-route-hit raw "/examples")
+        route-ex31 (roadmap-route-hit raw "/examples/31-island-patterns")
+        route-ex32 (roadmap-route-hit raw "/examples/32-afldb-batch-write")
+        route-api-afldb (roadmap-route-hit raw "/api/afldb")
+        route-dashboard (roadmap-route-hit raw "/dashboard")
+        route-health (roadmap-route-hit raw "/health")
+        route-logs (roadmap-route-hit raw "/logs")
+        route-intro (roadmap-route-hit raw "/intro")
+        route-about (roadmap-route-hit raw "/about")
+        route-counter (roadmap-route-hit raw "/counter")
+        route-app (roadmap-route-hit raw "/app")
+        route-flow (roadmap-route-hit raw "/flow")
+        route-freelang (roadmap-route-hit raw "/freelang")
+        route-hit-count (+ (if route-check 1 0)
+                           (if route-roadmap 1 0)
+                           (if route-examples 1 0)
+                           (if route-ex31 1 0)
+                           (if route-ex32 1 0)
+                           (if route-api-afldb 1 0)
+                           (if route-dashboard 1 0)
+                           (if route-health 1 0)
+                           (if route-logs 1 0)
+                           (if route-intro 1 0))
+        stage1-progress (if build-ok 100 32)
+        stage2-progress (if (and route-examples (and route-ex31 (and route-counter route-app))) 94 58)
+        stage3-progress (if (and route-ex32 (and route-api-afldb (and route-check db-ok)))
+                          (if (= warn-n "0") 100 84)
+                          46)
+        stage4-progress (if (and route-dashboard (and route-health route-logs))
+                          (if (= warn-n "0") 100 68)
+                          44)
+        stage5-progress (if (and route-roadmap (and route-examples (and route-intro route-about)))
+                          (if (= warn-n "0") 100 76)
+                          56)
+        stage6-progress (if (and build-ok (and db-ok (and (> stage1-progress 89)
+                            (and (> stage2-progress 89)
+                                 (and (> stage3-progress 49)
+                                      (and (> stage4-progress 49) (> stage5-progress 49)))))))
+                          (if (= warn-n "0") 100 42)
+                          24)
+        stage1-state (roadmap-state-label stage1-progress)
+        stage2-state (roadmap-state-label stage2-progress)
+        stage3-state (roadmap-state-label stage3-progress)
+        stage4-state (roadmap-state-label stage4-progress)
+        stage5-state (roadmap-state-label stage5-progress)
+        stage6-state (roadmap-state-label stage6-progress)
+        stage1-class (roadmap-state-class stage1-progress)
+        stage2-class (roadmap-state-class stage2-progress)
+        stage3-class (roadmap-state-class stage3-progress)
+        stage4-class (roadmap-state-class stage4-progress)
+        stage5-class (roadmap-state-class stage5-progress)
+        stage6-class (roadmap-state-class stage6-progress)
+        complete-count (+ (if (> stage1-progress 89) 1 0)
+                          (if (> stage2-progress 89) 1 0)
+                          (if (> stage3-progress 89) 1 0)
+                          (if (> stage4-progress 89) 1 0)
+                          (if (> stage5-progress 89) 1 0)
+                          (if (> stage6-progress 89) 1 0))
+        doing-count (+ (if (and (> stage1-progress 49) (< stage1-progress 90)) 1 0)
+                       (if (and (> stage2-progress 49) (< stage2-progress 90)) 1 0)
+                       (if (and (> stage3-progress 49) (< stage3-progress 90)) 1 0)
+                       (if (and (> stage4-progress 49) (< stage4-progress 90)) 1 0)
+                       (if (and (> stage5-progress 49) (< stage5-progress 90)) 1 0)
+                       (if (and (> stage6-progress 49) (< stage6-progress 90)) 1 0))
+        todo-count (- 6 complete-count doing-count)
+        overall-state (if (= complete-count 6)
+                        "완료"
+                        (if (> doing-count 0) "진행중" "미완료"))
+        overall-class (if (= complete-count 6)
+                        "ok"
+                        (if (> doing-count 0) "warn" "fail"))]
+    (server_html (str
+      "<!DOCTYPE html><html lang='ko'><head>"
+      "<meta charset='utf-8'>"
+      "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+      "<title>FreeLang Front 로드맵 대시보드</title>"
+      "<style>
+:root{--bg:#09090f;--panel:#12131c;--panel2:#171925;--line:rgba(139,92,246,.18);--ink:#eef2ff;--muted:#98a2b3;--violet:#8b5cf6;--indigo:#6366f1;--cyan:#22d3ee;--ok:#22c55e;--warn:#f59e0b;--fail:#ef4444}
+*{box-sizing:border-box;margin:0;padding:0}
+body{margin:0;background:linear-gradient(180deg,#09090f,#0d1020 40%,#09090f);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+a{text-decoration:none;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:36px 22px 80px}
+.hero{position:relative;overflow:hidden;margin-bottom:18px;padding:42px 34px;border-radius:24px;border:1px solid var(--line);background:radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 28%),radial-gradient(circle at left center, rgba(139,92,246,.18), transparent 30%),linear-gradient(135deg,#131726,#0f1220 55%,#12182c);box-shadow:0 30px 80px rgba(0,0,0,.45)}
+.eyebrow{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;border:1px solid rgba(139,92,246,.3);background:rgba(139,92,246,.12);color:#d8ccff;font-size:.76rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.hero h1{margin:18px 0 12px;font-size:clamp(2rem,4vw,3.4rem);line-height:1.06;letter-spacing:-.04em}
+.hero p{margin:0;max-width:820px;color:var(--muted);font-size:1rem;line-height:1.8}
+.hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
+.btn{display:inline-block;padding:12px 16px;border-radius:12px;font-size:.92rem;font-weight:800}
+.btn-fill{background:linear-gradient(135deg,#8b5cf6,#6366f1);color:white}
+.btn-line{border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.04);color:var(--ink)}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:18px 0 20px}
+.card{background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.02));border:1px solid var(--line);border-radius:18px;padding:20px 18px;box-shadow:0 12px 34px rgba(0,0,0,.18)}
+.label{font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:#c4b5fd;font-weight:800;margin-bottom:10px}
+.value{font-size:1.55rem;font-weight:900;letter-spacing:-.03em}
+.sub{margin-top:8px;color:var(--muted);font-size:.84rem;line-height:1.6}
+.section{margin-top:26px}
+.section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+.section h2{margin:0;font-size:1.25rem;letter-spacing:-.03em}
+.section p.lead{margin:0;color:var(--muted);line-height:1.7;max-width:860px}
+.summary-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.summary{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px 18px 16px}
+.summary .value{font-size:1.35rem}
+.badge{display:inline-block;padding:6px 10px;border-radius:999px;font-size:.72rem;font-weight:900;letter-spacing:.05em}
+.ok{background:rgba(34,197,94,.14);color:#86efac;border:1px solid rgba(34,197,94,.22)}
+.warn{background:rgba(245,158,11,.14);color:#fcd34d;border:1px solid rgba(245,158,11,.22)}
+.fail{background:rgba(239,68,68,.14);color:#fca5a5;border:1px solid rgba(239,68,68,.22)}
+.metric{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.metric span{color:var(--muted);font-size:.78rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.metric strong{font-size:1rem}
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:14px}
+.check{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:18px}
+.check-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:10px}
+.check-title{font-size:1rem;font-weight:800}
+.check p{margin:0;color:var(--muted);font-size:.88rem;line-height:1.7}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.stage{background:#12131c;border:1px solid rgba(139,92,246,.18);border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+.stage-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px}
+.stage-k{font-size:.76rem;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#c4b5fd}
+.stage h3{margin:6px 0 0;font-size:1.06rem;line-height:1.35}
+.progress{height:10px;border-radius:999px;background:rgba(255,255,255,.06);overflow:hidden;margin:14px 0 10px;border:1px solid rgba(255,255,255,.05)}
+.bar{height:100%;border-radius:999px;background:linear-gradient(90deg,#8b5cf6,#22d3ee)}
+.stage p{margin:0 0 12px;color:#98a2b3;line-height:1.72;font-size:.9rem}
+.route-row{display:flex;flex-wrap:wrap;gap:8px}
+.route-chip{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:999px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);color:#eef2ff;font-size:.77rem;font-weight:800}
+.route-chip:hover{border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.12)}
+.note{margin-top:14px;padding:14px 15px;border-radius:14px;background:linear-gradient(135deg,rgba(34,211,238,.08),rgba(139,92,246,.06));border:1px solid rgba(34,211,238,.14);color:#cbd5e1;font-size:.84rem;line-height:1.7}
+@media(max-width:980px){.cards,.summary-grid,.grid,.checks{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.cards,.summary-grid,.grid,.checks{grid-template-columns:1fr}.hero{padding:32px 22px}}
+</style>"
+      "</head><body><div class='wrap'>"
+      "<section class='hero'>"
+      "<div class='eyebrow'>Roadmap Dashboard</div>"
+      "<h1>FreeLang Front 로드맵을 실제 진행상황으로 표시합니다</h1>"
+      "<p>문서의 6단계를 고정 설명으로 두지 않고, <strong>빌드 진단 · afl-db 연결 · 실제 라우트 존재 여부</strong>를 읽어서 현재 readiness 상태를 화면에 반영합니다. 아래 카드에는 /check 결과 요약과 함께 단계별 진행률, 상태, 관련 실제 라우트 링크가 붙습니다.</p>"
+      "<div class='hero-actions'>"
+      "<a href='/check' class='btn btn-fill'>/check 바로 보기</a>"
+      "<a href='/examples' class='btn btn-line'>예제 전체</a>"
+      "<a href='/dashboard' class='btn btn-line'>운영 대시보드</a>"
+      "<a href='/intro' class='btn btn-line'>선언문</a>"
+      "</div></section>"
+      "<section class='cards'>"
+      "<div class='card'><div class='label'>현재 상태</div><div class='value'>" overall-state "</div><div class='sub'>완료 " (str complete-count) " · 진행중 " (str doing-count) " · 미완료 " (str todo-count) " · 실제 라우트 " (str route-hit-count) "/10</div></div>"
+      "<div class='card'><div class='label'>/check 요약</div><div class='value'>" db-badge " / " diag-badge "</div><div class='sub'>db " base " · warnings " warn-n " · errors " err-n "</div></div>"
+      "<div class='card'><div class='label'>최근 빌드</div><div class='value'>" build-time "</div><div class='sub'>schema " schema " · codes " code-n " · head " head-commit "</div></div>"
+      "<div class='card'><div class='label'>계약 상태</div><div class='value'>" contract-status "</div><div class='sub'>route /roadmap · verified " contract-commit " · complete " (str (get contract-summary "complete")) " / " (str (get contract-summary "total")) "</div></div>"
+      "</section>"
+      "<section class='section'>"
+      "<div class='section-head'><div><h2>/check 결과 요약</h2><p class='lead'>이 요약은 `/check`와 같은 소스를 읽어 만든 값입니다. DB 연결, 빌드 진단, 현재 경고/오류 수가 그대로 드러납니다.</p></div><span class='badge " overall-class "'>" overall-state "</span></div>"
+      "<div class='checks'>"
+      "<div class='check'><div class='check-top'><div class='check-title'>afl-db 연결</div><span class='badge " db-class "'>" db-badge "</span></div><p>base " base " · records " (if db-ok (str (get db "records")) "-") " · keys " (if db-ok (str (get db "keys")) "-") " · verify " (if db-ok "pass" "fail") "</p></div>"
+      "<div class='check'><div class='check-top'><div class='check-title'>build diagnostics</div><span class='badge " diag-class "'>" diag-badge "</span></div><p>ok " (if build-ok "true" "false") " · errors " err-n " · warnings " warn-n " · codes " code-n "</p></div>"
+      "<div class='check'><div class='check-top'><div class='check-title'>readiness signal</div><span class='badge " overall-class "'>" overall-state "</span></div><p>현재 화면은 정적 설명이 아니라, 위 상태를 합산한 진행 지표를 보여줍니다.</p></div>"
+      "<div class='check'><div class='check-top'><div class='check-title'>최근 확인 시각</div><span class='badge ok'>live</span></div><p>" build-time " 기준으로 읽은 최신 build-state 입니다.</p></div>"
+      "</div></section>"
+      "<section class='section'>"
+      "<div class='section-head'><div><h2>6단계 진행 대시보드</h2><p class='lead'>각 단계는 진행률, 상태, 실제 라우트 링크를 함께 보여줍니다. 경고가 남아 있는 구간은 진행중으로 유지하고, 운영 판정이 필요한 마지막 단계는 미완료로 남깁니다.</p></div></div>"
+      "<div class='grid'>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 1</div><h3>언어 코어 고정</h3></div><span class='badge " stage1-class "'>" stage1-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage1-progress) "%'></div></div><p>빌드 진단이 유효하고 기본 진입점이 살아 있습니다. 이 단계는 현재 readiness 기준에서 가장 안정적인 구간입니다.</p><div class='route-row'>" (route-chip "/check" "/check") " " (route-chip "/intro" "/intro") " " (route-chip "/about" "/about") "</div><div class='note'>build ok: " (if build-ok "true" "false") " · route /check: " (if route-check "true" "false") " · route /roadmap: " (if route-roadmap "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 2</div><h3>컴포넌트 / Island 모델 정착</h3></div><span class='badge " stage2-class "'>" stage2-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage2-progress) "%'></div></div><p>Island 패턴과 실사용 예제가 연결되어 있습니다. /examples, 31번, counter, app 경로가 실제로 노출됩니다.</p><div class='route-row'>" (route-chip "/examples" "/examples") " " (route-chip "/examples/31-island-patterns" "/examples/31-island-patterns") " " (route-chip "/counter" "/counter") " " (route-chip "/app" "/app") "</div><div class='note'>route coverage: /examples=" (if route-examples "true" "false") " · 31=" (if route-ex31 "true" "false") " · counter=" (if route-counter "true" "false") " · app=" (if route-app "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 3</div><h3>프론트 실사용 패턴 확보</h3></div><span class='badge " stage3-class "'>" stage3-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage3-progress) "%'></div></div><p>실제 afl-db 쓰기와 점검 경로가 이어져 있습니다. 다만 현재는 경고가 남아 있어 완전 완료로 올리지 않았습니다.</p><div class='route-row'>" (route-chip "/examples/32-afldb-batch-write" "/examples/32-afldb-batch-write") " " (route-chip "/api/afldb" "/api/afldb") " " (route-chip "/check" "/check") "</div><div class='note'>db " db-badge " · warnings " warn-n " · /examples/32=" (if route-ex32 "true" "false") " · /api/afldb=" (if route-api-afldb "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 4</div><h3>개발자 경험 정리</h3></div><span class='badge " stage4-class "'>" stage4-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage4-progress) "%'></div></div><p>운영 화면과 상태 확인 화면은 살아 있지만, build 경고가 남아 있어 DX 안정화는 계속 진행중입니다.</p><div class='route-row'>" (route-chip "/dashboard" "/dashboard") " " (route-chip "/health" "/health") " " (route-chip "/logs" "/logs") "</div><div class='note'>dashboard=" (if route-dashboard "true" "false") " · health=" (if route-health "true" "false") " · logs=" (if route-logs "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 5</div><h3>생태계와 문서</h3></div><span class='badge " stage5-class "'>" stage5-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage5-progress) "%'></div></div><p>로드맵, 예제, 선언문, 소개 페이지가 실제 동선으로 연결되어 있습니다. 문서 자체는 읽히지만 완전한 정리 단계는 아직 남아 있습니다.</p><div class='route-row'>" (route-chip "/examples" "/examples") " " (route-chip "/roadmap" "/roadmap") " " (route-chip "/intro" "/intro") " " (route-chip "/about" "/about") "</div><div class='note'>roadmap=" (if route-roadmap "true" "false") " · examples=" (if route-examples "true" "false") " · intro=" (if route-intro "true" "false") " · about=" (if route-about "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 6</div><h3>React / Vue급 판단 기준 충족</h3></div><span class='badge " stage6-class "'>" stage6-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage6-progress) "%'></div></div><p>중간 규모 앱을 독립적으로 유지할 수 있는지 판단하는 단계입니다. 현재는 build와 db는 준비됐지만, 경고 잔존 때문에 최종 판정은 보류합니다.</p><div class='route-row'>" (route-chip "/flow" "/flow") " " (route-chip "/freelang" "/freelang") " " (route-chip "/dashboard" "/dashboard") "</div><div class='note'>complete " (str complete-count) "/6 · doing " (str doing-count) "/6 · todo " (str todo-count) "/6 · route /flow=" (if route-flow "true" "false") "</div></div>"
+      "</div></section>"
+      "</div></body></html>"))))

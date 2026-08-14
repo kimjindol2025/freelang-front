@@ -1,6 +1,6 @@
 ; pages/examples/index.flx
 ; 예제 갤러리 인덱스 — GET /examples
-; 31개 FreeLang 프론트엔드 예제 — 기본 / 서버 / Island · 제품 표준 FRONT-LANG.md
+; 32개 FreeLang 프론트엔드 예제 — 기본 / 서버 / Island · 제품 표준 FRONT-LANG.md
 
 (defn ex-card [num title desc slug tag]
   (h "a" {:href (str "/examples/" slug) :data-spa "1"
@@ -44,7 +44,8 @@
                ["28" "실시간 투표" "득표 막대 그래프" "28-poll" "Island"]
                ["29" "BMI 계산기" "산술 + 비교로 분류" "29-bmi" "Island"]
                ["30" "라이트박스" "썸네일 클릭 확대 오버레이" "30-lightbox" "Island"]
-               ["31" "Island 4대 패턴" "필터·펼침·즉시추가 — Front 언어 3층" "31-island-patterns" "Island"]]]
+               ["31" "Island 4대 패턴" "필터·펼침·즉시추가 — Front 언어 3층" "31-island-patterns" "Island"]
+               ["32" "afl-db 배치 쓰기" "item + index 를 batch-put 으로 동시 기록" "32-afldb-batch-write" "앱"]]]
     (layout-html "FreeLang 예제 갤러리"
       (h "div" {:style "max-width:960px;margin:0 auto;padding:48px 24px"}
         (str

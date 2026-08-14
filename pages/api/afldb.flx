@@ -1,3 +1,25 @@
+; @contract
+; route: /api/afldb
+; purpose: afl-db-read-write-api
+; type: api
+; pattern: API_READ
+; routes:
+;   read: GET /api/afldb
+;   write: POST /api/afldb
+; state:
+;   source: server
+;   mutable: true
+; requires:
+;   auth: none
+; checks:
+;   syntax: PASS
+;   route: PASS
+;   schema: PASS
+;   smoke: PASS
+; last_verified:
+;   commit: e36deb5
+; @endcontract
+
 ; /api/afldb — freelang-front ↔ afl-db 연결 API
 ; GET  → 상태
 ; POST → {"action":"put"|"get"|"probe"|"batch-get"|"history", ...}

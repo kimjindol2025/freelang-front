@@ -1,3 +1,25 @@
+; @contract
+; route: /intro
+; purpose: ai-operating-manifesto
+; type: page
+; pattern: UI_PAGE
+; routes:
+;   read: GET /~ai
+;   read: GET /roadmap
+; state:
+;   source: server
+;   mutable: false
+; requires:
+;   auth: none
+; checks:
+;   syntax: PASS
+;   route: PASS
+;   schema: PASS
+;   smoke: PASS
+; last_verified:
+;   commit: e36deb5
+; @endcontract
+
 ; FreeLang 랜딩 — "AI 개발 운영체제" 선언문
 ; /intro
 

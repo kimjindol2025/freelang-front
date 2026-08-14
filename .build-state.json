@@ -1,7 +1,7 @@
 {
   "ok": true,
-  "time": "2026-07-26T16:19:03.383Z",
-  "elapsed": 891,
+  "time": "2026-08-14T02:50:08.660Z",
+  "elapsed": 9321,
   "routes": [
     {
       "route": "/about",
@@ -77,6 +77,11 @@
       "route": "/api/playground/eval",
       "file": "eval.flx",
       "fn": "page_api_playground_eval"
+    },
+    {
+      "route": "/api/playground/fx2",
+      "file": "fx2.flx",
+      "fn": "page_api_playground_fx2"
     },
     {
       "route": "/api/sla/report",
@@ -379,6 +384,11 @@
       "fn": "page_examples_31_island_patterns"
     },
     {
+      "route": "/examples/32-afldb-batch-write",
+      "file": "32-afldb-batch-write.flx",
+      "fn": "page_examples_32_afldb_batch_write"
+    },
+    {
       "route": "/examples",
       "file": "index.flx",
       "fn": "page_examples_index"
@@ -442,6 +452,11 @@
       "route": "/freelang",
       "file": "freelang.flx",
       "fn": "page_freelang"
+    },
+    {
+      "route": "/fx2-wasm/index.html",
+      "file": "index.html.flx",
+      "fn": "page_fx2_wasm_index_html"
     },
     {
       "route": "/goals/api",
@@ -567,6 +582,11 @@
       "route": "/reading",
       "file": "index.flx",
       "fn": "page_reading_index"
+    },
+    {
+      "route": "/roadmap",
+      "file": "roadmap.flx",
+      "fn": "page_roadmap"
     },
     {
       "route": "/scratch/api",
@@ -1342,147 +1362,338 @@
     "stdlibLoadOk": true,
     "stdlibFnCount": 789,
     "stdlibLsFnsCount": 485,
-    "stdlibBootstrap": "/home/kim/kim/skl/freelang-front/runtime/bootstrap.js"
+    "stdlibBootstrap": "/root/kim/freelang-front/runtime/bootstrap.js",
+    "contractCount": 5,
+    "contractComplete": 0,
+    "contractInProgress": 5,
+    "contractMissing": 0,
+    "contractVerified": 0
+  },
+  "repoCommit": "098379d",
+  "contracts": [
+    {
+      "file": "afldb.flx",
+      "route": "/api/afldb",
+      "purpose": "afl-db-read-write-api",
+      "type": "api",
+      "pattern": "API_READ",
+      "routes": {
+        "read": "GET /api/afldb",
+        "write": "POST /api/afldb"
+      },
+      "state": {
+        "source": "server",
+        "mutable": "true"
+      },
+      "requires": {
+        "auth": "none"
+      },
+      "checks": {
+        "syntax": "PASS",
+        "route": "PASS",
+        "schema": "PASS",
+        "smoke": "PASS"
+      },
+      "last_verified": {
+        "commit": "e36deb5"
+      },
+      "check_summary": {
+        "total": 4,
+        "pass": 4,
+        "fail": 0
+      },
+      "last_verified_commit": "e36deb5",
+      "verified_matches_head": false,
+      "readiness": "in_progress"
+    },
+    {
+      "file": "check.flx",
+      "route": "/check",
+      "purpose": "readiness-dashboard",
+      "type": "page",
+      "pattern": "UI_PAGE",
+      "routes": {
+        "read": "GET /roadmap"
+      },
+      "state": {
+        "source": "server",
+        "mutable": "false"
+      },
+      "requires": {
+        "auth": "none"
+      },
+      "checks": {
+        "syntax": "PASS",
+        "route": "PASS",
+        "schema": "PASS",
+        "smoke": "PASS"
+      },
+      "last_verified": {
+        "commit": "e36deb5"
+      },
+      "check_summary": {
+        "total": 4,
+        "pass": 4,
+        "fail": 0
+      },
+      "last_verified_commit": "e36deb5",
+      "verified_matches_head": false,
+      "readiness": "in_progress"
+    },
+    {
+      "file": "32-afldb-batch-write.flx",
+      "route": "/examples/32-afldb-batch-write",
+      "purpose": "afl-db-batch-write-demo",
+      "type": "page",
+      "pattern": "API_MUTATION",
+      "routes": {
+        "read": "GET /api/afldb",
+        "write": "POST /examples/32-afldb-batch-write"
+      },
+      "state": {
+        "source": "server",
+        "mutable": "true"
+      },
+      "requires": {
+        "auth": "none"
+      },
+      "checks": {
+        "syntax": "PASS",
+        "route": "PASS",
+        "schema": "PASS",
+        "smoke": "PASS"
+      },
+      "last_verified": {
+        "commit": "e36deb5"
+      },
+      "check_summary": {
+        "total": 4,
+        "pass": 4,
+        "fail": 0
+      },
+      "last_verified_commit": "e36deb5",
+      "verified_matches_head": false,
+      "readiness": "in_progress"
+    },
+    {
+      "file": "intro.flx",
+      "route": "/intro",
+      "purpose": "ai-operating-manifesto",
+      "type": "page",
+      "pattern": "UI_PAGE",
+      "routes": {
+        "read": "GET /roadmap"
+      },
+      "state": {
+        "source": "server",
+        "mutable": "false"
+      },
+      "requires": {
+        "auth": "none"
+      },
+      "checks": {
+        "syntax": "PASS",
+        "route": "PASS",
+        "schema": "PASS",
+        "smoke": "PASS"
+      },
+      "last_verified": {
+        "commit": "e36deb5"
+      },
+      "check_summary": {
+        "total": 4,
+        "pass": 4,
+        "fail": 0
+      },
+      "last_verified_commit": "e36deb5",
+      "verified_matches_head": false,
+      "readiness": "in_progress"
+    },
+    {
+      "file": "roadmap.flx",
+      "route": "/roadmap",
+      "purpose": "roadmap-dashboard",
+      "type": "page",
+      "pattern": "UI_PAGE",
+      "routes": {
+        "read": "GET /intro"
+      },
+      "state": {
+        "source": "server",
+        "mutable": "false"
+      },
+      "requires": {
+        "auth": "none"
+      },
+      "checks": {
+        "syntax": "PASS",
+        "route": "PASS",
+        "schema": "PASS",
+        "smoke": "PASS"
+      },
+      "last_verified": {
+        "commit": "e36deb5"
+      },
+      "check_summary": {
+        "total": 4,
+        "pass": 4,
+        "fail": 0
+      },
+      "last_verified_commit": "e36deb5",
+      "verified_matches_head": false,
+      "readiness": "in_progress"
+    }
+  ],
+  "contractSummary": {
+    "total": 5,
+    "complete": 0,
+    "in_progress": 5,
+    "missing": 0,
+    "verified": 0
   },
   "sourceMap": {
-    "2978-3012": "pages/about.flx",
-    "3015-3067": "pages/api/afldb.flx",
-    "3070-3074": "pages/api/alerts/stream.flx",
-    "3077-3552": "pages/api/alerts.flx",
-    "3555-3641": "pages/api/custom-metrics.flx",
-    "3644-3903": "pages/api/errors-stats.flx",
-    "3906-3936": "pages/api/errors.flx",
-    "3939-3943": "pages/api/hello.flx",
-    "3946-3971": "pages/api/logs/recent.flx",
-    "3974-3987": "pages/api/metrics/export.flx",
-    "3990-4002": "pages/api/metrics/filter.flx",
-    "4005-4009": "pages/api/metrics/stream.flx",
-    "4012-4105": "pages/api/metrics.flx",
-    "4108-4144": "pages/api/notes.flx",
-    "4147-4172": "pages/api/playground/eval.flx",
-    "4175-4182": "pages/api/sla/report.flx",
-    "4185-4192": "pages/api/sla/status.flx",
-    "4195-4232": "pages/api/sla.flx",
-    "4235-4279": "pages/app/api-init.flx",
-    "4282-4328": "pages/app/api.flx",
-    "4331-4361": "pages/app/index.flx",
-    "4364-4422": "pages/bookmarks/api.flx",
-    "4425-4458": "pages/bookmarks/index.flx",
-    "4461-4713": "pages/check.flx",
-    "4716-4772": "pages/clips/api.flx",
-    "4775-4804": "pages/clips/index.flx",
-    "4807-4840": "pages/contact/thanks.flx",
-    "4843-4912": "pages/contact.flx",
-    "4915-5101": "pages/contacts/api.flx",
-    "5104-5123": "pages/contacts/index.flx",
-    "5126-5232": "pages/contacts/remind.flx",
-    "5235-5265": "pages/counter.flx",
-    "5268-5275": "pages/dashboard/alerts.flx",
-    "5278-5285": "pages/dashboard/charts.flx",
-    "5288-5295": "pages/dashboard/custom-metrics.flx",
-    "5298-5305": "pages/dashboard/index.flx",
-    "5308-5315": "pages/dashboard/operations.flx",
-    "5318-5325": "pages/dashboard/sla.flx",
-    "5328-5480": "pages/decisions/api.flx",
-    "5483-5571": "pages/decisions/index.flx",
-    "5574-5771": "pages/demo.flx",
-    "5774-5785": "pages/dev/error-demo.flx",
-    "5788-5830": "pages/events/api.flx",
-    "5833-5876": "pages/events/index.flx",
-    "5879-5895": "pages/examples/01-hello.flx",
-    "5898-5928": "pages/examples/02-card-grid.flx",
-    "5931-5959": "pages/examples/03-list-filter.flx",
-    "5962-5996": "pages/examples/04-form.flx",
-    "5999-6048": "pages/examples/05-form-validate.flx",
-    "6051-6072": "pages/examples/06-counter.flx",
-    "6075-6095": "pages/examples/07-toggle.flx",
-    "6098-6119": "pages/examples/08-tabs.flx",
-    "6122-6142": "pages/examples/09-accordion.flx",
-    "6145-6165": "pages/examples/10-todo.flx",
-    "6168-6188": "pages/examples/11-live-search.flx",
-    "6191-6212": "pages/examples/12-star-rating.flx",
-    "6215-6235": "pages/examples/13-char-count.flx",
-    "6238-6258": "pages/examples/14-toast.flx",
-    "6261-6281": "pages/examples/15-modal.flx",
-    "6284-6304": "pages/examples/16-dropdown.flx",
-    "6307-6327": "pages/examples/17-wizard.flx",
-    "6330-6350": "pages/examples/18-slider.flx",
-    "6353-6373": "pages/examples/19-color-picker.flx",
-    "6376-6396": "pages/examples/20-password-strength.flx",
-    "6399-6420": "pages/examples/21-cart.flx",
-    "6423-6443": "pages/examples/22-temp-convert.flx",
-    "6446-6475": "pages/examples/23-like-store.flx",
-    "6478-6522": "pages/examples/24-pagination.flx",
-    "6525-6558": "pages/examples/25-i18n.flx",
-    "6561-6574": "pages/examples/26-json-api.flx",
-    "6577-6597": "pages/examples/27-fetch.flx",
-    "6600-6621": "pages/examples/28-poll.flx",
-    "6624-6644": "pages/examples/29-bmi.flx",
-    "6647-6667": "pages/examples/30-lightbox.flx",
-    "6670-6689": "pages/examples/31-island-patterns.flx",
-    "6692-6755": "pages/examples/index.flx",
-    "6758-6971": "pages/feed/api.flx",
-    "6974-6997": "pages/feed/index.flx",
-    "7000-7014": "pages/fetch-demo.flx",
-    "7017-7100": "pages/files/api.flx",
-    "7103-7142": "pages/files/index.flx",
-    "7145-7301": "pages/flash/api.flx",
-    "7304-7327": "pages/flash/index.flx",
-    "7330-7451": "pages/flash/study.flx",
-    "7454-7525": "pages/flow/index.flx",
-    "7528-7694": "pages/followups/api.flx",
-    "7697-7784": "pages/followups/index.flx",
-    "7787-7918": "pages/freelang.flx",
-    "7921-8065": "pages/goals/api.flx",
-    "8068-8091": "pages/goals/index.flx",
-    "8094-8181": "pages/health/api.flx",
-    "8184-8215": "pages/health/index.flx",
-    "8218-8309": "pages/health/log.flx",
-    "8312-8647": "pages/index.flx",
-    "8650-9134": "pages/intro.flx",
-    "9137-9183": "pages/login.flx",
-    "9186-9191": "pages/logout.flx",
-    "9194-9210": "pages/logs.flx",
-    "9213-9376": "pages/market/api.flx",
-    "9379-9456": "pages/market/index.flx",
-    "9459-9535": "pages/notes-afldb/api.flx",
-    "9538-9583": "pages/notes-afldb/index.flx",
-    "9586-9598": "pages/notes-island.flx",
-    "9601-9789": "pages/notes.flx",
-    "9792-9931": "pages/people/api.flx",
-    "9934-10009": "pages/people/index.flx",
-    "10012-10022": "pages/photos/api.flx",
-    "10025-10048": "pages/photos/index.flx",
-    "10051-10060": "pages/playground.flx",
-    "10063-10132": "pages/prompts/api.flx",
-    "10135-10192": "pages/prompts/index.flx",
-    "10195-10325": "pages/reading/api.flx",
-    "10328-10406": "pages/reading/index.flx",
-    "10409-10487": "pages/scratch/api.flx",
-    "10490-10537": "pages/scratch/index.flx",
-    "10540-10587": "pages/shop/cart.flx",
-    "10590-10700": "pages/shop/index.flx",
-    "10703-10742": "pages/shop/orders.flx",
-    "10745-10792": "pages/styled.flx",
-    "10795-10900": "pages/subs/api.flx",
-    "10903-10922": "pages/subs/index.flx",
-    "10925-10946": "pages/tasks.flx",
-    "10949-11058": "pages/test-helpers.flx",
-    "11061-11130": "pages/todo-afldb/api.flx",
-    "11133-11177": "pages/todo-afldb/index.flx",
-    "11180-11188": "pages/todo.flx",
-    "11191-11247": "pages/upload.flx",
-    "11250-11504": "pages/vault/api.flx",
-    "11507-11525": "pages/vault/index.flx",
-    "11528-11536": "pages/api/notes/[id]/delete.flx",
-    "11539-11548": "pages/api/notes/[id]/pin.flx",
-    "11551-11835": "pages/contacts/[id].flx",
-    "11838-11946": "pages/flash/[id].flx",
-    "11949-12062": "pages/goals/[id].flx",
-    "12065-12303": "pages/reading/[id].flx",
-    "12306-12411": "pages/shop/orders/[id].flx",
-    "12414-12495": "pages/shop/products/[id].flx",
-    "12498-12597": "pages/shop/users/[id].flx",
-    "12600-12805": "pages/users/[id].flx"
+    "3002-3036": "pages/about.flx",
+    "3039-3113": "pages/api/afldb.flx",
+    "3116-3120": "pages/api/alerts/stream.flx",
+    "3123-3598": "pages/api/alerts.flx",
+    "3601-3687": "pages/api/custom-metrics.flx",
+    "3690-3949": "pages/api/errors-stats.flx",
+    "3952-3982": "pages/api/errors.flx",
+    "3985-3989": "pages/api/hello.flx",
+    "3992-4017": "pages/api/logs/recent.flx",
+    "4020-4033": "pages/api/metrics/export.flx",
+    "4036-4048": "pages/api/metrics/filter.flx",
+    "4051-4055": "pages/api/metrics/stream.flx",
+    "4058-4151": "pages/api/metrics.flx",
+    "4154-4190": "pages/api/notes.flx",
+    "4193-4218": "pages/api/playground/eval.flx",
+    "4221-4255": "pages/api/playground/fx2.flx",
+    "4258-4265": "pages/api/sla/report.flx",
+    "4268-4275": "pages/api/sla/status.flx",
+    "4278-4315": "pages/api/sla.flx",
+    "4318-4362": "pages/app/api-init.flx",
+    "4365-4411": "pages/app/api.flx",
+    "4414-4444": "pages/app/index.flx",
+    "4447-4505": "pages/bookmarks/api.flx",
+    "4508-4541": "pages/bookmarks/index.flx",
+    "4544-4840": "pages/check.flx",
+    "4843-4899": "pages/clips/api.flx",
+    "4902-4931": "pages/clips/index.flx",
+    "4934-4967": "pages/contact/thanks.flx",
+    "4970-5039": "pages/contact.flx",
+    "5042-5228": "pages/contacts/api.flx",
+    "5231-5250": "pages/contacts/index.flx",
+    "5253-5359": "pages/contacts/remind.flx",
+    "5362-5392": "pages/counter.flx",
+    "5395-5402": "pages/dashboard/alerts.flx",
+    "5405-5412": "pages/dashboard/charts.flx",
+    "5415-5422": "pages/dashboard/custom-metrics.flx",
+    "5425-5432": "pages/dashboard/index.flx",
+    "5435-5442": "pages/dashboard/operations.flx",
+    "5445-5452": "pages/dashboard/sla.flx",
+    "5455-5607": "pages/decisions/api.flx",
+    "5610-5698": "pages/decisions/index.flx",
+    "5701-5898": "pages/demo.flx",
+    "5901-5912": "pages/dev/error-demo.flx",
+    "5915-5957": "pages/events/api.flx",
+    "5960-6003": "pages/events/index.flx",
+    "6006-6022": "pages/examples/01-hello.flx",
+    "6025-6055": "pages/examples/02-card-grid.flx",
+    "6058-6086": "pages/examples/03-list-filter.flx",
+    "6089-6123": "pages/examples/04-form.flx",
+    "6126-6175": "pages/examples/05-form-validate.flx",
+    "6178-6199": "pages/examples/06-counter.flx",
+    "6202-6222": "pages/examples/07-toggle.flx",
+    "6225-6246": "pages/examples/08-tabs.flx",
+    "6249-6269": "pages/examples/09-accordion.flx",
+    "6272-6292": "pages/examples/10-todo.flx",
+    "6295-6315": "pages/examples/11-live-search.flx",
+    "6318-6339": "pages/examples/12-star-rating.flx",
+    "6342-6362": "pages/examples/13-char-count.flx",
+    "6365-6385": "pages/examples/14-toast.flx",
+    "6388-6408": "pages/examples/15-modal.flx",
+    "6411-6431": "pages/examples/16-dropdown.flx",
+    "6434-6454": "pages/examples/17-wizard.flx",
+    "6457-6477": "pages/examples/18-slider.flx",
+    "6480-6500": "pages/examples/19-color-picker.flx",
+    "6503-6523": "pages/examples/20-password-strength.flx",
+    "6526-6547": "pages/examples/21-cart.flx",
+    "6550-6570": "pages/examples/22-temp-convert.flx",
+    "6573-6602": "pages/examples/23-like-store.flx",
+    "6605-6649": "pages/examples/24-pagination.flx",
+    "6652-6685": "pages/examples/25-i18n.flx",
+    "6688-6701": "pages/examples/26-json-api.flx",
+    "6704-6724": "pages/examples/27-fetch.flx",
+    "6727-6748": "pages/examples/28-poll.flx",
+    "6751-6771": "pages/examples/29-bmi.flx",
+    "6774-6794": "pages/examples/30-lightbox.flx",
+    "6797-6816": "pages/examples/31-island-patterns.flx",
+    "6819-6987": "pages/examples/32-afldb-batch-write.flx",
+    "6990-7054": "pages/examples/index.flx",
+    "7057-7270": "pages/feed/api.flx",
+    "7273-7296": "pages/feed/index.flx",
+    "7299-7313": "pages/fetch-demo.flx",
+    "7316-7399": "pages/files/api.flx",
+    "7402-7441": "pages/files/index.flx",
+    "7444-7600": "pages/flash/api.flx",
+    "7603-7626": "pages/flash/index.flx",
+    "7629-7750": "pages/flash/study.flx",
+    "7753-7824": "pages/flow/index.flx",
+    "7827-7993": "pages/followups/api.flx",
+    "7996-8083": "pages/followups/index.flx",
+    "8086-8217": "pages/freelang.flx",
+    "8220-8312": "pages/fx2-wasm/index.html.flx",
+    "8315-8459": "pages/goals/api.flx",
+    "8462-8485": "pages/goals/index.flx",
+    "8488-8575": "pages/health/api.flx",
+    "8578-8609": "pages/health/index.flx",
+    "8612-8703": "pages/health/log.flx",
+    "8706-9043": "pages/index.flx",
+    "9046-9552": "pages/intro.flx",
+    "9555-9601": "pages/login.flx",
+    "9604-9609": "pages/logout.flx",
+    "9612-9628": "pages/logs.flx",
+    "9631-9794": "pages/market/api.flx",
+    "9797-9874": "pages/market/index.flx",
+    "9877-9953": "pages/notes-afldb/api.flx",
+    "9956-10001": "pages/notes-afldb/index.flx",
+    "10004-10016": "pages/notes-island.flx",
+    "10019-10207": "pages/notes.flx",
+    "10210-10349": "pages/people/api.flx",
+    "10352-10427": "pages/people/index.flx",
+    "10430-10440": "pages/photos/api.flx",
+    "10443-10466": "pages/photos/index.flx",
+    "10469-10505": "pages/playground.flx",
+    "10508-10577": "pages/prompts/api.flx",
+    "10580-10637": "pages/prompts/index.flx",
+    "10640-10770": "pages/reading/api.flx",
+    "10773-10851": "pages/reading/index.flx",
+    "10854-11111": "pages/roadmap.flx",
+    "11114-11192": "pages/scratch/api.flx",
+    "11195-11242": "pages/scratch/index.flx",
+    "11245-11292": "pages/shop/cart.flx",
+    "11295-11405": "pages/shop/index.flx",
+    "11408-11447": "pages/shop/orders.flx",
+    "11450-11497": "pages/styled.flx",
+    "11500-11605": "pages/subs/api.flx",
+    "11608-11627": "pages/subs/index.flx",
+    "11630-11651": "pages/tasks.flx",
+    "11654-11763": "pages/test-helpers.flx",
+    "11766-11835": "pages/todo-afldb/api.flx",
+    "11838-11882": "pages/todo-afldb/index.flx",
+    "11885-11893": "pages/todo.flx",
+    "11896-11952": "pages/upload.flx",
+    "11955-12209": "pages/vault/api.flx",
+    "12212-12230": "pages/vault/index.flx",
+    "12233-12241": "pages/api/notes/[id]/delete.flx",
+    "12244-12253": "pages/api/notes/[id]/pin.flx",
+    "12256-12540": "pages/contacts/[id].flx",
+    "12543-12651": "pages/flash/[id].flx",
+    "12654-12767": "pages/goals/[id].flx",
+    "12770-13008": "pages/reading/[id].flx",
+    "13011-13116": "pages/shop/orders/[id].flx",
+    "13119-13200": "pages/shop/products/[id].flx",
+    "13203-13302": "pages/shop/users/[id].flx",
+    "13305-13515": "pages/users/[id].flx"
   }
 }

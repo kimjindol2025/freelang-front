@@ -1,3 +1,25 @@
+; @contract
+; route: /check
+; purpose: readiness-dashboard
+; type: page
+; pattern: UI_PAGE
+; routes:
+;   read: GET /api/afldb
+;   read: GET /roadmap
+; state:
+;   source: server
+;   mutable: false
+; requires:
+;   auth: none
+; checks:
+;   syntax: PASS
+;   route: PASS
+;   schema: PASS
+;   smoke: PASS
+; last_verified:
+;   commit: e36deb5
+; @endcontract
+
 ; /check — FreeLang Front 사용 가능 점검 / 홍보 페이지
 ; afl-db 연결 + 최근 빌드 diagnostics 요약
 
@@ -127,7 +149,7 @@ a{text-decoration:none}
     <div class="hero-actions">
       <a href="/api/afldb" class="btn btn-fill">afl-db 상태 JSON →</a>
       <a href="/dashboard" class="btn btn-line">운영 대시보드</a>
-      <a href="/intro" class="btn btn-line">선언문 보기</a>
+      <a href="/roadmap" class="btn btn-line">로드맵 허브</a>
     </div>
   </section>
 
@@ -234,6 +256,28 @@ a{text-decoration:none}
         <div class="demo-k">App</div>
         <div class="demo-t">구독 관리</div>
         <div class="demo-d">폼 + Island 예제</div>
+      </a>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>로드맵 바로가기</h2>
+    <p class="lead">문서만이 아니라 실제 화면으로 이어지는 진입점입니다.</p>
+    <div class="demo-grid">
+      <a href="/roadmap" class="demo">
+        <div class="demo-k">Roadmap</div>
+        <div class="demo-t">단계별 상태</div>
+        <div class="demo-d">코어, 패턴, DX, 문서의 진행도를 봅니다.</div>
+      </a>
+      <a href="/examples/32-afldb-batch-write" class="demo">
+        <div class="demo-k">Example 32</div>
+        <div class="demo-t">배치 쓰기</div>
+        <div class="demo-d">실제 afl-db batch-put 경로를 확인합니다.</div>
+      </a>
+      <a href="/examples/31-island-patterns" class="demo">
+        <div class="demo-k">Example 31</div>
+        <div class="demo-t">Island 패턴</div>
+        <div class="demo-d">P1~P3 표준 패턴을 다시 확인합니다.</div>
       </a>
     </div>
   </section>

@@ -159,6 +159,7 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
     <a href="/check" class="btn-line">사용 가능 점검</a>
     <a href="/flow" class="btn-line">C2C Flow</a>
     <a href="/dashboard" class="btn-line">운영 대시보드</a>
+    <a href="/roadmap" class="btn-line">로드맵 허브</a>
     <a href="/freelang" class="btn-line">FreeLang 소개</a>
     <a href="/counter" class="btn-line">Island 예제</a>
   </div>
@@ -288,6 +289,7 @@ body{background:var(--ink);color:var(--tx);font-family:-apple-system,BlinkMacSys
     AI가 개발·운영·유지보수 전체를 이어받을 수 있는 생태계.</p>
   </div>
   <a href="/intro" class="btn-fill">선언문 읽기 →</a>
+    <a href="/roadmap" class="btn-line">로드맵 허브</a>
 </div>
 """
 

@@ -764,6 +764,120 @@ function scanHelpers(dir) {
   return helpers;
 }
 
+function readGitHeadShort() {
+  try {
+    return String(cp.execSync('git rev-parse --short HEAD', { cwd: __dirname, stdio: ['ignore', 'pipe', 'ignore'] })).trim();
+  } catch {
+    return '';
+  }
+}
+
+function parseContractBlock(lines, file) {
+  const contract = {
+    file: path.basename(file),
+    route: '',
+    purpose: '',
+    type: '',
+    pattern: '',
+    routes: {},
+    state: {},
+    requires: {},
+    checks: {},
+    last_verified: {},
+  };
+
+  let currentSection = '';
+  for (const rawLine of lines) {
+    if (!rawLine.trim().startsWith(';')) continue;
+    const afterSemicolon = rawLine.replace(/^;\s?/, '');
+    const indent = (afterSemicolon.match(/^ */)?.[0].length) || 0;
+    const content = afterSemicolon.trim();
+    if (!content) continue;
+    const m = content.match(/^([^:]+):\s*(.*)$/);
+    if (!m) continue;
+    const key = m[1].trim();
+    const value = m[2].trim();
+    if (indent <= 1) {
+      currentSection = '';
+      if (value === '') {
+        currentSection = key;
+        if (!contract[currentSection] || typeof contract[currentSection] !== 'object') {
+          contract[currentSection] = {};
+        }
+      } else {
+        contract[key] = value;
+      }
+    } else if (currentSection) {
+      if (!contract[currentSection] || typeof contract[currentSection] !== 'object') {
+        contract[currentSection] = {};
+      }
+      contract[currentSection][key] = value;
+    }
+  }
+
+  const checks = contract.checks || {};
+  const checkValues = Object.values(checks);
+  const normalizedChecks = checkValues.filter(v => String(v).toLowerCase() === 'pass' || String(v).toLowerCase() === 'true').length;
+  contract.check_summary = {
+    total: checkValues.length,
+    pass: normalizedChecks,
+    fail: Math.max(0, checkValues.length - normalizedChecks),
+  };
+  return contract;
+}
+
+function scanContracts(routes, helpers) {
+  const allFiles = [...helpers, ...routes.map(r => r.file)];
+  const contracts = [];
+  for (const f of allFiles) {
+    try {
+      const src = fs.readFileSync(f, 'utf8');
+      const lines = src.split('\n');
+      let block = null;
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('; @contract')) {
+          block = [];
+          continue;
+        }
+        if (trimmed.startsWith('; @endcontract')) {
+          if (block) contracts.push(parseContractBlock(block, f));
+          block = null;
+          continue;
+        }
+        if (block) block.push(line);
+      }
+    } catch {}
+  }
+  return contracts;
+}
+
+function computeContractReadiness(contracts, headCommit) {
+  const rows = contracts.map(c => {
+    const verifiedCommit = String(c.last_verified?.commit || '').trim();
+    const verifiedMatchesHead = verifiedCommit !== '' && headCommit !== '' && verifiedCommit === headCommit;
+    const checks = c.check_summary || { total: 0, pass: 0, fail: 0 };
+    const routeReady = String(c.route || '').trim() !== '';
+    const readiness = checks.total > 0 && checks.fail === 0 && routeReady && verifiedMatchesHead ? 'complete'
+      : (checks.pass > 0 || routeReady ? 'in_progress' : 'missing');
+    return {
+      ...c,
+      last_verified_commit: verifiedCommit || '-',
+      verified_matches_head: verifiedMatchesHead,
+      readiness,
+    };
+  });
+
+  const summary = rows.reduce((acc, row) => {
+    acc.total += 1;
+    acc[row.readiness] += 1;
+    if (row.verified_matches_head) acc.verified += 1;
+    return acc;
+  }, { total: 0, complete: 0, in_progress: 0, missing: 0, verified: 0 });
+
+  return { rows, summary };
+}
+
 function fileToRoute(rel) {
   let r = '/' + rel.replace(/\.flx$/, '').replace(/\\/g, '/');
   r = r.replace(/\/index$/, '/');
@@ -1370,6 +1484,9 @@ const routes  = scanPages(PAGES_DIR);
 // (stable sort — 같은 그룹 내 스캔 순서 유지)
 routes.sort((a, b) => (a.route.includes(':') ? 1 : 0) - (b.route.includes(':') ? 1 : 0));
 const helpers = scanHelpers(PAGES_DIR);
+const headCommit = readGitHeadShort();
+const contractScan = scanContracts(routes, helpers);
+const contractReadiness = computeContractReadiness(contractScan, headCommit);
 console.log('FL-Front 빌드...');
 routes.forEach(r => console.log(`  ${r.route.padEnd(22)} → ${r.file}`));
 if (helpers.length > 0) {
@@ -2744,8 +2861,16 @@ const buildState = {
     stdlibFnCount: STDLIB_LOAD.count + FL_FRONT_HELPERS.size, // ls-fns ∪ helpers (대략)
     stdlibLsFnsCount: STDLIB_LOAD.count,
     stdlibBootstrap: STDLIB_LOAD.bootstrap,
+    contractCount: contractReadiness.summary.total,
+    contractComplete: contractReadiness.summary.complete,
+    contractInProgress: contractReadiness.summary.in_progress,
+    contractMissing: contractReadiness.summary.missing,
+    contractVerified: contractReadiness.summary.verified,
     ...(STDLIB_LOAD.error ? { stdlibLoadError: STDLIB_LOAD.error } : {}),
   },
+  repoCommit: headCommit || '-',
+  contracts: contractReadiness.rows,
+  contractSummary: contractReadiness.summary,
   sourceMap,
 };
 try {
