@@ -1,7 +1,7 @@
 {
   "ok": true,
-  "time": "2026-08-14T04:42:26.929Z",
-  "elapsed": 19633,
+  "time": "2026-08-14T04:43:21.541Z",
+  "elapsed": 20475,
   "routes": [
     {
       "route": "/about",
@@ -749,35 +749,35 @@
       "check": "contract-readiness",
       "file": "afldb.flx",
       "line": 0,
-      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 5c2dee1"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "check.flx",
       "line": 0,
-      "message": "/check 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+      "message": "/check 계약 미완료 — verified f0e4a02 != head 5c2dee1"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "32-afldb-batch-write.flx",
       "line": 0,
-      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 5c2dee1"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "intro.flx",
       "line": 0,
-      "message": "/intro 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+      "message": "/intro 계약 미완료 — verified f0e4a02 != head 5c2dee1"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "roadmap.flx",
       "line": 0,
-      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 7ca3fee"
+      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 5c2dee1"
     },
     {
       "level": "warn",
@@ -966,7 +966,7 @@
       "file": "afldb.flx",
       "line": 0,
       "column": 0,
-      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 5c2dee1",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -977,7 +977,7 @@
       "file": "check.flx",
       "line": 0,
       "column": 0,
-      "message": "/check 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "message": "/check 계약 미완료 — verified f0e4a02 != head 5c2dee1",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -988,7 +988,7 @@
       "file": "32-afldb-batch-write.flx",
       "line": 0,
       "column": 0,
-      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 5c2dee1",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -999,7 +999,7 @@
       "file": "intro.flx",
       "line": 0,
       "column": 0,
-      "message": "/intro 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "message": "/intro 계약 미완료 — verified f0e4a02 != head 5c2dee1",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -1010,7 +1010,7 @@
       "file": "roadmap.flx",
       "line": 0,
       "column": 0,
-      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 7ca3fee",
+      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 5c2dee1",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -1459,7 +1459,7 @@
     "contractMissing": 0,
     "contractVerified": 0
   },
-  "repoCommit": "7ca3fee",
+  "repoCommit": "5c2dee1",
   "contracts": [
     {
       "file": "afldb.flx",
