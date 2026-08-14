@@ -17,7 +17,7 @@
 ;   schema: PASS
 ;   smoke: PASS
 ; last_verified:
-;   commit: e36deb5
+;   commit: f0e4a02
 ; @endcontract
 
 ; /check — FreeLang Front 사용 가능 점검 / 홍보 페이지

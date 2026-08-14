@@ -1,7 +1,7 @@
 {
   "ok": true,
-  "time": "2026-08-14T02:50:08.660Z",
-  "elapsed": 9321,
+  "time": "2026-08-14T03:47:10.575Z",
+  "elapsed": 6877,
   "routes": [
     {
       "route": "/about",
@@ -1364,19 +1364,19 @@
     "stdlibLsFnsCount": 485,
     "stdlibBootstrap": "/root/kim/freelang-front/runtime/bootstrap.js",
     "contractCount": 5,
-    "contractComplete": 0,
-    "contractInProgress": 5,
+    "contractComplete": 5,
+    "contractInProgress": 0,
     "contractMissing": 0,
-    "contractVerified": 0
+    "contractVerified": 5
   },
-  "repoCommit": "098379d",
+  "repoCommit": "f0e4a02",
   "contracts": [
     {
       "file": "afldb.flx",
       "route": "/api/afldb",
       "purpose": "afl-db-read-write-api",
       "type": "api",
-      "pattern": "API_READ",
+      "pattern": "API_MUTATION",
       "routes": {
         "read": "GET /api/afldb",
         "write": "POST /api/afldb"
@@ -1395,16 +1395,20 @@
         "smoke": "PASS"
       },
       "last_verified": {
-        "commit": "e36deb5"
+        "commit": "f0e4a02"
       },
       "check_summary": {
         "total": 4,
         "pass": 4,
         "fail": 0
       },
-      "last_verified_commit": "e36deb5",
-      "verified_matches_head": false,
-      "readiness": "in_progress"
+      "last_verified_commit": "f0e4a02",
+      "verified_matches_head": true,
+      "route_links": [
+        "GET /api/afldb",
+        "POST /api/afldb"
+      ],
+      "readiness": "complete"
     },
     {
       "file": "check.flx",
@@ -1413,7 +1417,10 @@
       "type": "page",
       "pattern": "UI_PAGE",
       "routes": {
-        "read": "GET /roadmap"
+        "read": [
+          "GET /api/afldb",
+          "GET /roadmap"
+        ]
       },
       "state": {
         "source": "server",
@@ -1429,16 +1436,20 @@
         "smoke": "PASS"
       },
       "last_verified": {
-        "commit": "e36deb5"
+        "commit": "f0e4a02"
       },
       "check_summary": {
         "total": 4,
         "pass": 4,
         "fail": 0
       },
-      "last_verified_commit": "e36deb5",
-      "verified_matches_head": false,
-      "readiness": "in_progress"
+      "last_verified_commit": "f0e4a02",
+      "verified_matches_head": true,
+      "route_links": [
+        "GET /api/afldb",
+        "GET /roadmap"
+      ],
+      "readiness": "complete"
     },
     {
       "file": "32-afldb-batch-write.flx",
@@ -1464,16 +1475,20 @@
         "smoke": "PASS"
       },
       "last_verified": {
-        "commit": "e36deb5"
+        "commit": "f0e4a02"
       },
       "check_summary": {
         "total": 4,
         "pass": 4,
         "fail": 0
       },
-      "last_verified_commit": "e36deb5",
-      "verified_matches_head": false,
-      "readiness": "in_progress"
+      "last_verified_commit": "f0e4a02",
+      "verified_matches_head": true,
+      "route_links": [
+        "GET /api/afldb",
+        "POST /examples/32-afldb-batch-write"
+      ],
+      "readiness": "complete"
     },
     {
       "file": "intro.flx",
@@ -1482,7 +1497,10 @@
       "type": "page",
       "pattern": "UI_PAGE",
       "routes": {
-        "read": "GET /roadmap"
+        "read": [
+          "GET /~ai",
+          "GET /roadmap"
+        ]
       },
       "state": {
         "source": "server",
@@ -1498,16 +1516,20 @@
         "smoke": "PASS"
       },
       "last_verified": {
-        "commit": "e36deb5"
+        "commit": "f0e4a02"
       },
       "check_summary": {
         "total": 4,
         "pass": 4,
         "fail": 0
       },
-      "last_verified_commit": "e36deb5",
-      "verified_matches_head": false,
-      "readiness": "in_progress"
+      "last_verified_commit": "f0e4a02",
+      "verified_matches_head": true,
+      "route_links": [
+        "GET /~ai",
+        "GET /roadmap"
+      ],
+      "readiness": "complete"
     },
     {
       "file": "roadmap.flx",
@@ -1516,7 +1538,11 @@
       "type": "page",
       "pattern": "UI_PAGE",
       "routes": {
-        "read": "GET /intro"
+        "read": [
+          "GET /check",
+          "GET /examples",
+          "GET /intro"
+        ]
       },
       "state": {
         "source": "server",
@@ -1532,24 +1558,29 @@
         "smoke": "PASS"
       },
       "last_verified": {
-        "commit": "e36deb5"
+        "commit": "f0e4a02"
       },
       "check_summary": {
         "total": 4,
         "pass": 4,
         "fail": 0
       },
-      "last_verified_commit": "e36deb5",
-      "verified_matches_head": false,
-      "readiness": "in_progress"
+      "last_verified_commit": "f0e4a02",
+      "verified_matches_head": true,
+      "route_links": [
+        "GET /check",
+        "GET /examples",
+        "GET /intro"
+      ],
+      "readiness": "complete"
     }
   ],
   "contractSummary": {
     "total": 5,
-    "complete": 0,
-    "in_progress": 5,
+    "complete": 5,
+    "in_progress": 0,
     "missing": 0,
-    "verified": 0
+    "verified": 5
   },
   "sourceMap": {
     "3002-3036": "pages/about.flx",

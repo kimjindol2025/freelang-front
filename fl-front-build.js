@@ -786,6 +786,18 @@ function parseContractBlock(lines, file) {
     last_verified: {},
   };
 
+  function assignValue(target, key, value) {
+    if (target[key] === undefined) {
+      target[key] = value;
+      return;
+    }
+    if (Array.isArray(target[key])) {
+      target[key].push(value);
+      return;
+    }
+    target[key] = [target[key], value];
+  }
+
   let currentSection = '';
   for (const rawLine of lines) {
     if (!rawLine.trim().startsWith(';')) continue;
@@ -811,7 +823,7 @@ function parseContractBlock(lines, file) {
       if (!contract[currentSection] || typeof contract[currentSection] !== 'object') {
         contract[currentSection] = {};
       }
-      contract[currentSection][key] = value;
+      assignValue(contract[currentSection], key, value);
     }
   }
 
@@ -824,6 +836,20 @@ function parseContractBlock(lines, file) {
     fail: Math.max(0, checkValues.length - normalizedChecks),
   };
   return contract;
+}
+
+function normalizeContractRefs(value) {
+  if (value === undefined || value === null || value === '') return [];
+  return Array.isArray(value)
+    ? value.map(v => String(v).trim()).filter(Boolean)
+    : [String(value).trim()].filter(Boolean);
+}
+
+function contractRouteLinks(contract) {
+  const routes = contract.routes || {};
+  const read = normalizeContractRefs(routes.read);
+  const write = normalizeContractRefs(routes.write);
+  return [...read, ...write];
 }
 
 function scanContracts(routes, helpers) {
@@ -858,12 +884,14 @@ function computeContractReadiness(contracts, headCommit) {
     const verifiedMatchesHead = verifiedCommit !== '' && headCommit !== '' && verifiedCommit === headCommit;
     const checks = c.check_summary || { total: 0, pass: 0, fail: 0 };
     const routeReady = String(c.route || '').trim() !== '';
+    const routeLinks = contractRouteLinks(c);
     const readiness = checks.total > 0 && checks.fail === 0 && routeReady && verifiedMatchesHead ? 'complete'
       : (checks.pass > 0 || routeReady ? 'in_progress' : 'missing');
     return {
       ...c,
       last_verified_commit: verifiedCommit || '-',
       verified_matches_head: verifiedMatchesHead,
+      route_links: routeLinks,
       readiness,
     };
   });
@@ -1487,6 +1515,15 @@ const helpers = scanHelpers(PAGES_DIR);
 const headCommit = readGitHeadShort();
 const contractScan = scanContracts(routes, helpers);
 const contractReadiness = computeContractReadiness(contractScan, headCommit);
+
+for (const row of contractReadiness.rows) {
+  if (row.readiness !== 'complete') {
+    const checkMsg = row.check_summary?.fail > 0
+      ? `checks fail=${row.check_summary.fail}`
+      : (!row.verified_matches_head ? `verified ${row.last_verified_commit} != head ${headCommit || '-'}` : 'contract incomplete');
+    issue('error', 'contract-readiness', row.file, 0, `${row.route || row.file} 계약 미완료 — ${checkMsg}`);
+  }
+}
 console.log('FL-Front 빌드...');
 routes.forEach(r => console.log(`  ${r.route.padEnd(22)} → ${r.file}`));
 if (helpers.length > 0) {
