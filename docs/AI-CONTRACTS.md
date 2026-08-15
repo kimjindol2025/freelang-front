@@ -47,13 +47,14 @@
 - `state.mutable`: 현재 상태가 변하는지 여부
 - `requires.auth`: 필요한 인증 수준
 - `checks.*`: 빌드/라우트/스키마/스모크 판정
-- `last_verified.commit`: 마지막으로 검증된 기준 커밋
+- `last_verified.commit`: 빌드·라우트·스키마·스모크를 마지막으로 확인한 기준 커밋. 이후 소스 변경 또는 새 검증 전에는 `in_progress`로 표시한다.
 
 ## 판정 규칙
 
 - `checks`가 모두 `PASS`이고 `last_verified.commit`이 현재 HEAD와 같으면 `complete`
 - 일부만 충족하거나 커밋이 다르면 `in_progress`
 - 계약 블록이 없으면 `missing`
+- 생성된 .build-state.json의 repoCommit과 계약의 검증 커밋이 다르면 /roadmap에서 stale 검증으로 표시한다.
 
 ## 문제군 패턴
 

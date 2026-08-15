@@ -658,6 +658,9 @@ async function runWithCurrentTarget(argv, mode, jsonMode) {
     } else {
       const result = await runCheck(session, state, argv, { watch: false });
       print({ ok: true, ...result.last_check }, jsonMode);
+      if (!result.last_check || result.last_check.browser?.result !== "PASS") {
+        process.exitCode = 1;
+      }
     }
   } finally {
     await session.close();

@@ -75,6 +75,7 @@
         browser-last (if (= browser-state nil) nil (get browser-state "last_check"))
         browser-summary (if (= browser-state nil) "미연결" (str (get browser-state "status") " · tab " (get browser-state "tab_id")))
         browser-result (if (= browser-last nil) "-" (get (get browser-last "browser") "result"))
+        browser-ready (= browser-result "PASS")
         db (afldb-status)
         ver (afldb-verify)
         build-ok (= (get diag "ok") true)
@@ -121,16 +122,16 @@
         stage3-progress (if (and route-ex32 (and route-api-afldb (and route-check db-ok)))
                           (if (= warn-n "0") 100 84)
                           46)
-        stage4-progress (if (and route-dashboard (and route-health route-logs))
+        stage4-progress (if (and route-dashboard (and route-health (and route-logs browser-ready)))
                           (if (= warn-n "0") 100 68)
                           44)
         stage5-progress (if (and route-roadmap (and route-examples (and route-intro route-about)))
                           (if (= warn-n "0") 100 76)
                           56)
-        stage6-progress (if (and build-ok (and db-ok (and (> stage1-progress 89)
+        stage6-progress (if (and build-ok (and db-ok (and browser-ready (and (> stage1-progress 89)
                             (and (> stage2-progress 89)
                                  (and (> stage3-progress 49)
-                                      (and (> stage4-progress 49) (> stage5-progress 49)))))))
+                                      (and (> stage4-progress 49) (> stage5-progress 49))))))))
                           (if (= warn-n "0") 100 42)
                           24)
         stage1-state (roadmap-state-label stage1-progress)
@@ -253,8 +254,8 @@ a{text-decoration:none;color:inherit}
       "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 1</div><h3>언어 코어 고정</h3></div><span class='badge " stage1-class "'>" stage1-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage1-progress) "%'></div></div><p>빌드 진단이 유효하고 기본 진입점이 살아 있습니다. 이 단계는 현재 readiness 기준에서 가장 안정적인 구간입니다.</p><div class='route-row'>" (route-chip "/check" "/check") " " (route-chip "/intro" "/intro") " " (route-chip "/about" "/about") "</div><div class='note'>build ok: " (if build-ok "true" "false") " · route /check: " (if route-check "true" "false") " · route /roadmap: " (if route-roadmap "true" "false") "</div></div>"
       "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 2</div><h3>컴포넌트 / Island 모델 정착</h3></div><span class='badge " stage2-class "'>" stage2-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage2-progress) "%'></div></div><p>Island 패턴과 실사용 예제가 연결되어 있습니다. /examples, 31번, counter, app 경로가 실제로 노출됩니다.</p><div class='route-row'>" (route-chip "/examples" "/examples") " " (route-chip "/examples/31-island-patterns" "/examples/31-island-patterns") " " (route-chip "/counter" "/counter") " " (route-chip "/app" "/app") "</div><div class='note'>route coverage: /examples=" (if route-examples "true" "false") " · 31=" (if route-ex31 "true" "false") " · counter=" (if route-counter "true" "false") " · app=" (if route-app "true" "false") "</div></div>"
       "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 3</div><h3>프론트 실사용 패턴 확보</h3></div><span class='badge " stage3-class "'>" stage3-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage3-progress) "%'></div></div><p>실제 afl-db 쓰기와 점검 경로가 이어져 있습니다. 다만 현재는 경고가 남아 있어 완전 완료로 올리지 않았습니다.</p><div class='route-row'>" (route-chip "/examples/32-afldb-batch-write" "/examples/32-afldb-batch-write") " " (route-chip "/api/afldb" "/api/afldb") " " (route-chip "/check" "/check") "</div><div class='note'>db " db-badge " · warnings " warn-n " · /examples/32=" (if route-ex32 "true" "false") " · /api/afldb=" (if route-api-afldb "true" "false") "</div></div>"
-      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 4</div><h3>개발자 경험 정리</h3></div><span class='badge " stage4-class "'>" stage4-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage4-progress) "%'></div></div><p>운영 화면과 상태 확인 화면은 살아 있지만, build 경고가 남아 있어 DX 안정화는 계속 진행중입니다.</p><div class='route-row'>" (route-chip "/dashboard" "/dashboard") " " (route-chip "/health" "/health") " " (route-chip "/logs" "/logs") "</div><div class='note'>dashboard=" (if route-dashboard "true" "false") " · health=" (if route-health "true" "false") " · logs=" (if route-logs "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 4</div><h3>개발자 경험 정리</h3></div><span class='badge " stage4-class "'>" stage4-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage4-progress) "%'></div></div><p>운영 화면과 단일 브라우저 탭 검증이 연결되어야 DX 완료로 판정합니다.</p><div class='route-row'>" (route-chip "/dashboard" "/dashboard") " " (route-chip "/health" "/health") " " (route-chip "/logs" "/logs") "</div><div class='note'>dashboard=" (if route-dashboard "true" "false") " · health=" (if route-health "true" "false") " · logs=" (if route-logs "true" "false") "</div></div>"
       "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 5</div><h3>생태계와 문서</h3></div><span class='badge " stage5-class "'>" stage5-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage5-progress) "%'></div></div><p>로드맵, 예제, 선언문, 소개 페이지가 실제 동선으로 연결되어 있습니다. 문서 자체는 읽히지만 완전한 정리 단계는 아직 남아 있습니다.</p><div class='route-row'>" (route-chip "/examples" "/examples") " " (route-chip "/roadmap" "/roadmap") " " (route-chip "/intro" "/intro") " " (route-chip "/about" "/about") "</div><div class='note'>roadmap=" (if route-roadmap "true" "false") " · examples=" (if route-examples "true" "false") " · intro=" (if route-intro "true" "false") " · about=" (if route-about "true" "false") "</div></div>"
-      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 6</div><h3>React / Vue급 판단 기준 충족</h3></div><span class='badge " stage6-class "'>" stage6-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage6-progress) "%'></div></div><p>중간 규모 앱을 독립적으로 유지할 수 있는지 판단하는 단계입니다. 현재는 build와 db는 준비됐지만, 경고 잔존 때문에 최종 판정은 보류합니다.</p><div class='route-row'>" (route-chip "/flow" "/flow") " " (route-chip "/freelang" "/freelang") " " (route-chip "/dashboard" "/dashboard") "</div><div class='note'>complete " (str complete-count) "/6 · doing " (str doing-count) "/6 · todo " (str todo-count) "/6 · route /flow=" (if route-flow "true" "false") "</div></div>"
+      "<div class='stage'><div class='stage-top'><div><div class='stage-k'>stage 6</div><h3>React / Vue급 판단 기준 충족</h3></div><span class='badge " stage6-class "'>" stage6-state "</span></div><div class='progress'><div class='bar' style='width:" (str stage6-progress) "%'></div></div><p>중간 규모 앱 유지 가능성, 빌드·DB·브라우저 검증을 모두 통과해야 최종 판정합니다.</p><div class='route-row'>" (route-chip "/flow" "/flow") " " (route-chip "/freelang" "/freelang") " " (route-chip "/dashboard" "/dashboard") "</div><div class='note'>complete " (str complete-count) "/6 · doing " (str doing-count) "/6 · todo " (str todo-count) "/6 · browser=" browser-result " · route /flow=" (if route-flow "true" "false") "</div></div>"
       "</div></section>"
       "</div></body></html>"))))

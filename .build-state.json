@@ -1,7 +1,7 @@
 {
   "ok": true,
-  "time": "2026-08-14T04:48:01.566Z",
-  "elapsed": 24370,
+  "time": "2026-08-14T22:23:47.907Z",
+  "elapsed": 9942,
   "routes": [
     {
       "route": "/about",
@@ -749,35 +749,35 @@
       "check": "contract-readiness",
       "file": "afldb.flx",
       "line": 0,
-      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head a82a3bf"
+      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 2caa0d7"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "check.flx",
       "line": 0,
-      "message": "/check 계약 미완료 — verified f0e4a02 != head a82a3bf"
+      "message": "/check 계약 미완료 — verified f0e4a02 != head 2caa0d7"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "32-afldb-batch-write.flx",
       "line": 0,
-      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head a82a3bf"
+      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 2caa0d7"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "intro.flx",
       "line": 0,
-      "message": "/intro 계약 미완료 — verified f0e4a02 != head a82a3bf"
+      "message": "/intro 계약 미완료 — verified f0e4a02 != head 2caa0d7"
     },
     {
       "level": "warn",
       "check": "contract-readiness",
       "file": "roadmap.flx",
       "line": 0,
-      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head a82a3bf"
+      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 2caa0d7"
     },
     {
       "level": "warn",
@@ -935,6 +935,13 @@
     },
     {
       "level": "warn",
+      "check": "fl-http-allow",
+      "file": "_layout.flx",
+      "line": 0,
+      "message": "private HTTP(afldb/127.0.0.1) 사용 — FL_HTTP_ALLOW=127.0.0.1,localhost 설정 필요"
+    },
+    {
+      "level": "warn",
       "check": "str-loop-concat",
       "file": "_charts.flx",
       "line": 26,
@@ -966,7 +973,7 @@
       "file": "afldb.flx",
       "line": 0,
       "column": 0,
-      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head a82a3bf",
+      "message": "/api/afldb 계약 미완료 — verified f0e4a02 != head 2caa0d7",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -977,7 +984,7 @@
       "file": "check.flx",
       "line": 0,
       "column": 0,
-      "message": "/check 계약 미완료 — verified f0e4a02 != head a82a3bf",
+      "message": "/check 계약 미완료 — verified f0e4a02 != head 2caa0d7",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -988,7 +995,7 @@
       "file": "32-afldb-batch-write.flx",
       "line": 0,
       "column": 0,
-      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head a82a3bf",
+      "message": "/examples/32-afldb-batch-write 계약 미완료 — verified f0e4a02 != head 2caa0d7",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -999,7 +1006,7 @@
       "file": "intro.flx",
       "line": 0,
       "column": 0,
-      "message": "/intro 계약 미완료 — verified f0e4a02 != head a82a3bf",
+      "message": "/intro 계약 미완료 — verified f0e4a02 != head 2caa0d7",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -1010,7 +1017,7 @@
       "file": "roadmap.flx",
       "line": 0,
       "column": 0,
-      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head a82a3bf",
+      "message": "/roadmap 계약 미완료 — verified f0e4a02 != head 2caa0d7",
       "hint": "",
       "fixable": false,
       "applicability": "manual"
@@ -1258,6 +1265,17 @@
       "applicability": "manual"
     },
     {
+      "code": "fl-http-allow",
+      "severity": "warning",
+      "file": "_layout.flx",
+      "line": 0,
+      "column": 0,
+      "message": "private HTTP(afldb/127.0.0.1) 사용 — FL_HTTP_ALLOW=127.0.0.1,localhost 설정 필요",
+      "hint": "FL_HTTP_ALLOW=127.0.0.1,localhost 설정 (ecosystem/env)",
+      "fixable": false,
+      "applicability": "manual"
+    },
+    {
       "code": "str-loop-concat",
       "severity": "warning",
       "file": "_charts.flx",
@@ -1447,7 +1465,7 @@
   ],
   "summary": {
     "errors": 0,
-    "warnings": 30,
+    "warnings": 31,
     "diagnosticCodeCount": 19,
     "stdlibLoadOk": true,
     "stdlibFnCount": 789,
@@ -1459,7 +1477,7 @@
     "contractMissing": 0,
     "contractVerified": 0
   },
-  "repoCommit": "a82a3bf",
+  "repoCommit": "2caa0d7",
   "contracts": [
     {
       "file": "afldb.flx",
@@ -1789,32 +1807,32 @@
     "10580-10637": "pages/prompts/index.flx",
     "10640-10770": "pages/reading/api.flx",
     "10773-10851": "pages/reading/index.flx",
-    "10854-11116": "pages/roadmap.flx",
-    "11119-11197": "pages/scratch/api.flx",
-    "11200-11247": "pages/scratch/index.flx",
-    "11250-11297": "pages/shop/cart.flx",
-    "11300-11410": "pages/shop/index.flx",
-    "11413-11452": "pages/shop/orders.flx",
-    "11455-11502": "pages/styled.flx",
-    "11505-11610": "pages/subs/api.flx",
-    "11613-11632": "pages/subs/index.flx",
-    "11635-11656": "pages/tasks.flx",
-    "11659-11768": "pages/test-helpers.flx",
-    "11771-11840": "pages/todo-afldb/api.flx",
-    "11843-11887": "pages/todo-afldb/index.flx",
-    "11890-11898": "pages/todo.flx",
-    "11901-11957": "pages/upload.flx",
-    "11960-12214": "pages/vault/api.flx",
-    "12217-12235": "pages/vault/index.flx",
-    "12238-12246": "pages/api/notes/[id]/delete.flx",
-    "12249-12258": "pages/api/notes/[id]/pin.flx",
-    "12261-12545": "pages/contacts/[id].flx",
-    "12548-12656": "pages/flash/[id].flx",
-    "12659-12772": "pages/goals/[id].flx",
-    "12775-13013": "pages/reading/[id].flx",
-    "13016-13121": "pages/shop/orders/[id].flx",
-    "13124-13205": "pages/shop/products/[id].flx",
-    "13208-13307": "pages/shop/users/[id].flx",
-    "13310-13520": "pages/users/[id].flx"
+    "10854-11117": "pages/roadmap.flx",
+    "11120-11198": "pages/scratch/api.flx",
+    "11201-11248": "pages/scratch/index.flx",
+    "11251-11298": "pages/shop/cart.flx",
+    "11301-11411": "pages/shop/index.flx",
+    "11414-11453": "pages/shop/orders.flx",
+    "11456-11503": "pages/styled.flx",
+    "11506-11611": "pages/subs/api.flx",
+    "11614-11633": "pages/subs/index.flx",
+    "11636-11657": "pages/tasks.flx",
+    "11660-11769": "pages/test-helpers.flx",
+    "11772-11841": "pages/todo-afldb/api.flx",
+    "11844-11888": "pages/todo-afldb/index.flx",
+    "11891-11899": "pages/todo.flx",
+    "11902-11958": "pages/upload.flx",
+    "11961-12215": "pages/vault/api.flx",
+    "12218-12236": "pages/vault/index.flx",
+    "12239-12247": "pages/api/notes/[id]/delete.flx",
+    "12250-12259": "pages/api/notes/[id]/pin.flx",
+    "12262-12546": "pages/contacts/[id].flx",
+    "12549-12657": "pages/flash/[id].flx",
+    "12660-12773": "pages/goals/[id].flx",
+    "12776-13014": "pages/reading/[id].flx",
+    "13017-13122": "pages/shop/orders/[id].flx",
+    "13125-13206": "pages/shop/products/[id].flx",
+    "13209-13308": "pages/shop/users/[id].flx",
+    "13311-13521": "pages/users/[id].flx"
   }
 }
