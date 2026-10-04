@@ -26443,7 +26443,8 @@ function createHttpModule() {
       const boundary = `freelang-${import_crypto.randomUUID()}`;
       const chunks = [];
       for (const [name, value] of Object.entries(fields || {})) {
-        chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`, "utf8"));
+        const fieldValue = value != null && typeof value === "object" ? JSON.stringify(value) : String(value ?? "");
+        chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${fieldValue}\r\n`, "utf8"));
       }
       chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${fileField}"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`, "utf8"));
       chunks.push(Buffer.from(String(fileBase64 || ""), "base64"));
