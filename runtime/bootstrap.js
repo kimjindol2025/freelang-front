@@ -26022,8 +26022,11 @@ function handle(port, msg) {
     const u = new URL(msg.url);
     const mod = u.protocol === "https:" ? https : http;
     const headers = Object.assign({}, msg.headers || {});
-    if (msg.body != null) {
-      headers["Content-Length"] = Buffer.byteLength(msg.body, "utf-8");
+    const requestBody = msg.body_base64 != null
+      ? Buffer.from(String(msg.body_base64), "base64")
+      : (msg.body != null ? Buffer.from(String(msg.body), "utf-8") : null);
+    if (requestBody != null) {
+      headers["Content-Length"] = requestBody.length;
     }
     const req = mod.request(
       {
@@ -26053,7 +26056,7 @@ function handle(port, msg) {
       req.destroy();
       done({ status: 0, body: "", error: "timeout" });
     });
-    if (msg.body != null) req.write(msg.body, "utf-8");
+    if (requestBody != null) req.write(requestBody);
     req.end();
   } catch (e) {
     done({ status: 0, body: "", error: String(e && e.message ? e.message : e) });
@@ -26137,6 +26140,34 @@ function nodeHttpRequest(url2, method = "GET", headers, body, timeoutMs = 1e4) {
     };
   } catch (err4) {
     return { status: 0, body: "", error: err4.message };
+  }
+}
+function nodeHttpRequestBase64(url2, method = "GET", headers, bodyBase64, timeoutMs = 1e4) {
+  const __ssrf = flSsrfBlockReason(url2);
+  if (__ssrf) return { status: 0, body: "", body_base64: "", error: __ssrf };
+  try {
+    const headersObj = {};
+    if (headers && typeof headers === "object") {
+      const entries = headers instanceof Map ? Array.from(headers.entries()) : Object.entries(headers);
+      for (const [k, v] of entries) headersObj[String(k)] = String(v);
+    }
+    const { port, signal } = ensureHttpWorker();
+    Atomics.store(signal, 0, 0);
+    port.postMessage({
+      url: String(url2),
+      method: String(method || "GET").toUpperCase(),
+      headers: headersObj,
+      body_base64: bodyBase64 != null ? String(bodyBase64) : null,
+      timeoutMs
+    });
+    const waitMs = Math.max(1, Number(timeoutMs) || 1e4) + 2e3;
+    if (Atomics.wait(signal, 0, 0, waitMs) === "timed-out") return { status: 0, body: "", body_base64: "", error: "timeout" };
+    const msg = (0, import_worker_threads.receiveMessageOnPort)(port);
+    if (!msg || !msg.message) return { status: 0, body: "", body_base64: "", error: "no response from http worker" };
+    const result = msg.message;
+    return { status: result.status || 0, body: result.body || "", body_base64: result.body_base64 || "", ...result.error && { error: result.error } };
+  } catch (err4) {
+    return { status: 0, body: "", body_base64: "", error: err4.message };
   }
 }
 function createHttpModule() {
@@ -26392,6 +26423,36 @@ function createHttpModule() {
       return {
         status: result.status,
         body_base64: result.body_base64 || "",
+        ...result.error && { error: result.error }
+      };
+    },
+    // http_request_body_base64 method url headers body_base64 -> {:status 200 :body "..."}
+    // Use for multipart or other binary request bodies while preserving exact bytes.
+    "http_request_body_base64": (method, url2, headers, bodyBase64) => {
+      const result = nodeHttpRequestBase64(url2, method, headers, bodyBase64);
+      return {
+        status: result.status,
+        body: result.body,
+        body_base64: result.body_base64 || "",
+        ...result.error && { error: result.error }
+      };
+    },
+    // http_request_multipart method url headers fields file_field filename mime file_base64
+    // Build a standards-compliant multipart body while keeping provider code declarative.
+    "http_request_multipart": (method, url2, headers, fields, fileField, filename, mimeType, fileBase64) => {
+      const boundary = `freelang-${import_crypto.randomUUID()}`;
+      const chunks = [];
+      for (const [name, value] of Object.entries(fields || {})) {
+        chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${String(value)}\r\n`, "utf8"));
+      }
+      chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${fileField}"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`, "utf8"));
+      chunks.push(Buffer.from(String(fileBase64 || ""), "base64"));
+      chunks.push(Buffer.from(`\r\n--${boundary}--\r\n`, "utf8"));
+      const mergedHeaders = { ...(headers || {}), "Content-Type": `multipart/form-data; boundary=${boundary}` };
+      const result = nodeHttpRequestBase64(url2, method, mergedHeaders, Buffer.concat(chunks).toString("base64"));
+      return {
+        status: result.status,
+        body: result.body,
         ...result.error && { error: result.error }
       };
     },
