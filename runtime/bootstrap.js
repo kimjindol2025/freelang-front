@@ -26040,6 +26040,7 @@ function handle(port, msg) {
           done({
             status: res.statusCode || 0,
             body: Buffer.concat(chunks).toString("utf-8"),
+            body_base64: Buffer.concat(chunks).toString("base64"),
           })
         );
       }
@@ -26131,6 +26132,7 @@ function nodeHttpRequest(url2, method = "GET", headers, body, timeoutMs = 1e4) {
     return {
       status: result.status || 0,
       body: result.body || "",
+      body_base64: result.body_base64 || "",
       ...result.error && { error: result.error }
     };
   } catch (err4) {
@@ -26380,6 +26382,16 @@ function createHttpModule() {
       return {
         status: result.status,
         body: result.body,
+        ...result.error && { error: result.error }
+      };
+    },
+    // http_request_base64 method url headers body -> {:status 200 :body_base64 "..."}
+    // Use for binary provider responses while preserving the legacy text API.
+    "http_request_base64": (method, url2, headers, body) => {
+      const result = nodeHttpRequest(url2, method, headers, body);
+      return {
+        status: result.status,
+        body_base64: result.body_base64 || "",
         ...result.error && { error: result.error }
       };
     },
