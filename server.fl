@@ -32,6 +32,11 @@
 
 (server_use "/*" "subdomain-redirect")
 
+; 내부 코딩 서버 계약 — 브라우저 HMR/metrics와 release smoke가
+; loopback 한도(기본 100/60s)에 서로 걸리지 않도록 제한을 명시한다.
+; 외부 공개·상용 배포 계약에는 이 값을 재사용하지 않는다.
+(server-rate-limit 1000 60000)
+
 ; 서버 시작
 (println (str "FL-Front v0.1 — http://localhost:" PORT))
 (server-start PORT)
