@@ -25,7 +25,7 @@
 | 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | 진행 중 — UI contract PASS, 예제 33 추가 |
 | 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | 부분 완료 |
 | 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 진행 중 |
-| 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 미착수 |
+| 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 진행 중 — Decision API smoke/e2e PASS |
 
 ## 순서
 
@@ -55,9 +55,12 @@ node scripts/ai-contract-gate.js --json
   warnings=30
   routes=145
   ui_contract=PASS
+  decision_api_smoke=PASS
+  decision_api_e2e=PASS
 ```
 
-이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반이
+이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
+컴포넌트·API 경계가
 검증됐다는 뜻이며, 최종 90%는 10단계 실제 앱 매트릭스가 닫힐 때 판정한다.
 
 ## 다음 작업
