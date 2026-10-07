@@ -66,6 +66,7 @@ node scripts/ai-contract-gate.js --json
   browser_matrix=PASS (People/Market/Flow/Dashboard headings and Island surfaces)
   dashboard_timestamp=PASS (numeric timestamp rendered as local time)
   sse=KNOWN_LIMITATION (metrics/alerts endpoint returns 501; UI uses polling fallback)
+  afldb_auth_mock=PASS (read/write Bearer boundary + 4xx failure handling)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
@@ -92,6 +93,11 @@ Chrome 접근성 트리에서 5개 행의 컴포넌트·그룹·상태 텍스트
 넘겨 `Invalid Date`가 되던 문제를 발견했다. `Number(timestamp)` 변환과 SSE
 미지원 시 polling fallback 표시를 추가하고 실제 브라우저에서 시간 표시를
 확인했다. SSE 자체는 현재 런타임 계약상 501이므로 PASS로 둔갑시키지 않는다.
+
+AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afldb.flx`에
+`AFLDB_URL`·read/write 키 주입과 4xx/error 전파를 추가했다. 인증 mock에서
+상태·get·put을 실제 요청으로 확인했으며, 운영 키가 없는 성능 측정은 여전히
+BLOCKED다.
 
 ## 다음 작업
 

@@ -6,7 +6,27 @@
 ;  - 지역 변수명 s 금지 (전역 style 헬퍼 s 와 충돌)
 ;  - http 응답 맵 키는 "body"/:body 둘 다 시도
 
-(define afl_db_base "http://127.0.0.1:40610")
+(define afl_db_base (or (env_get "AFLDB_URL") "http://127.0.0.1:40610"))
+(define afl_db_read_key (or (env_get "AFLDB_READ_KEY")
+                            (env_get "AFLDB_ADMIN_KEY")
+                            (env_get "AFLDB_API_KEY")
+                            ""))
+(define afl_db_write_key (or (env_get "AFLDB_WRITE_KEY")
+                             (env_get "AFLDB_ADMIN_KEY")
+                             (env_get "AFLDB_API_KEY")
+                             ""))
+
+(defn afldb-request [method url body key]
+  (let [headers (if (= key "")
+                  {}
+                  {"Authorization" (str "Bearer " key)})]
+    (http_request method url headers body)))
+
+(defn afldb-read [url]
+  (afldb-request "GET" url "" afl_db_read_key))
+
+(defn afldb-write [method url body]
+  (afldb-request method url body afl_db_write_key))
 
 (defn afldb-kv-url [key]
   (str afl_db_base "/kv/" key))
@@ -38,6 +58,12 @@
       nil
       err)))
 
+(defn afldb-response-failed [resp parsed]
+  (let [status (afldb-resp-field resp "status" :status)
+        parsed-error (afldb-field parsed "error" :error)]
+    (or (and (not (= status nil)) (>= status 400))
+        (not (= parsed-error nil)))))
+
 (defn afldb-not-found? [resp parsed]
   (or (= (afldb-resp-field resp "status" :status) 404)
       (= (afldb-field parsed "error" :error) "not found")))
@@ -48,45 +74,50 @@
     parsed))
 
 (defn afldb-get [key fallback]
-  (let [resp (http_get (afldb-kv-url key))
+  (let [resp (afldb-read (afldb-kv-url key))
         parsed (afldb-response-body resp)]
-    (if (afldb-not-found? resp parsed)
+    (if (or (afldb-not-found? resp parsed)
+            (afldb-response-failed resp parsed))
       fallback
       (afldb-unwrap-value key parsed))))
 
 (defn afldb-put [key value]
   (afldb-response-body
-    (http_post (afldb-kv-url key) (json-stringify value))))
+    (afldb-write "POST" (afldb-kv-url key) (json-stringify value))))
 
 (defn afldb-batch-get [keys]
-  (let [resp (http_post (str afl_db_base "/kv-batch") (json-stringify {"keys" keys}))
+  (let [resp (afldb-write "POST" (str afl_db_base "/kv-batch") (json-stringify {"keys" keys}))
         parsed (afldb-response-body resp)]
-    (if (= parsed nil)
+    (if (or (= parsed nil) (afldb-response-failed resp parsed))
       nil
       (afldb-field parsed "items" :items))))
 
 (defn afldb-batch-put [items]
-  (let [resp (http_post (str afl_db_base "/kv-batch-put") (json-stringify {"items" items}))
+  (let [resp (afldb-write "POST" (str afl_db_base "/kv-batch-put") (json-stringify {"items" items}))
         parsed (afldb-response-body resp)]
-    (if (= parsed nil)
+    (if (or (= parsed nil) (afldb-response-failed resp parsed))
       nil
       (afldb-field parsed "results" :results))))
 
 (defn afldb-history [key]
-  (let [resp (http_get (str afl_db_base "/history/" key))
+  (let [resp (afldb-read (str afl_db_base "/history/" key))
         parsed (afldb-response-body resp)]
-    (if (= parsed nil)
+    (if (or (= parsed nil) (afldb-response-failed resp parsed))
       []
       (afldb-field parsed "events" :events))))
 
 (defn afldb-verify []
-  (afldb-response-body (http_get (str afl_db_base "/verify"))))
+  (let [resp (afldb-read (str afl_db_base "/verify"))
+        parsed (afldb-response-body resp)]
+    (if (afldb-response-failed resp parsed) nil parsed)))
 
 (defn afldb-stats []
-  (afldb-response-body (http_get (str afl_db_base "/stats"))))
+  (let [resp (afldb-read (str afl_db_base "/stats"))
+        parsed (afldb-response-body resp)]
+    (if (afldb-response-failed resp parsed) nil parsed)))
 
 (defn afldb-delete [key]
-  (afldb-response-body (http_delete (afldb-kv-url key))))
+  (afldb-response-body (afldb-write "DELETE" (afldb-kv-url key) "")))
 
 (defn afldb-index-get [index-key]
   (let [ids (afldb-get index-key [])]
@@ -122,14 +153,15 @@
 ; 전체 로그 재스캔 /verify 는 ~800ms+ (records 5k·log 18MB) 이므로 목록 API에 넣지 않는다.
 ; 무결성 검사는 (afldb-verify) / /check 에서만.
 (defn afldb-status []
-  (let [sr (http_get (str afl_db_base "/stats"))
+  (let [sr (afldb-read (str afl_db_base "/stats"))
         se (afldb-http-error sr)
         stats-body (afldb-response-body sr)]
-    (if (not (= se nil))
+    (if (or (not (= se nil))
+            (afldb-response-failed sr stats-body))
       {"ok" false
        "base" afl_db_base
        "verified" false
-       "error" se}
+       "error" (or se (afldb-field stats-body "error" :error) "afl-db 응답 오류")}
       (if (= stats-body nil)
         {"ok" false
          "base" afl_db_base
