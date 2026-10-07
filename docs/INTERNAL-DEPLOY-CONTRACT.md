@@ -12,7 +12,7 @@
   loopback bucket을 공유하므로 내부 검수용으로 명시한다. 외부 공개 계약에는
   이 값을 재사용하지 않는다.
 - 검수: `.freelang/smoke.sh`
-- 배포 전 검사: `.freelang/deploy.sh check`
+- 배포 전 검사: `.freelang/deploy.sh check` (임시 clean clone에서 실행해 현재 tree를 오염시키지 않음)
 - 내부 반영: `.freelang/internal-deploy.sh` 또는 `npm run deploy:internal`
 - clean clone 리허설: `npm run deploy:internal:dry` (`PM2`·실제 smoke는 건너뜀)
 - 복구 계획: `.freelang/rollback.sh <verified-commit>`
@@ -22,7 +22,7 @@
 
 ```text
 clean worktree 확인
-→ node fl-front-build.js --json
+→ `.freelang/deploy.sh check` (isolated build)
 → source/generated typecheck + state/UI contract
 → 내부 서버 기동
 → .freelang/smoke.sh
