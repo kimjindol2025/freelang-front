@@ -13,6 +13,7 @@
   이 값을 재사용하지 않는다.
 - 검수: `.freelang/smoke.sh`
 - 배포 전 검사: `.freelang/deploy.sh check`
+- 내부 반영: `.freelang/internal-deploy.sh` 또는 `npm run deploy:internal`
 - 복구 계획: `.freelang/rollback.sh <verified-commit>`
 - DB: 프로젝트의 런타임 `.db`; Git에 추가하지 않는다.
 
@@ -21,9 +22,10 @@
 ```text
 clean worktree 확인
 → node fl-front-build.js --json
+→ source/generated typecheck + state/UI contract
 → 내부 서버 기동
 → .freelang/smoke.sh
-→ artifact/commit 확인
+→ artifact hash/commit 기록
 → operator가 내부 반영
 → 같은 smoke 재실행
 ```
@@ -38,5 +40,7 @@ clean worktree 확인
 - 계약 파일: 구현됨
 - 실제 clean deploy: `BLOCKED` — 기존 사용자 dirty 변경이 존재함
 - 실제 smoke: `PASS` — 5개 대표 화면 200 + 정본 `/api/hello` JSON contract 200
+- 내부 계약은 dirty worktree, 준비 실패, smoke 실패를 각각 `BLOCKED`/`FAIL`로
+  구분하고, 성공 시 `INTERNAL_DEPLOY_COMMIT`, `ARTIFACT_HASH`, `ROLLBACK_TARGET`을 출력한다.
 - 사용자 dirty 기능(예: `/api/decision`)은 별도 feature smoke/e2e로 검증하며 clean artifact gate의 의존성으로 사용하지 않는다.
 - 외부 공개 배포: 범위 밖

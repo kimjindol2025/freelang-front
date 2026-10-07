@@ -18,6 +18,7 @@
     "statecheck": "node scripts/state-contract-gate.js",
     "verify": "node scripts/next90-release-gate.js",
     "verify:internal": "BASE_URL=http://127.0.0.1:40860 node scripts/next90-release-gate.js",
+    "deploy:internal": "bash .freelang/internal-deploy.sh",
     "manifest": "node fl-manifest.js",
     "codes": "node fl-front-build.js --codes",
     "fix": "node fl-front-fix.js",
