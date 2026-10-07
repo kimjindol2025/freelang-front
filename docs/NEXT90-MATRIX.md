@@ -25,7 +25,7 @@
 | 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | 진행 중 — UI contract PASS, 예제 33 추가 |
 | 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | 부분 완료 — 내부 계약·smoke PASS, clean deploy는 dirty 차단 |
 | 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 진행 중 |
-| 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 진행 중 — Decision API smoke/e2e PASS |
+| 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 부분 완료 — HTTP 앱 매트릭스·Decision smoke/e2e PASS, 브라우저 증거는 별도 |
 
 ## 순서
 
@@ -67,6 +67,7 @@ node scripts/ai-contract-gate.js --json
   dashboard_timestamp=PASS (numeric timestamp rendered as local time)
   sse=KNOWN_LIMITATION (metrics/alerts endpoint returns 501; UI uses polling fallback)
   afldb_auth_mock=PASS (read/write Bearer boundary + 4xx failure handling)
+  next90_app_matrix=PASS (People/Market/Flow/Dashboard 200 + 3 API items contracts + 404)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
@@ -101,6 +102,11 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 `AFLDB_URL`·read/write 키 주입과 4xx/error 전파를 추가했다. 인증 mock에서
 상태·get·put을 실제 요청으로 확인했고, PM2 AFJ-DB를 대상으로 성능 수치도
 확보했다.
+
+10단계 대표 앱은 `tests/next90-app-matrix.js`로 실제 실행 경계를 고정했다.
+네 페이지의 200 응답·핵심 화면 표식, People/Market/Followups API의
+`ok=true`·`items` 배열, 알 수 없는 경로의 404를 하나의 런타임 fixture로
+검사한다. 브라우저 상호작용 증거와 서버 HTTP fixture는 서로 대체하지 않는다.
 
 ## 다음 작업
 
