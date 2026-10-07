@@ -199,7 +199,7 @@
 (style ui-stat-card :bg "var(--c-surface)" :border "1px solid var(--c-border)" :radius "12px" :p "20px" :shadow "var(--shadow-sm)" :transition "all 0.3s" :hover-shadow "var(--shadow-md)" :hover-transform "translateY(-2px)")
 
 (defn ui-stat [label value diff]
-  (let [diff-color (if (string? diff)
+  (let [diff-color (if (= (type diff) "string")
     (if (str-starts diff "-") "#dc2626" "#16a34a")
     (if (< diff 0) "#dc2626" "#16a34a"))]
     (h "div" {:class ui-stat-card}
