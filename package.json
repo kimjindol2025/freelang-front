@@ -36,6 +36,7 @@
     "browser": "node fl-browser.js",
     "browser:attach": "node fl-browser.js attach",
     "browser:check": "node fl-browser.js check active",
+    "browser:contract": "bash scripts/browser-contract.sh",
     "browser:watch": "node fl-browser.js watch active",
     "browser:logs": "node fl-browser.js logs active",
     "browser:screenshot": "node fl-browser.js screenshot active",

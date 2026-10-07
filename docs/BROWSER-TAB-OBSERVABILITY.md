@@ -24,6 +24,9 @@ node fl-browser.js check active
 node fl-browser.js logs active
 node fl-browser.js screenshot active
 node fl-browser.js start
+
+# CDP 브라우저가 실행 중일 때 대표 SPA 상호작용 계약
+npm run browser:contract
 ```
 
 ## 탭 식별 규칙
@@ -78,6 +81,11 @@ result: PASS
 ## 구현 훅
 
 - `fl-browser.js`가 로컬 브라우저 CLI와 상태 파일(`.browser-state.json`)을 관리한다.
+- `browser:contract`는 People 로드 → Market SPA 이동 → 글쓰기 폼 표시를 한 탭에서
+  실행하며, 각 단계의 console/network/DOM/screenshot 결과를 확인한다. CDP가
+  없으면 `BLOCKED`로 남긴다. 운영 PM2에서 정상적으로 발생하는 `/~hmr-state`
+  404와 전환 중 `ERR_ABORTED`만 명시적 노이즈로 제외하며, 다른 4xx/5xx와
+  네트워크 오류는 계속 FAIL이다.
 - `dev-server.js`의 HMR/AI 포트(40851)가 `/~ai/browser`와 `/~ai/contracts`에서 브라우저 상태를 읽는다.
 - `/roadmap`는 브라우저 readiness를 요약 라인으로 반영한다.
 

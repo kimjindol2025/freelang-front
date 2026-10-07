@@ -18,7 +18,7 @@ function usage() {
     `  node fl-browser.js start [--executable PATH] [--browser-url URL] [--url URL]\n` +
     `  node fl-browser.js attach [active|--url URL|--title TITLE|--target-id ID]\n` +
     `  node fl-browser.js watch active [--reload]\n` +
-    `  node fl-browser.js check active [--reload] [--selector CSS] [--click CSS] [--fill CSS=TEXT] [--screenshot PATH]\n` +
+    `  node fl-browser.js check active [--goto URL] [--reload] [--selector CSS] [--click CSS] [--fill CSS=TEXT] [--screenshot PATH]\n` +
     `  node fl-browser.js logs active\n` +
     `  node fl-browser.js screenshot active [--output PATH]\n` +
     `  node fl-browser.js status\n` +
@@ -77,6 +77,13 @@ function nowIso() {
 function shortText(value, max = 120) {
   const s = String(value || '').replace(/\s+/g, ' ').trim();
   return s.length > max ? s.slice(0, max - 1) + '…' : s;
+}
+
+function expectedNetworkNoise(status, url, errorText) {
+  const target = String(url || '');
+  const error = String(errorText || '');
+  return (Number(status) === 404 && target.includes('/~hmr-state'))
+    || error.includes('ERR_ABORTED');
 }
 
 function normalizeRouteOrUrl(value) {
@@ -393,12 +400,14 @@ async function runCheck(session, state, argv, { watch = false } = {}) {
     consoleLog.unshift(entry);
   };
   session.handlers['Network.loadingFailed'] = params => {
+    if (expectedNetworkNoise(0, '', params.errorText)) return;
     const entry = { level: 'error', text: shortText(`${params.requestId} ${params.errorText}`), time: nowIso() };
     networkErrors.unshift(entry);
     errors.unshift(entry);
   };
   session.handlers['Network.responseReceived'] = params => {
     const status = Number(params.response?.status || 0);
+    if (expectedNetworkNoise(status, params.response?.url, '')) return;
     if (status >= 400) {
       const entry = { level: 'error', text: shortText(`${status} ${params.response?.url || ''}`), time: nowIso() };
       networkErrors.unshift(entry);
@@ -411,7 +420,10 @@ async function runCheck(session, state, argv, { watch = false } = {}) {
   await session.call('Network.enable');
   await session.call('Console.enable').catch(() => {});
 
-  if (argv.reload) {
+  if (argv.goto) {
+    await session.call('Page.navigate', { url: String(argv.goto) });
+    await sleep(Math.min(1500, timeoutMs));
+  } else if (argv.reload) {
     await session.call('Page.reload', { ignoreCache: true });
     await sleep(Math.min(1500, timeoutMs));
   } else {
@@ -535,11 +547,13 @@ async function watchTarget(session, state, argv) {
     consoleLog.unshift(entry);
   };
   session.handlers['Network.loadingFailed'] = params => {
+    if (expectedNetworkNoise(0, '', params.errorText)) return;
     const entry = { level: 'error', text: shortText(`${params.requestId} ${params.errorText}`), time: nowIso() };
     networkErrors.unshift(entry);
   };
   session.handlers['Network.responseReceived'] = params => {
     const status = Number(params.response?.status || 0);
+    if (expectedNetworkNoise(status, params.response?.url, '')) return;
     if (status >= 400) {
       const entry = { level: 'error', text: shortText(`${status} ${params.response?.url || ''}`), time: nowIso() };
       networkErrors.unshift(entry);
