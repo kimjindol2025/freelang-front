@@ -2578,6 +2578,7 @@ function checkReqKeyCollision(routes, helpers) {
 // #6 동적 라우트가 정적 형제를 가로챌 여지 (정적 우선 등록 필요)
 function checkRouteShadow(routes) {
   const seg = r => r.route.split('/').filter(Boolean);
+  const order = new Map(routes.map((r, index) => [r.route, index]));
   const dynamics = routes.filter(r => r.route.includes(':'));
   const statics  = routes.filter(r => !r.route.includes(':'));
   const hits = [];
@@ -2591,7 +2592,11 @@ function checkRouteShadow(routes) {
         if (ds[k].startsWith(':')) continue;       // 동적 위치 — 무엇이든 매치
         if (ds[k] !== ss[k]) { shadow = false; break; }
       }
-      if (shadow) hits.push({ dyn: d.route, stat: s.route, file: path.basename(d.file) });
+      // The warning is actionable only when the generated registration order
+      // is actually unsafe. Static routes are intentionally sorted first.
+      if (shadow && order.get(d.route) < order.get(s.route)) {
+        hits.push({ dyn: d.route, stat: s.route, file: path.basename(d.file) });
+      }
     }
   }
   if (hits.length === 0) { console.log('  \x1b[32m✅ 라우트 가로채기 위험 없음\x1b[0m'); return; }
