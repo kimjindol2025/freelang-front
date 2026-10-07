@@ -13,6 +13,20 @@
 (server-static "public/uploads/market" "/uploads/market")
 (server-static "public/fx2-wasm" "/fx2-wasm")
 
+; 개발 모드 HMR 브리지 — 브라우저는 앱 origin(:40860)만 사용한다.
+(defn dev-hmr-state [req]
+  (if (= (fl-env-get "FL_DEV") "1")
+    (let [raw (try (file-read ".hmr-event.json")
+                   (catch $e "{\"version\":0,\"type\":\"\"}"))
+          state (json-parse raw)
+          since (str-to-num (or (server-req-query req "since") "0"))
+          version (or (get state "version") 0)
+          kind (if (> version since) (or (get state "type") "") "")]
+      (server-json {"version" version "type" kind}))
+    (server_status 404 "")))
+
+(server-get "/~hmr-state" "dev-hmr-state")
+
 ; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
 (load "_app.fl")
 

@@ -18,6 +18,7 @@ const CSS_FILE       = path.join(ROOT, 'public', 'app.css');
 const BUILD_JS       = path.join(ROOT, 'fl-front-build.js');
 const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');
 const BROWSER_STATE_FILE = path.join(ROOT, '.browser-state.json');
+const HMR_STATE_FILE = path.join(ROOT, '.hmr-event.json');
 const RUNTIME        = path.join(ROOT, 'runtime', 'bootstrap.js');
 const HMR_PORT       = 40851;
 const APP_PORT       = Number(process.env.PORT || 40860);
@@ -25,6 +26,7 @@ const APP_PORT       = Number(process.env.PORT || 40860);
 let serverProc    = null;
 let debounceTimer = null;
 let hmrClients    = [];
+let hmrVersion    = 0;
 const fileHashes  = new Map();   // full file hash
 const logicHashes = new Map();   // (style …) 제거 후 해시 — CSS-only 판별
 
@@ -288,6 +290,12 @@ const hmrServer = http.createServer((req, res) => {
 });
 
 function hmrReload(type = 'reload') {
+  hmrVersion += 1;
+  try {
+    fs.writeFileSync(HMR_STATE_FILE, JSON.stringify({ version: hmrVersion, type }));
+  } catch (e) {
+    console.warn(`[hmr] 상태 파일 기록 실패: ${e.message}`);
+  }
   const dead = [];
   for (const client of hmrClients) {
     try { client.write(`data: ${type}\n\n`); }
@@ -454,6 +462,7 @@ function startServer() {
       stdio: 'pipe',
       env: {
         ...process.env,
+        FL_DEV: '1',
         FL_HTTP_ALLOW: process.env.FL_HTTP_ALLOW || '127.0.0.1,localhost',
       },
     });

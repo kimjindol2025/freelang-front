@@ -1,6 +1,6 @@
 # HMR 3단계 (dev-server)
 
-`npm run dev` → SSE `http://localhost:40851/~hmr`
+`npm run dev` → 앱 origin의 `GET /~hmr-state` 폴링 브리지
 
 | 단계 | 신호 | 동작 |
 |------|------|------|
@@ -16,7 +16,10 @@
 ## 실행 계약
 
 - 운영: `ecosystem.config.js`의 `runtime/bootstrap.js run server.fl` → `:40860`
-- 개발: `npm run dev` → 앱 `:40860` + HMR/AI 서버 `:40851`
+- 개발: `npm run dev` → 앱 `:40860` + 보조 HMR/AI 서버 `:40851`
+- 브라우저 HMR은 앱과 같은 origin의 `:40860/~hmr-state`를 사용한다. 따라서
+  브라우저 정책이나 프록시가 `:40851`을 차단해도 앱 origin 기반 HMR 검증은 가능하다.
+- `:40851`은 개발 서버의 기존 SSE/AI 보조 엔드포인트이며 브라우저의 필수 경로가 아니다.
 - 개발 서버는 재시작 로그만 기다리지 않고 앱 포트가 HTTP 응답 가능한 상태가 된 뒤 HMR 신호를 보낸다.
 - 운영 PM2와 개발 서버는 같은 앱 포트를 사용하므로 동시에 실행하지 않는다.
 
@@ -28,9 +31,11 @@ pm2 startOrRestart ecosystem.config.js --only freelang-front
 curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:40860/front
 ```
 
-브라우저 자동 갱신은 `npm run dev`에서 확인한다. `:40851`을 차단하는 프록시·브라우저 정책이 있으면 HMR 브라우저 검증은 BLOCKED로 기록하고, 앱 HTTP·빌드·개발 서버 기동 검증과 분리한다.
+브라우저 자동 갱신은 `npm run dev`에서 확인한다. 개발 모드가 아닌 운영 PM2에서는
+`/~hmr-state`가 `404`를 반환하며 HMR 브리지가 비활성화된다.
 
 ## 구현 파일
 - `dev-server.js` — 감시·신호
-- `pages/_layout.flx` `HMR-SCRIPT` — 클라이언트
+- `pages/_layout.flx` `HMR-SCRIPT` — same-origin 클라이언트 폴링
+- `server.fl` `dev-hmr-state` — 개발 전용 상태 브리지
 - `island-compiler.js` — `hmr_snapshot` / `hmr_register` / atom 복원
