@@ -68,6 +68,7 @@ node scripts/ai-contract-gate.js --json
   sse=KNOWN_LIMITATION (metrics/alerts endpoint returns 501; UI uses polling fallback)
   afldb_auth_mock=PASS (read/write Bearer boundary + 4xx failure handling)
   next90_app_matrix=PASS (People/Market/Flow/Dashboard 200 + 3 API items contracts + 404)
+  fl_tools_check=BLOCKED (FreeLang static checker reports 95 false-positive arity issues for [& rest] and optional h/h! calls)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
@@ -107,6 +108,15 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 네 페이지의 200 응답·핵심 화면 표식, People/Market/Followups API의
 `ok=true`·`items` 배열, 알 수 없는 경로의 404를 하나의 런타임 fixture로
 검사한다. 브라우저 상호작용 증거와 서버 HTTP fixture는 서로 대체하지 않는다.
+
+`fl-tools check`는 별도로 BLOCKED다. 재현된 첫 원인은 FreeLang 코어의
+`src/type-check-static.ts`가 파라미터 목록의 `&` rest marker를 variadic으로
+분류하지 않는 것이다. 그 결과 `s [& parts]`, `ui-form-group [& fields]`,
+`h`/`h!`의 선택·추가 인자를 고정 arity로 보고 95건을 내놓는다. 같은 커밋의
+Front 빌드에서는 errors=0이고, 실제 대표 화면·API·브라우저 검증도 통과했으므로
+이 항목은 화면 런타임 실패가 아니라 **코어 정적검사기 blocker**로 분리한다.
+코어 저장소의 기존 dirty 변경을 보존한 상태에서 별도 수정·회귀 검증 후
+Front의 `fl-tools check`를 다시 닫아야 한다.
 
 ## 다음 작업
 
