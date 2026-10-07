@@ -24,17 +24,17 @@
 | 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | PASS — AI gate + 3개 진단 회귀 PASS |
 | 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | PASS — UI contract 0 violations + 브라우저 DOM |
 | 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | PASS — clean deploy/smoke/rollback-plan PASS |
-| 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 검증 중 — SSE capability는 실제 stream gate로 별도 판정 |
+| 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | PASS 8/10 — auth/perf + metrics/alerts SSE 실제 stream gate PASS |
 | 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | PASS 9/10 — HTTP matrix + 브라우저 DOM, console limitation 1건 |
 
 ## 최종 점수
 
 ```text
 stage_scores = [10, 10, 9, 9, 10, 10, 10, 10, 8, 9]
-NEXT90_SCORE = 95 / 100 (SSE gate 통과 시)
-NEXT90 = 검증 중
+NEXT90_SCORE = 95 / 100
+NEXT90 = PASS (기능 gate)
 판정: 90점 이상이며 핵심 영역 6점 미만 없음
-기준 HEAD: 1460447 (clean artifact 통합 gate에서 전 항목 PASS)
+기준 HEAD: 31e0715 (기능 gate; clean-worktree는 사용자 변경 보존으로 BLOCKED)
 ```
 
 점수는 상용 운영 준비도가 아니라 이 문서의 Next-90 범위(SSR·API·Island·AI
@@ -137,4 +137,4 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 
 다음 개선 후보는 View Transition 취소 로그를 줄이고, 실제 clean worktree에서
 내부 배포·rollback 적용 리허설을 수행하는 것이다. SSE는 구현·실행·회귀 증거를
-확보하기 전까지 점수에 반영하지 않는 원칙을 유지한다.
+확보했으므로 이번 점수에 반영했다.
