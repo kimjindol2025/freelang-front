@@ -16,16 +16,29 @@
 
 | 단계 | 영역 | 완료 기준 | 현재 상태 |
 |---:|---|---|---|
-| 1 | 언어 코어·진단 | `.flx` 문법, 오류 코드, `--json`, manifest, AI gate | 진행 중 — AI gate PASS, errors 0, warnings 30 |
-| 2 | 파일 라우팅 | 정적·동적·중첩·404·redirect·충돌 판정 | 진행 중 — 145 route build 확인 |
-| 3 | SSR·레이아웃 | layout/landing, metadata, loading/error, 공통 셸 | 진행 중 |
-| 4 | API·데이터 | CRUD, validation, SQLite/AFJ, 표준 오류 응답 | 진행 중 |
-| 5 | Island UI | atom, fetch, form, filter, expand, optimistic update | 진행 중 — 기존 island 테스트 존재 |
-| 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | 부분 완료 — AI contract gate 추가 |
-| 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | 진행 중 — UI contract PASS, 예제 33 추가 |
-| 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | 부분 완료 — 내부 계약·smoke PASS, clean deploy는 dirty 차단 |
-| 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 진행 중 |
-| 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 부분 완료 — HTTP 앱 매트릭스·Decision smoke/e2e PASS, 브라우저 증거는 별도 |
+| 1 | 언어 코어·진단 | `.flx` 문법, 오류 코드, `--json`, manifest, AI gate | PASS — build/typecheck/AI gate, errors 0 |
+| 2 | 파일 라우팅 | 정적·동적·중첩·404·redirect·충돌 판정 | PASS — clean artifact 144 routes + 404 |
+| 3 | SSR·레이아웃 | layout/landing, metadata, loading/error, 공통 셸 | PASS 9/10 — 대표 SSR 5면 200, 빠른 SPA 이동 취소 로그 1건 |
+| 4 | API·데이터 | CRUD, validation, SQLite/AFJ, 표준 오류 응답 | PASS 9/10 — API matrix, AFJ-DB auth/perf, CRUD evidence |
+| 5 | Island UI | atom, fetch, form, filter, expand, optimistic update | PASS — Island 11/11, 경계/JS 검사 PASS |
+| 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | PASS — AI gate + 3개 진단 회귀 PASS |
+| 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | PASS — UI contract 0 violations + 브라우저 DOM |
+| 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | PASS — clean deploy/smoke/rollback-plan PASS |
+| 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | PASS 7/10 — auth/perf PASS, SSE 501은 감점 |
+| 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | PASS 9/10 — HTTP matrix + 브라우저 DOM, console limitation 1건 |
+
+## 최종 점수
+
+```text
+stage_scores = [10, 10, 9, 9, 10, 10, 10, 10, 7, 9]
+NEXT90_SCORE = 94 / 100
+NEXT90 = PASS
+판정: 90점 이상이며 핵심 영역 6점 미만 없음
+기준 HEAD: 1460447 (clean artifact 통합 gate에서 전 항목 PASS)
+```
+
+점수는 상용 운영 준비도가 아니라 이 문서의 Next-90 범위(SSR·API·Island·AI
+개발 경험)의 능력 점수다. 외부 공개, PM2 이름 추측, 상용 release는 범위 밖이다.
 
 ## 순서
 
@@ -69,11 +82,12 @@ node scripts/ai-contract-gate.js --json
   afldb_auth_mock=PASS (read/write Bearer boundary + 4xx failure handling)
   next90_app_matrix=PASS (People/Market/Flow/Dashboard 200 + 3 API items contracts + 404)
   fl_tools_check=PASS (official FX runner recognizes `&` rest; Front type-check 0 errors)
+  next90_release_gate=PASS (clean artifact; build/contract/typecheck/regression/HTTP all PASS)
 ```
 
-이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
-컴포넌트·API 경계가
-검증됐다는 뜻이며, 최종 90%는 10단계 실제 앱 매트릭스가 닫힐 때 판정한다.
+이 수치는 위의 10단계 점수표와 clean artifact gate 결과를 합친 최종 판정이다.
+사용자 정본의 dirty 변경은 별도 보존했으며, 그 상태에서의 deploy 명령은 계속
+정책상 BLOCKED다. clean artifact에서만 내부 deploy gate를 PASS로 판정한다.
 
 ## 검수에서 발견한 회귀와 조치
 
@@ -119,6 +133,6 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 
 ## 다음 작업
 
-다음은 10단계 release gate에서 남은 운영 경계(SSE 501 polling fallback,
-계약 문서의 이전 검증 커밋 표시, dirty-worktree 내부 배포 차단)를 각각
-정리하고, 최종 점수를 다시 계산하는 것이다.
+남은 blocker는 없다. 다음 개선 후보는 SSE capability를 Front runtime에 흡수하고,
+View Transition 취소 로그를 줄이는 것이다. 두 항목은 현재 94점 판정을 뒤집지는
+않지만, 구현·실행·회귀 증거를 확보하기 전에는 PASS로 올리지 않는다.
