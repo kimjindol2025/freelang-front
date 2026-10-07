@@ -1,0 +1,43 @@
+; FreeLang Front 장점 소개
+; route: /front
+
+(defn advantage-card [icon title body]
+  (h "div" {:style "padding:20px;border:1px solid #e5e7eb;border-radius:16px;background:#fff;box-shadow:0 8px 24px rgba(15,23,42,.06)"}
+    (h "div" {:style "font-size:28px;margin-bottom:10px"} icon)
+    (h "h3" {:style "margin:0 0 8px;color:#111827;font-size:1.05rem"} title)
+    (h "p" {:style "margin:0;color:#6b7280;line-height:1.7"} body)))
+
+(defn front-content []
+  (str
+      (h "main" {:style "max-width:1080px;margin:0 auto;padding:48px 24px"}
+      (h "section" {:style "padding:48px 0 36px;text-align:center"}
+        (h "div" {:style "display:inline-block;padding:6px 12px;border-radius:999px;background:#eef2ff;color:#4f46e5;font-size:.85rem;font-weight:700"} "FreeLang Front")
+        (h "h1" {:style "margin:18px 0 14px;font-size:clamp(2rem,5vw,4rem);letter-spacing:-.04em;color:#111827"} "한 파일로 만드는\n풀스택 화면")
+        (h "p" {:style "max-width:680px;margin:0 auto;color:#6b7280;font-size:1.1rem;line-height:1.8"}
+          "라우팅, SSR, 스타일, 인터랙션을 FreeLang 문법 하나로 연결합니다. AI가 이해하기 쉽고, 사람이 추적하기 쉬운 Front 런타임입니다."))
+      (h "section" {:style "display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin:24px 0 44px"}
+        (advantage-card "🧩" "파일이 곧 라우트" "pages/*.flx 구조가 URL이 됩니다. 설정 파일을 따로 맞추지 않아도 화면과 API가 자연스럽게 연결됩니다.")
+        (advantage-card "⚡" "SSR + Island" "첫 화면은 서버에서 빠르게 그리고, 필요한 부분만 Island로 살아나게 해 JavaScript를 줄입니다.")
+        (advantage-card "🎨" "스타일을 가까이" "화면 코드와 스타일 의도를 한곳에서 읽고 수정합니다. CSS DSL과 공통 UI 헬퍼로 반복을 줄입니다.")
+        (advantage-card "🤖" "AI 검수에 강함" "manifest, 진단, 회귀 테스트, 실제 HTTP gate가 있어 AI가 만든 변경을 근거와 함께 확인할 수 있습니다."))
+      (h "section" {:style "display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px;align-items:stretch"}
+        (h "div" {:style "padding:28px;border-radius:18px;background:#111827;color:#f9fafb"}
+          (h "h2" {:style "margin:0 0 16px;font-size:1.25rem"} "작은 코드로 전체 흐름 보기")
+          (h "pre" {:style "margin:0;overflow:auto;color:#c7d2fe;line-height:1.7;font-size:.9rem"}
+            "pages/front.flx\n\n(defn render [req]\n  (layout-html\n    (h \"h1\" {} \"안녕하세요\")\n    req))"))
+        (h "div" {:style "padding:28px;border:1px solid #e5e7eb;border-radius:18px;background:#f8fafc"}
+          (h "h2" {:style "margin:0 0 16px;color:#111827;font-size:1.25rem"} "이런 때 잘 맞습니다")
+          (h "ul" {:style "margin:0;padding-left:20px;color:#4b5563;line-height:2"}
+            (h "li" {} "관리자 화면과 내부 도구")
+            (h "li" {} "콘텐츠 중심 SSR 서비스")
+            (h "li" {} "AI와 함께 빠르게 만드는 프로토타입")
+            (h "li" {} "의존성을 줄인 FreeLang 생태계 앱"))))
+      (h "div" {:style "margin-top:42px;text-align:center;color:#6b7280"}
+        "FreeLang Front — SSR · API · Island")
+    )))
+
+(defn render [req]
+  (layout-html-seo "FreeLang Front의 장점"
+    (front-content)
+    req
+    {"title" "FreeLang Front의 장점" "desc" "파일 기반 라우팅, SSR, Island, AI 검수를 하나의 FreeLang Front 흐름으로." "type" "article"}))
