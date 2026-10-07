@@ -23,7 +23,7 @@
 | 5 | Island UI | atom, fetch, form, filter, expand, optimistic update | 진행 중 — 기존 island 테스트 존재 |
 | 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | 부분 완료 — AI contract gate 추가 |
 | 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | 진행 중 — UI contract PASS, 예제 33 추가 |
-| 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | 부분 완료 |
+| 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | 부분 완료 — 내부 계약·smoke PASS, clean deploy는 dirty 차단 |
 | 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 진행 중 |
 | 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 진행 중 — Decision API smoke/e2e PASS |
 
@@ -60,6 +60,8 @@ node scripts/ai-contract-gate.js --json
   http_pages=/people,/market,/flow,/dashboard,/examples/33-ui-components => 200
   ui_example_marker=PASS
   browser_ui_matrix=PASS (5 rows rendered with accessible text)
+  internal_smoke=PASS (5 pages 200 + POST validation 400)
+  internal_deploy=BLOCKED (dirty-worktree)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
