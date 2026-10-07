@@ -179,19 +179,21 @@
 ; ===== Table =====
 (style ui-table-wrap :bg "var(--c-surface)" :border "1px solid var(--c-border)" :radius "12px" :overflow "hidden" :box-shadow "var(--shadow-sm)" :mb "16px")
 
+(defn ui-table-header-cell [label]
+  (h "th" {:style "padding:10px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:1px solid var(--c-border);text-align:left;"}
+    (str label)))
+
+(defn ui-table-row [item]
+  (h "tr" {:style "border-bottom:1px solid #f1f3f6;"}
+    (str
+      (h "td" {:style "padding:11px 14px;font-size:14px;"} (str (get item 0)))
+      (h "td" {:style "padding:11px 14px;font-size:14px;"} (str (get item 1)))
+      (h "td" {:style "padding:11px 14px;font-size:14px;"} (str (get item 2))))))
+
 (defn ui-table [headers rows]
   (let [header-html (h "thead" {}
-    (h "tr" {} (arr-join (map (fn [col] (h "th" {:style "padding:10px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:1px solid var(--c-border);text-align:left;"} col)) headers) "")))
-    row-html (arr-join
-      (map (fn [row]
-        (h "tr" {:style "border-bottom:1px solid #f1f3f6;"}
-          (arr-join
-            (map (fn [column]
-                   (h "td" {:style "padding:11px 14px;font-size:14px;"}
-                     (str (get row column))))
-              headers)
-            "")))
-        rows) "")]
+    (h "tr" {} (arr-join (map ui-table-header-cell headers) "")))
+    row-html (arr-join (map ui-table-row rows) "")]
     (h "div" {:class ui-table-wrap}
       (h "table" {:style "width:100%;border-collapse:collapse;"} (str header-html row-html)))))
 

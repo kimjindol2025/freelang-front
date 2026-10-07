@@ -59,6 +59,7 @@ node scripts/ai-contract-gate.js --json
   decision_api_e2e=PASS
   http_pages=/people,/market,/flow,/dashboard,/examples/33-ui-components => 200
   ui_example_marker=PASS
+  browser_ui_matrix=PASS (5 rows rendered with accessible text)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
@@ -72,6 +73,10 @@ node scripts/ai-contract-gate.js --json
 맵 행 계약으로 수정한 뒤 빌드, UI 계약 게이트, 전체 대표 화면 HTTP 검수를 다시
 실행했고 모두 PASS/200으로 확인했다. 이 사례는 문법·정적 검사만으로는 충분하지
 않고 새 화면을 반드시 실제 서버에서 호출해야 한다는 검수 규칙으로 남긴다.
+
+이후 브라우저 접근성 검수에서 셀 값이 `null`로 보이는 추가 회귀를 발견했다.
+익명 함수 경계를 named helper로 바꾸고 실제 `get` 인덱스 계약을 사용한 뒤,
+Chrome 접근성 트리에서 5개 행의 컴포넌트·그룹·상태 텍스트를 확인했다.
 
 ## 다음 작업
 
