@@ -26,6 +26,7 @@ clean worktree 확인
 → source/generated typecheck + state/UI contract
 → 내부 서버 기동
 → .freelang/smoke.sh
+→ SPA HTTP 계약(CSP·Island mount·legacy eval 부재)
 → artifact hash/commit 기록
 → operator가 내부 반영
 → 같은 smoke 재실행
@@ -41,6 +42,7 @@ clean worktree 확인
 - 계약 파일: 구현됨
 - 실제 clean deploy: `BLOCKED` — 기존 사용자 dirty 변경이 존재함
 - 실제 smoke: `PASS` — 5개 대표 화면 200 + 정본 `/api/hello` JSON contract 200
+- 실제 SPA 계약: `PASS` — `/people`·`/market` layout/Island/CSP 경계 확인
 - 내부 계약은 dirty worktree, 준비 실패, smoke 실패를 각각 `BLOCKED`/`FAIL`로
   구분하고, 성공 시 `INTERNAL_DEPLOY_COMMIT`, `ARTIFACT_HASH`, `ROLLBACK_TARGET`을 출력한다.
 - `DRY_RUN=1`은 clean clone에서 정적 계약과 artifact만 검증하는 리허설이며

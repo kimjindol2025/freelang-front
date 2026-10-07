@@ -53,6 +53,7 @@ fi
 
 FL_FRONT_BASE_URL="$base_url" bash .freelang/smoke.sh
 BASE_URL="$base_url" node scripts/sse-contract-gate.js
+BASE_URL="$base_url" node scripts/spa-contract-gate.js
 echo "INTERNAL_DEPLOY=PASS"
 echo "INTERNAL_DEPLOY_COMMIT=$commit"
 echo "ARTIFACT_HASH=$artifact_hash"
