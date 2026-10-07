@@ -7,6 +7,7 @@
  *
  * 부하/픽스처 데이터를 만들지 않는다. 기존 서비스(:40860/:40610)만 읽는다.
  * CRUD 프로브는 add 직후 같은 content로 delete — 잔여 0.
+ * AFJ-DB v1 보호 경로는 AFLDB_ADMIN_KEY 또는 AFLDB_KEY를 사용한다.
  */
 'use strict';
 
@@ -15,6 +16,7 @@ const { performance } = require('perf_hooks');
 
 const FRONT = process.env.FL_FRONT || 'http://127.0.0.1:40860';
 const AFLDB = process.env.AFL_DB || 'http://127.0.0.1:40610';
+const AFLDB_KEY = process.env.AFLDB_ADMIN_KEY || process.env.AFLDB_KEY || process.env.AFLDB_API_KEY || '';
 const N = Number(process.env.PERF_N || 5);
 const WARM = Number(process.env.PERF_WARM || 1);
 const JSON_OUT = process.argv.includes('--json');
@@ -87,6 +89,11 @@ async function medianOf(label, fn) {
   return out;
 }
 
+function afldbTimed(path, key = AFLDB_KEY) {
+  const headers = key ? { Authorization: `Bearer ${key}` } : {};
+  return timed(`${AFLDB}${path}`, { headers });
+}
+
 async function crudAddDelete() {
   const content = `perf-probe-${Date.now()}`;
   const t0 = performance.now();
@@ -109,9 +116,9 @@ async function main() {
   results.front_clips_html = await medianOf('front_clips_html', () => timed(`${FRONT}/clips`));
   results.front_clips_api = await medianOf('front_clips_api', () => timed(`${FRONT}/clips/api`));
   results.front_api_afldb = await medianOf('front_api_afldb', () => timed(`${FRONT}/api/afldb`));
-  results.afldb_stats = await medianOf('afldb_stats', () => timed(`${AFLDB}/stats`));
-  results.afldb_verify = await medianOf('afldb_verify', () => timed(`${AFLDB}/verify`));
-  results.afldb_kv_clips_index = await medianOf('afldb_kv_clips_index', () => timed(`${AFLDB}/kv/fl:clips:index`));
+  results.afldb_stats = await medianOf('afldb_stats', () => afldbTimed('/v1/stats'));
+  results.afldb_verify = await medianOf('afldb_verify', () => afldbTimed('/v1/verify'));
+  results.afldb_kv_clips_index = await medianOf('afldb_kv_clips_index', () => afldbTimed('/v1/kv/fl:clips:index'));
   results.front_clips_crud_add_delete = await medianOf('front_clips_crud_add_delete', crudAddDelete);
 
   const report = {

@@ -62,6 +62,7 @@ node scripts/ai-contract-gate.js --json
   browser_ui_matrix=PASS (5 rows rendered with accessible text)
   internal_smoke=PASS (5 pages 200 + POST validation 400)
   internal_deploy=BLOCKED (dirty-worktree)
+  perf_afldb=BLOCKED (AFJ-DB key not supplied; prior legacy /stats probe returned 401)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
@@ -79,6 +80,10 @@ node scripts/ai-contract-gate.js --json
 이후 브라우저 접근성 검수에서 셀 값이 `null`로 보이는 추가 회귀를 발견했다.
 익명 함수 경계를 named helper로 바꾸고 실제 `get` 인덱스 계약을 사용한 뒤,
 Chrome 접근성 트리에서 5개 행의 컴포넌트·그룹·상태 텍스트를 확인했다.
+
+성능 단계에서는 기존 측정기가 AFJ-DB의 이전 비인증 경로(`/stats`, `/verify`)를
+사용하고 있음을 발견했다. 측정기를 현재 `/v1/*` Bearer 계약으로 갱신했지만,
+검증 환경에 `AFLDB_ADMIN_KEY`가 없어 실제 수치 산출은 아직 BLOCKED다.
 
 ## 다음 작업
 
