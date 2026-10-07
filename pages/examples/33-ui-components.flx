@@ -2,11 +2,11 @@
 ; 목적: _ui.flx의 공통 컴포넌트를 한 화면에서 조합하고 SSR 결과를 검증한다.
 
 (defn render [req]
-  (let [rows [["ui-btn" "atoms" "PASS"]
-              ["ui-input" "forms" "PASS"]
-              ["ui-card" "layout" "PASS"]
-              ["ui-alert" "feedback" "PASS"]
-              ["ui-table" "data" "PASS"]]]
+  (let [rows [{"component" "ui-btn" "group" "atoms" "status" "PASS"}
+              {"component" "ui-input" "group" "forms" "status" "PASS"}
+              {"component" "ui-card" "group" "layout" "status" "PASS"}
+              {"component" "ui-alert" "group" "feedback" "status" "PASS"}
+              {"component" "ui-table" "group" "data" "status" "PASS"}]]
     (layout-html "33 · UI 컴포넌트 계약"
       (h "main" {:style "max-width:960px;margin:0 auto;padding:40px 24px"}
         (str

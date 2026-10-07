@@ -186,10 +186,10 @@
       (map (fn [row]
         (h "tr" {:style "border-bottom:1px solid #f1f3f6;"}
           (arr-join
-            (map (fn [cell] (h "td" {:style "padding:11px 14px;font-size:14px;"} (str cell)))
-              (if (= (type row) "map")
-                (map (fn [k] (get row k)) headers)
-                row))
+            (map (fn [column]
+                   (h "td" {:style "padding:11px 14px;font-size:14px;"}
+                     (str (get row column))))
+              headers)
             "")))
         rows) "")]
     (h "div" {:class ui-table-wrap}
@@ -199,9 +199,8 @@
 (style ui-stat-card :bg "var(--c-surface)" :border "1px solid var(--c-border)" :radius "12px" :p "20px" :shadow "var(--shadow-sm)" :transition "all 0.3s" :hover-shadow "var(--shadow-md)" :hover-transform "translateY(-2px)")
 
 (defn ui-stat [label value diff]
-  (let [diff-color (if (= (type diff) "string")
-    (if (str-starts diff "-") "#dc2626" "#16a34a")
-    (if (< diff 0) "#dc2626" "#16a34a"))]
+  (let [diff-text (str diff)
+        diff-color (if (str-starts diff-text "-") "#dc2626" "#16a34a")]
     (h "div" {:class ui-stat-card}
       (str
         (h "div" {:style "font-size:12px;color:var(--c-muted);margin-bottom:8px;"} label)

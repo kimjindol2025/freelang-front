@@ -15,6 +15,7 @@ const required = {
 };
 const forbidden = [
   { token: 'string?', reason: 'Front runtime has no string? builtin' },
+  { token: '(type ', reason: 'Front runtime has no type builtin' },
   { token: 'nil?', reason: 'Front source uses (= value nil)' },
   { token: 'server-req-body', reason: 'POST body is (get req "body")' },
 ];

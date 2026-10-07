@@ -57,11 +57,21 @@ node scripts/ai-contract-gate.js --json
   ui_contract=PASS
   decision_api_smoke=PASS
   decision_api_e2e=PASS
+  http_pages=/people,/market,/flow,/dashboard,/examples/33-ui-components => 200
+  ui_example_marker=PASS
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
 컴포넌트·API 경계가
 검증됐다는 뜻이며, 최종 90%는 10단계 실제 앱 매트릭스가 닫힐 때 판정한다.
+
+## 검수에서 발견한 회귀와 조치
+
+예제 33을 처음 실제 HTTP로 호출했을 때 `ui-table`과 `ui-stat`에 존재하지 않는
+`type` 내장함수가 남아 있어 500이 발생했다. 런타임에 실제 존재하는 문자열 변환과
+맵 행 계약으로 수정한 뒤 빌드, UI 계약 게이트, 전체 대표 화면 HTTP 검수를 다시
+실행했고 모두 PASS/200으로 확인했다. 이 사례는 문법·정적 검사만으로는 충분하지
+않고 새 화면을 반드시 실제 서버에서 호출해야 한다는 검수 규칙으로 남긴다.
 
 ## 다음 작업
 
