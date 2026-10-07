@@ -33,5 +33,16 @@ POST /api/afldb action=get            PASS
 POST /api/afldb action=put            PASS
 ```
 
-실제 AFJ-DB 성능 수치는 별도 `AFLDB_ADMIN_KEY`가 제공될 때
-`scripts/perf-afldb.js`로 측정한다.
+실제 PM2 AFJ-DB와 Front에 `AFLDB_ADMIN_KEY`를 주입해
+`PERF_N=3 PERF_WARM=1 node scripts/perf-afldb.js --json`을 실행했다.
+
+```text
+front_clips_api       median 31.2ms
+afldb_stats           median 1.5ms
+afldb_verify          median 25.4ms
+clips CRUD 왕복       median 85.5ms
+```
+
+KV 인덱스 probe의 404는 없는 키를 뜻하므로 측정 실패로 중단하지 않고
+라우팅·인증 지연만 기록한다. 실제 데이터 CRUD는 별도 add/delete probe로
+잔여 데이터를 남기지 않게 검증한다.

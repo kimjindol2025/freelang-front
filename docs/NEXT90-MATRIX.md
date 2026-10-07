@@ -62,7 +62,7 @@ node scripts/ai-contract-gate.js --json
   browser_ui_matrix=PASS (5 rows rendered with accessible text)
   internal_smoke=PASS (5 pages 200 + POST validation 400)
   internal_deploy=BLOCKED (dirty-worktree)
-  perf_afldb=BLOCKED (AFJ-DB key not supplied; prior legacy /stats probe returned 401)
+  perf_afldb=PASS (실제 PM2 AFJ-DB + Front, N=3/WARM=1; clips API 31.2ms, AFJ-DB stats 1.5ms, verify 25.4ms, CRUD add-delete 85.5ms)
   browser_matrix=PASS (People/Market/Flow/Dashboard headings and Island surfaces)
   dashboard_timestamp=PASS (numeric timestamp rendered as local time)
   sse=KNOWN_LIMITATION (metrics/alerts endpoint returns 501; UI uses polling fallback)
@@ -86,8 +86,11 @@ node scripts/ai-contract-gate.js --json
 Chrome 접근성 트리에서 5개 행의 컴포넌트·그룹·상태 텍스트를 확인했다.
 
 성능 단계에서는 기존 측정기가 AFJ-DB의 이전 비인증 경로(`/stats`, `/verify`)를
-사용하고 있음을 발견했다. 측정기를 현재 `/v1/*` Bearer 계약으로 갱신했지만,
-검증 환경에 `AFLDB_ADMIN_KEY`가 없어 실제 수치 산출은 아직 BLOCKED다.
+사용하고 있음을 발견했다. 측정기를 현재 `/v1/*` Bearer 계약으로 갱신하고,
+실제 PM2 환경의 `AFLDB_ADMIN_KEY`를 주입해 N=3/WARM=1 측정을 완료했다.
+측정값은 Front clips API 중앙값 31.2ms, AFJ-DB stats 1.5ms, verify 25.4ms,
+CRUD add-delete 왕복 85.5ms였다. 존재하지 않는 KV 키의 404는 저장소 장애가
+아니므로 라우팅·인증 지연을 측정하는 허용 상태로 분리 기록한다.
 
 대표 앱 브라우저 검수에서는 Dashboard의 숫자 timestamp를 문자열로 `Date`에
 넘겨 `Invalid Date`가 되던 문제를 발견했다. `Number(timestamp)` 변환과 SSE
@@ -96,8 +99,8 @@ Chrome 접근성 트리에서 5개 행의 컴포넌트·그룹·상태 텍스트
 
 AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afldb.flx`에
 `AFLDB_URL`·read/write 키 주입과 4xx/error 전파를 추가했다. 인증 mock에서
-상태·get·put을 실제 요청으로 확인했으며, 운영 키가 없는 성능 측정은 여전히
-BLOCKED다.
+상태·get·put을 실제 요청으로 확인했고, PM2 AFJ-DB를 대상으로 성능 수치도
+확보했다.
 
 ## 다음 작업
 

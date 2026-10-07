@@ -43,7 +43,8 @@ function timed(url, opts = {}) {
           const buf = Buffer.concat(chunks);
           const ms = performance.now() - t0;
           // 429 등 비정상은 ms가 수 ms로 나와 median을 오염시킴 — 실패로 올려 재시도/중단
-          if (res.statusCode >= 400) {
+          const allowStatusCodes = Array.isArray(opts.allowStatusCodes) ? opts.allowStatusCodes : [];
+          if (res.statusCode >= 400 && !allowStatusCodes.includes(res.statusCode)) {
             reject(new Error(`HTTP ${res.statusCode} ${opts.method || 'GET'} ${path} (${Math.round(ms)}ms)`));
             return;
           }
@@ -89,9 +90,9 @@ async function medianOf(label, fn) {
   return out;
 }
 
-function afldbTimed(path, key = AFLDB_KEY) {
+function afldbTimed(path, key = AFLDB_KEY, allowStatusCodes = []) {
   const headers = key ? { Authorization: `Bearer ${key}` } : {};
-  return timed(`${AFLDB}${path}`, { headers });
+  return timed(`${AFLDB}${path}`, { headers, allowStatusCodes });
 }
 
 async function crudAddDelete() {
@@ -118,7 +119,9 @@ async function main() {
   results.front_api_afldb = await medianOf('front_api_afldb', () => timed(`${FRONT}/api/afldb`));
   results.afldb_stats = await medianOf('afldb_stats', () => afldbTimed('/v1/stats'));
   results.afldb_verify = await medianOf('afldb_verify', () => afldbTimed('/v1/verify'));
-  results.afldb_kv_clips_index = await medianOf('afldb_kv_clips_index', () => afldbTimed('/v1/kv/fl:clips:index'));
+  // 키가 없으면 404가 정상적인 저장소 상태다. 라우팅/인증 지연은 측정하되
+  // “키 없음”을 AFJ-DB 장애로 오판하지 않도록 허용 상태로 기록한다.
+  results.afldb_kv_clips_index = await medianOf('afldb_kv_clips_index', () => afldbTimed('/v1/kv/fl:clips:index', AFLDB_KEY, [404]));
   results.front_clips_crud_add_delete = await medianOf('front_clips_crud_add_delete', crudAddDelete);
 
   const report = {
