@@ -492,6 +492,22 @@ function generateAgentsMd(routes, helpers = []) {
 
 **제품 앱 = 1+2+3.** People/Market/Followups/Flow가 표준.
 
+## 레이아웃 선택 규칙 — 메뉴 중첩 방지
+
+\`layout-html\`은 기본 앱 셸이다. \`pages/_layout.flx\`의 공통 사이드바, 앱 푸터, SPA/HMR/개발 오버레이를 포함하므로 **일반 제품 앱 화면**에 사용한다.
+
+랜딩 페이지·로그인 화면·결제 전용 화면·공개 문서처럼 페이지 자체가 전체 화면 골격을 갖는 경우에는 공통 앱 메뉴를 다시 만들지 않는다. 이런 페이지는 \`_layout.flx\`에 정의된 \`landing-html\`을 사용한다.
+
+\`\`\`lisp
+; 공통 메뉴가 필요한 앱 화면
+(layout-html "People" content req)
+
+; 자체 전체 화면을 가진 독립 페이지 — 사이드바/앱 푸터 없음
+(landing-html "서비스 소개" content req)
+\`\`\`
+
+구현 전에 앱 내부 화면인지 독립 전체 화면인지 먼저 판정한다. \`layout-html\`을 사용한 뒤 페이지 안에 자체 사이드바나 전체 화면 셸을 추가하면 메뉴·푸터가 중첩된다. 독립 페이지에는 앱 메뉴·사용자 데이터·관리자 메뉴가 노출되지 않는지 HTML과 실제 화면에서 검증한다.
+
 ### Island 4대 패턴 (Front 언어 표준)
 
 | 패턴 | atom/함수 | 용도 |
@@ -1717,6 +1733,32 @@ function validateStoreKeys(routes, helpers) {
         if (!declared.has(m[1]))
           issues.push({ file: path.basename(r.file), fn: 'get-store', key: m[1] });
       }
+      for (const m of block.matchAll(/:watch\s+"([\w-]+)"/g)) {
+        if (!declared.has(m[1]))
+          issues.push({ file: path.basename(r.file), fn: 'watch-store', key: m[1] });
+      }
+      // (dispatch {"a" 1 :b 2}) 형태는 Island parser AST로 읽는다.
+      // 정규식으로 읽으면 문자열 값("updated")을 키로 오인한다.
+      try {
+        const ast = islandCompiler.parse(block);
+        const walk = (node) => {
+          if (!Array.isArray(node)) {
+            if (node && typeof node === 'object' && node.map) Object.values(node.map).forEach(walk);
+            return;
+          }
+          if (node[0]?.sym === 'dispatch' && node[1]?.map) {
+            for (const rawKey of Object.keys(node[1].map)) {
+              const key = rawKey.replace(/^:/, '');
+              if (!declared.has(key))
+                issues.push({ file: path.basename(r.file), fn: 'dispatch', key });
+            }
+          }
+          node.forEach(walk);
+        };
+        walk(ast);
+      } catch (_) {
+        // 괄호/Island 문법 오류는 기존 Island checker가 별도로 보고한다.
+      }
     }
   }
 
@@ -1731,7 +1773,7 @@ function validateStoreKeys(routes, helpers) {
       const k = `${file}:${key}`;
       if (seen.has(k)) continue; seen.add(k);
       console.log(`  \x1b[33m⚠\x1b[0m ${file} — (${fn} "${key}") 키 미선언`);
-      issue('warn','store-key',file,0,`(${fn} "${key}") 키 미선언 — (defstore :${key} init) 추가 필요`);
+      issue('warn', fn === 'watch-store' ? 'store-watch-key' : 'store-key',file,0,`(${fn} "${key}") 키 미선언 — (defstore :${key} init) 추가 필요`);
     }
   }
   return declared;
@@ -2925,4 +2967,3 @@ if (JSON_MODE) {
     _log(`  \x1b[90mdiagnostics: errors=${errors.length} warnings=${warns.length}\x1b[0m`);
   }
 }
-

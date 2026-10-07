@@ -121,6 +121,14 @@ const DIAGNOSTIC_CODES = [
     hint: '(defstore :key init) 추가',
   },
   {
+    code: 'store-watch-key',
+    title: '미선언 store watch 키',
+    severity: 'warning',
+    fixable: false,
+    applicability: 'has-suggestions',
+    hint: 'watch 대상 키를 (defstore :key init)으로 선언하거나 :watch를 제거',
+  },
+  {
     code: 'arity',
     title: '페이지/헬퍼 함수 인자 수 불일치',
     severity: 'warning',

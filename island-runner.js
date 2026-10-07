@@ -108,7 +108,8 @@ function makeContext(vdoc) {
       const prev = _fl._store.v;
       _fl._store.v = typeof key === 'object' ? {...prev,...key} : {...prev,[key]:val};
       events.push({ type:'dispatch', key, val, store: {..._fl._store.v} });
-      _fl._watchers.forEach(fn => fn(prev, _fl._store.v, key));
+      const changedKeys = typeof key === 'object' ? Object.keys(key) : [key];
+      changedKeys.forEach(changed => _fl._watchers.forEach(fn => fn(prev, _fl._store.v, changed)));
     },
     watch_store: (fn) => { _fl._watchers.push(fn); },
     push:       (arr, item) => [...(arr||[]), item],

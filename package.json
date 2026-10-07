@@ -15,6 +15,7 @@
     "build": "node fl-front-build.js",
     "build:json": "node fl-front-build.js --json",
     "typecheck": "node scripts/front-typecheck.js",
+    "statecheck": "node scripts/state-contract-gate.js",
     "manifest": "node fl-manifest.js",
     "codes": "node fl-front-build.js --codes",
     "fix": "node fl-front-fix.js",

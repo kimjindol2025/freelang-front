@@ -353,7 +353,10 @@ const _fl={
     _fl._store.v=typeof key==='object'
       ? {...prev,...key}
       : {...prev,[key]:val};
-    _fl._watchers.forEach(fn=>fn(prev,_fl._store.v,key));
+    // 맵 dispatch도 변경된 각 키를 순서대로 알린다. 그래야
+    // (island X [:watch "a"])가 (dispatch {"a" 1 "b" 2})에 반응한다.
+    const changedKeys=typeof key==='object'?Object.keys(key):[key];
+    changedKeys.forEach(changed=>_fl._watchers.forEach(fn=>fn(prev,_fl._store.v,changed)));
   },
   watch_store:(fn)=>{_fl._watchers.push(fn);return ()=>{_fl._watchers=_fl._watchers.filter(w=>w!==fn);};},
   // ── 배열/맵 조작 ──
@@ -544,7 +547,7 @@ function compileFileIslands(flxContent) {
   return { flxContent: modified, scripts, hasIslands: true };
 }
 
-module.exports = { compileFileIslands, FL_ISLAND_RT, extractIslands };
+module.exports = { compileFileIslands, FL_ISLAND_RT, extractIslands, parse };
 
 // CLI 테스트
 if (require.main === module) {

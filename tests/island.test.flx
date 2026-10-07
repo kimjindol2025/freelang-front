@@ -67,3 +67,10 @@
   {:file "pages/examples/27-fetch.flx"
    :island "fetcher"
    :expect {:html-contains "불러오기"}})
+
+; ── 34 state contract ──────────────────────────────────────
+(deftest "배치 dispatch — 선언된 store 키 갱신"
+  {:file "pages/examples/34-state-contract.flx"
+   :island "statewriter"
+   :click "button"
+   :expect {:store-key "state-message" :store-val "updated"}})

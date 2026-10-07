@@ -1,0 +1,28 @@
+; 예제 34 — 상태 계약: atom 로컬 상태와 global store 배치 dispatch
+; 목적: 선언된 store 키만 dispatch/watch하고, 맵 dispatch의 각 키가 구독자를 갱신하는지 검증한다.
+
+(defstore :state-message "initial")
+(defstore :state-count 0)
+
+(island StateWriter []
+  (h "button" {:id "state-write"
+                :on-click (fn []
+                  (dispatch {"state-message" "updated" "state-count" 1}))}
+    "상태 갱신"))
+
+(island StateReader [:watch "state-message"]
+  (h "p" {:id "state-reader"}
+    (str (or (get-store "state-message") ""))))
+
+(defn render [req]
+  (layout-html "34 · 상태 계약"
+    (str
+      (h "main" {:style "max-width:560px;margin:0 auto;padding:40px 24px"}
+        (str
+          (h "h1" {} "상태 계약")
+          (h "p" {} "로컬 atom과 선언형 global store를 구분합니다.")
+          "ISLAND_PLACEHOLDER_0"
+          "ISLAND_PLACEHOLDER_1"
+          (h "a" {:href "/examples" :data-spa "1"} "← 예제 갤러리")))
+      "ISLAND_SCRIPTS")
+    req))
