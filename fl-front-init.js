@@ -15,8 +15,8 @@ if (!name) {
 }
 
 const TEMPLATE = path.join(__dirname);
-const DEST     = path.join(process.cwd(), name);
-const FL       = '/home/kimjin/freelang-v11/bootstrap.js';
+const DEST     = path.resolve(process.cwd(), name);
+const FL       = path.join(DEST, 'runtime', 'bootstrap.js');
 
 if (fs.existsSync(DEST)) {
   console.error(`❌ 폴더 이미 존재: ${DEST}`);
@@ -29,6 +29,9 @@ const COPY_FILES = [
   'dev-server.js',
   'style-compiler.js',
   'island-compiler.js',
+  'island-runner.js',
+  'fl-diagnostic-codes.js',
+  'runtime/bootstrap.js',
   'pages/_layout.flx',
   'pages/_auth.flx',
   'pages/_db.flx',
@@ -52,9 +55,9 @@ const PKG = {
   name,
   version: '0.1.0',
   scripts: {
-    build: 'node fl-front-build.js',
-    start: `node fl-front-build.js && node ${FL} run _app.fl`,
-    dev: 'node dev-server.js',
+    build: `PORT=${port} node fl-front-build.js`,
+    start: `PORT=${port} FL_HTTP_ALLOW=127.0.0.1,localhost node fl-front-build.js && PORT=${port} FL_HTTP_ALLOW=127.0.0.1,localhost node runtime/bootstrap.js run _app.fl`,
+    dev: `PORT=${port} FL_HTTP_ALLOW=127.0.0.1,localhost node dev-server.js`,
   },
 };
 
@@ -86,8 +89,8 @@ process.on('SIGINT', () => {
   Promise.all(servers.map(s => new Promise(r => s.close(r)))).then(() => process.exit(0));
   setTimeout(() => process.exit(0), 4500);
 });
-process.argv = ['node', '${FL}', 'run', '${DEST}/_app.fl'];
-require('${FL}');
+process.argv = ['node', ${JSON.stringify(FL)}, 'run', ${JSON.stringify(path.join(DEST, '_app.fl'))}];
+require(${JSON.stringify(FL)});
 `;
 
 // ── .projectrc.json ──────────────────────────────────────────
@@ -100,9 +103,9 @@ const PROJECTRC = JSON.stringify({
   ports: [port],
   entry: '_app.fl',
   commands: {
-    dev: 'node dev-server.js',
-    build: 'node fl-front-build.js',
-    start: `node ${FL} run _app.fl`,
+    dev: `PORT=${port} FL_HTTP_ALLOW=127.0.0.1,localhost node dev-server.js`,
+    build: `PORT=${port} node fl-front-build.js`,
+    start: `PORT=${port} FL_HTTP_ALLOW=127.0.0.1,localhost node runtime/bootstrap.js run _app.fl`,
   },
 }, null, 2);
 

@@ -1,0 +1,8 @@
+(load "../stdlib/decision-ai.flx")
+
+(println (json-stringify
+  (decision-ai-call
+    {"question" "Choose a release strategy"
+     "options" [{"id" "canary" "label" "Canary"}
+                {"id" "direct" "label" "Direct"}]
+     "context" {"users" 10}})))

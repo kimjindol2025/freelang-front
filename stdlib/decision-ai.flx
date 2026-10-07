@@ -1,0 +1,76 @@
+; stdlib/decision-ai.flx — 프로젝트 공용 판단 API 클라이언트
+;
+; 서버 전용 모듈입니다. OPENAI_API_KEY는 브라우저로 전달하지 않고
+; 실행 프로세스 환경변수에서만 읽습니다.
+;
+; 환경변수:
+;   OPENAI_API_KEY       필수
+;   OPENAI_MODEL         선택 (기본 gpt-5)
+;   OPENAI_BASE_URL      선택 (기본 https://api.openai.com/v1/responses)
+;
+; 반환 계약:
+;   {:ok true :decision {...} :provider {...}}
+;   {:ok false :error "..." :status N :provider {...}}
+
+(defn decision-ai-schema []
+  {"type" "object"
+   "additionalProperties" false
+   "properties"
+   {"option_id" {"type" "string"}
+    "recommendation" {"type" "string"}
+    "confidence" {"type" "number"}
+    "reasoning" {"type" "string"}
+    "risks" {"type" "array" "items" {"type" "string"}}
+    "next_action" {"type" "string"}}
+   "required" ["option_id" "recommendation" "confidence" "reasoning" "risks" "next_action"]})
+
+(defn decision-ai-instructions []
+  "You are a decision-support service. Choose exactly one option from the supplied options. Do not invent options. Return concise, evidence-based reasoning. Confidence must be between 0 and 1. Mention material uncertainty in risks. Return only the requested JSON schema.")
+
+(defn decision-ai-prompt [decision-data]
+  (str "Evaluate this decision input as JSON:\n" (json-stringify decision-data)))
+
+(defn decision-ai-response-text [decision-response]
+  (let [decision-output  (or (get decision-response "output") [])
+        decision-message (if (> (length decision-output) 0) (nth decision-output 0) nil)
+        decision-content (if (not (= decision-message nil)) (or (get decision-message "content") []) [])
+        decision-item    (if (> (length decision-content) 0) (nth decision-content 0) nil)]
+    (if (= decision-item nil) nil (get decision-item "text"))))
+
+(defn decision-ai-call [decision-data]
+  (let [api-key (env_get "OPENAI_API_KEY")
+        base    (or (env_get "OPENAI_BASE_URL") "https://api.openai.com/v1/responses")
+        model   (or (env_get "OPENAI_MODEL") "gpt-5")
+        trace   (uuid)]
+    (if (or (= api-key nil) (= api-key ""))
+      {"ok" false "status" 503 "error" "OPENAI_API_KEY is not configured"
+       "provider" {"model" model "client_request_id" trace}}
+      (let [body {"model" model
+                  "store" false
+                  "instructions" (decision-ai-instructions)
+                  "input" (decision-ai-prompt decision-data)
+                  "text" {"format" {"type" "json_schema"
+                                      "name" "decision_result"
+                                      "strict" true
+                                      "schema" (decision-ai-schema)}}}
+            provider-response (http_request "POST" base
+                      {"Authorization" (str "Bearer " api-key)
+                       "Content-Type" "application/json"
+                       "Accept" "application/json"
+                       "X-Client-Request-Id" trace}
+                      (json-stringify body))
+            provider-status (or (get provider-response "status") 0)
+            provider-body   (get provider-response "body")]
+        (if (or (< provider-status 200) (>= provider-status 300))
+          {"ok" false "status" (if (> provider-status 0) provider-status 502)
+           "error" (str "decision provider returned HTTP " provider-status)
+           "provider" {"model" model "client_request_id" trace}}
+          (let [provider-decoded (try (json_parse provider-body) (catch e nil))
+                provider-text    (if (not (= provider-decoded nil)) (decision-ai-response-text provider-decoded) nil)
+                decision-result  (if (not (= provider-text nil)) (try (json_parse provider-text) (catch e nil)) nil)]
+            (if (= decision-result nil)
+              {"ok" false "status" 502 "error" "decision provider returned invalid structured output"
+               "provider" {"model" model "client_request_id" trace}}
+              {"ok" true "decision" decision-result
+               "provider" {"id" (get provider-decoded "id") "model" model
+                           "client_request_id" trace "status" (get provider-decoded "status")}})))))))

@@ -14,6 +14,22 @@
 
 **제품 앱 = 1+2+3.** People/Market/Followups/Flow가 표준.
 
+## 레이아웃 선택 규칙 — 메뉴 중첩 방지
+
+`layout-html`은 기본 앱 셸이다. `pages/_layout.flx`의 공통 사이드바, 앱 푸터, SPA/HMR/개발 오버레이를 포함하므로 **일반 제품 앱 화면**에 사용한다.
+
+랜딩 페이지·로그인 화면·결제 전용 화면·공개 문서처럼 페이지 자체가 전체 화면 골격을 갖는 경우에는 공통 앱 메뉴를 다시 만들지 않는다. 이런 페이지는 `_layout.flx`에 정의된 `landing-html`을 사용한다.
+
+```lisp
+; 공통 메뉴가 필요한 앱 화면
+(layout-html "People" content req)
+
+; 자체 전체 화면을 가진 독립 페이지 — 사이드바/앱 푸터 없음
+(landing-html "서비스 소개" content req)
+```
+
+구현 전에 앱 내부 화면인지 독립 전체 화면인지 먼저 판정한다. `layout-html`을 사용한 뒤 페이지 안에 자체 사이드바나 전체 화면 셸을 추가하면 메뉴·푸터가 중첩된다. 독립 페이지에는 앱 메뉴·사용자 데이터·관리자 메뉴가 노출되지 않는지 HTML과 실제 화면에서 검증한다.
+
 ### Island 4대 패턴 (Front 언어 표준)
 
 | 패턴 | atom/함수 | 용도 |
@@ -140,7 +156,7 @@
 | `nil?` | `(= x nil)` |
 | `map-indexed` | `(map fn arr)` + index 수동 |
 | `string?` | ❌ 없음 |
-| `server-sse` | ❌ 미지원 |
+| `server_sse` | SSE route — server.fl에서 정본 등록 |
 | `(catch $e [])` | `(catch $e nil)` → 빈 벡터 반환은 에러 |
 
 ## FreeLang 변수명 규칙 (반드시 준수)
@@ -207,6 +223,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/api/alerts/stream` | pages/api/alerts/stream.flx |
 | `/api/alerts` | pages/api/alerts.flx |
 | `/api/custom-metrics` | pages/api/custom-metrics.flx |
+| `/api/decision` | pages/api/decision.flx |
 | `/api/errors-stats` | pages/api/errors-stats.flx |
 | `/api/errors` | pages/api/errors.flx |
 | `/api/hello` | pages/api/hello.flx |
@@ -279,6 +296,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/examples/30-lightbox` | pages/examples/30-lightbox.flx |
 | `/examples/31-island-patterns` | pages/examples/31-island-patterns.flx |
 | `/examples/32-afldb-batch-write` | pages/examples/32-afldb-batch-write.flx |
+| `/examples/33-ui-components` | pages/examples/33-ui-components.flx |
+| `/examples/34-state-contract` | pages/examples/34-state-contract.flx |
 | `/examples` | pages/examples/index.flx |
 | `/feed/api` | pages/feed/api.flx |
 | `/feed` | pages/feed/index.flx |
@@ -292,6 +311,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/followups/api` | pages/followups/api.flx |
 | `/followups` | pages/followups/index.flx |
 | `/freelang` | pages/freelang.flx |
+| `/front` | pages/front.flx |
 | `/fx2-wasm/index.html` | pages/fx2-wasm/index.html.flx |
 | `/goals/api` | pages/goals/api.flx |
 | `/goals` | pages/goals/index.flx |
@@ -318,6 +338,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/prompts` | pages/prompts/index.flx |
 | `/reading/api` | pages/reading/api.flx |
 | `/reading` | pages/reading/index.flx |
+| `/rkc-fixture` | pages/rkc-fixture/index.flx |
+| `/rkc-fixture/ok` | pages/rkc-fixture/ok.flx |
 | `/roadmap` | pages/roadmap.flx |
 | `/scratch/api` | pages/scratch/api.flx |
 | `/scratch` | pages/scratch/index.flx |
@@ -372,6 +394,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `layout-core` | `[title content req meta-str]` | 공통 레이아웃 → HTML 문자열 (meta-str: seo-tags 결과 또는 nil) |
 | `layout` | `[title content req]` | layout — 기존 호환 유지 |
 | `layout-html` | `[title content req]` | layout-html — server-html + DEV CSP |
+| `landing-html` | `[title content req]` | 자체 전체 화면 구조를 가진 페이지에서 사용한다. |
 | `layout-html-seo` | `[title content req seo-opts]` | 사용: (layout-html-seo "제목" content req {:title "..." :desc "..." :image "/og.png"}) |
 
 ### `_db.flx`
@@ -385,11 +408,15 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 
 | 함수 | 파라미터 | 설명 |
 |------|----------|------|
+| `afldb-request` | `[method url body key]` |  |
+| `afldb-read` | `[url]` |  |
+| `afldb-write` | `[method url body]` |  |
 | `afldb-kv-url` | `[key]` |  |
 | `afldb-resp-field` | `[resp k-str k-kw]` |  |
 | `afldb-field` | `[obj k-str k-kw]` |  |
 | `afldb-response-body` | `[resp]` |  |
 | `afldb-http-error` | `[resp]` |  |
+| `afldb-response-failed` | `[resp parsed]` |  |
 | `afldb-unwrap-value` | `[key parsed]` |  |
 | `afldb-get` | `[key fallback]` |  |
 | `afldb-put` | `[key value]` |  |
@@ -567,6 +594,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `ui-alert` | `[type message]` |  |
 | `ui-empty` | `[icon message]` |  |
 | `ui-progress` | `[value max]` |  |
+| `ui-table-header-cell` | `[label]` |  |
+| `ui-table-row` | `[item]` |  |
 | `ui-table` | `[headers rows]` |  |
 | `ui-stat` | `[label value diff]` |  |
 | `ui-tags` | `[& tags]` |  |

@@ -1,0 +1,31 @@
+; POST /api/decision
+;
+; 입력:
+; {"question":"...", "options":[{"id":"a","label":"..."}],
+;  "context":{...}, "constraints":["..."]}
+;
+; 응답:
+; {"ok":true, "decision":{...}, "provider":{...}}
+
+(load "stdlib/decision-ai.flx")
+
+(defn render [req]
+  (server-json {"ok" false "error" "POST 메서드를 사용하세요"} 405))
+
+(defn render_post [req]
+  (let [expected (env_get "DECISION_API_KEY")
+        headers  (get req "headers")
+        actual   (or (get headers "authorization") "")
+        body     (get req "body")]
+    (if (not (or (= expected nil)
+                 (= expected "")
+                 (= actual (str "Bearer " expected))))
+    (server-json {"ok" false "error" "인증이 필요합니다"} 401)
+    (if (or (= body nil)
+            (= (or (get body "question") "") "")
+            (= (length (or (get body "options") [])) 0))
+        (server-json {"ok" false "error" "question과 options가 필요합니다"} 400)
+        (let [result (decision-ai-call body)]
+          (if (get result "ok")
+            (server-json result)
+            (server-json result (or (get result "status") 502))))))))

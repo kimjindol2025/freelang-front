@@ -866,6 +866,25 @@ window.addEventListener('popstate',function(e){
     (server-html (layout title content req))
     "Content-Security-Policy" DEV-CSP))
 
+; 독립 랜딩용 레이아웃 — 공통 앱 사이드바/푸터를 씌우지 않는다.
+; 자체 전체 화면 구조를 가진 페이지에서 사용한다.
+(defn landing-html [title content req]
+  (server_header
+    (server-html
+      (str
+        "<!DOCTYPE html>"
+        (h "html" {:lang "ko"}
+          (str
+            (h "head" {}
+              (str
+                (h! "meta" {:charset "utf-8"})
+                (h! "meta" {:name "viewport" :content "width=device-width,initial-scale=1"})
+                (h "title" {} title)
+                GLOBAL-CSS))
+            (h "body" {}
+              (str content ERROR-OVERLAY ERROR-COLLECTOR PERFORMANCE-MONITOR HMR-SCRIPT DEBUG-PANEL))))))
+    "Content-Security-Policy" DEV-CSP))
+
 ; layout-html-seo — SEO meta 포함 버전
 ; 사용: (layout-html-seo "제목" content req {:title "..." :desc "..." :image "/og.png"})
 (defn layout-html-seo [title content req seo-opts]
