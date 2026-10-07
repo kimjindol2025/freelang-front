@@ -18,7 +18,7 @@
 |---:|---|---|---|
 | 1 | 언어 코어·진단 | `.flx` 문법, 오류 코드, `--json`, manifest, AI gate | PASS — build/typecheck/AI gate, errors 0 |
 | 2 | 파일 라우팅 | 정적·동적·중첩·404·redirect·충돌 판정 | PASS — clean artifact 144 routes + 404 |
-| 3 | SSR·레이아웃 | layout/landing, metadata, loading/error, 공통 셸 | PASS 9/10 — 대표 SSR 5면 200, 빠른 SPA 이동 취소 로그 1건 |
+| 3 | SSR·레이아웃 | layout/landing, metadata, loading/error, 공통 셸 | PASS — 대표 SSR 5면 200, 실제 `/people → /market` SPA 이동·Island 재마운트·폼 상호작용 PASS |
 | 4 | API·데이터 | CRUD, validation, SQLite/AFJ, 표준 오류 응답 | PASS 9/10 — API matrix, AFJ-DB auth/perf, CRUD evidence |
 | 5 | Island UI | atom, fetch, form, filter, expand, optimistic update | PASS — Island 11/11, 경계/JS 검사 PASS |
 | 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | PASS — AI gate + 3개 진단 회귀 PASS |
@@ -30,8 +30,8 @@
 ## 최종 점수
 
 ```text
-stage_scores = [10, 10, 9, 9, 10, 10, 10, 10, 8, 9]
-NEXT90_SCORE = 95 / 100
+stage_scores = [10, 10, 10, 9, 10, 10, 10, 10, 8, 9]
+NEXT90_SCORE = 96 / 100
 NEXT90 = PASS (기능 gate)
 판정: 90점 이상이며 핵심 영역 6점 미만 없음
 기준 HEAD: 31e0715 (기능 gate; clean-worktree는 사용자 변경 보존으로 BLOCKED)
@@ -135,6 +135,11 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 
 ## 다음 작업
 
-다음 개선 후보는 View Transition 취소 로그를 줄이고, 실제 clean worktree에서
-내부 배포·rollback 적용 리허설을 수행하는 것이다. SSE는 구현·실행·회귀 증거를
-확보했으므로 이번 점수에 반영했다.
+이번 브라우저 검증은 `/people`에서 Market 링크를 클릭해 URL·레이아웃·
+`island-marketapp-0` 렌더링을 확인하고, `+ 글쓰기`를 눌러 입력 폼과 카테고리
+컨트롤이 실제로 나타나는지 확인했다. CSP의 `unsafe-eval`을 사용하지 않고,
+응답에 포함된 Island 스크립트만 인라인 실행한다.
+
+다음 개선 후보는 실제 clean worktree에서 내부 배포·rollback 적용 리허설을
+수행하는 것이다. SSE는 구현·실행·회귀 증거를 확보했으므로 이번 점수에
+반영했다.

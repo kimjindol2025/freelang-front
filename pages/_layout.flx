@@ -722,33 +722,59 @@ if(performance.memory){
 ; SPA 클라이언트 라우터 — View Transitions API 적용
 (define SPA-ROUTER
   "<script>(function(){
-function doNav(href){
+var activeTransition=null;
+var navigationToken=0;
+function cancelActiveTransition(){
+  if(!activeTransition)return;
+  try{if(activeTransition.skipTransition)activeTransition.skipTransition();}catch(e){}
+  activeTransition=null;
+}
+function doNav(href,token){
   return fetch(href,{headers:{'X-SPA':'1'}})
-    .then(function(r){return r.text();})
+    .then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text();})
     .then(function(html){
+      if(token!==navigationToken)return;
       var doc=new DOMParser().parseFromString(html,'text/html');
       var nw=doc.querySelector('[class*=\"layout_wrap\"]');
       var cw=document.querySelector('[class*=\"layout_wrap\"]');
       if(nw&&cw)cw.innerHTML=nw.innerHTML;
       doc.querySelectorAll('script:not([src])').forEach(function(s){
-        if(s.textContent.indexOf('_fl.')>-1){try{eval(s.textContent);}catch(e){}}
+        var code=s.textContent||'';
+        var mountAt=code.indexOf('_fl.mount(\"island-');
+        if(mountAt<0)mountAt=code.indexOf('_fl.mount_reactive(\"island-');
+        if(mountAt>=0){try{var runner=document.createElement('script');runner.textContent=code;document.head.appendChild(runner);runner.remove();}catch(e){console.warn('[spa] island mount failed',e);}}
       });
       if(window._fl)window._fl.dispatch('route',href);
       history.pushState({href:href},'',href);
       window.scrollTo(0,0);
     })
-    .catch(function(){location.href=href;});
+    .catch(function(err){
+      if(token!==navigationToken)return;
+      location.href=href;
+    });
 }
 function spa(href){
+  var token=++navigationToken;
+  cancelActiveTransition();
   if(document.startViewTransition){
-    document.startViewTransition(function(){return doNav(href);});
+    var transition;
+    try{
+      transition=document.startViewTransition(function(){return doNav(href,token);});
+      activeTransition=transition;
+      transition.finished.catch(function(err){
+        if(err&&err.name!=='AbortError')console.warn('[spa] view transition failed',err);
+      }).finally(function(){if(activeTransition===transition)activeTransition=null;});
+    }catch(err){
+      activeTransition=null;
+      doNav(href,token);
+    }
   }else{
-    doNav(href);
+    doNav(href,token);
   }
 }
 document.addEventListener('click',function(e){
   var a=e.target.closest('[data-spa]');
-  if(!a)return;
+  if(!a||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
   e.preventDefault();
   spa(a.getAttribute('href'));
 });
