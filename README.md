@@ -144,7 +144,8 @@ GET http://localhost:40851/~ai/test     # Island headless HTTP 테스트
 - 관리자 대시보드
 - SaaS 프론트엔드
 
-**부적합**: SPA, 3D, 게임, 인터랙션이 많은 앱
+**범위 밖**: 3D·게임·전체 화면을 client-first로 운영하는 대형 SPA.
+SSR + Island 기반의 일반적인 SPA 이동과 인터랙션은 지원한다.
 
 ---
 
