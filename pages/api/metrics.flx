@@ -75,13 +75,19 @@
       (log-error (str "Error exporting metrics: " $e))
       (server-json {"error" "Export failed"} 500))))
 
-; ── 실시간 스트림 엔드포인트 (SSE 미지원 → 폴링 안내) ──
-(defn handle-stream-metrics [$req]
-  (server-json {
-    "error" "SSE streaming not supported"
-    "hint" "Use GET /api/metrics with polling instead"
-    "poll_interval_ms" 5000
-  } 501))
+; ── 실시간 스트림 엔드포인트 ──
+(defn handle-stream-metrics-sse [$connection $req]
+  (add-metric-sse-connection $connection)
+  (sse_send $connection (json-stringify {
+    "type" "ready"
+    "source" "metrics"
+    "timestamp" (str (date-now))
+  }))
+  nil)
+
+(defn authorize-metrics-sse [$req]
+  nil)
+
 
 ; POST/DELETE 라우트 — fl-front-build가 render_post를 인식해서 server-post 등록
 (defn render_post [req]

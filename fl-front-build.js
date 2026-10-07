@@ -634,7 +634,7 @@ function generateAgentsMd(routes, helpers = []) {
 | \`nil?\` | \`(= x nil)\` |
 | \`map-indexed\` | \`(map fn arr)\` + index 수동 |
 | \`string?\` | ❌ 없음 |
-| \`server-sse\` | ❌ 미지원 |
+| \`server_sse\` | SSE route — server.fl에서 정본 등록 |
 | \`(catch $e [])\` | \`(catch $e nil)\` → 빈 벡터 반환은 에러 |
 
 ## FreeLang 변수명 규칙 (반드시 준수)

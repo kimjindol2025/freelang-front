@@ -108,9 +108,12 @@ if (BASE_URL) {
   checks.push(app.exit === 0 ? pass('next90-app', BASE_URL) : fail('next90-app', `exit=${app.exit}`));
   const smoke = run('bash', ['.freelang/smoke.sh'], { FL_FRONT_BASE_URL: BASE_URL });
   checks.push(smoke.exit === 0 ? pass('internal-smoke', BASE_URL) : fail('internal-smoke', `exit=${smoke.exit}`));
+  const sse = run(process.execPath, ['scripts/sse-contract-gate.js'], { BASE_URL });
+  checks.push(sse.exit === 0 ? pass('sse-contract', 'metrics + alerts real HTTP stream') : fail('sse-contract', `exit=${sse.exit}`));
 } else {
   checks.push(blocked('next90-app', 'BASE_URL is required for real HTTP verification'));
   checks.push(blocked('internal-smoke', 'BASE_URL is required for real HTTP verification'));
+  checks.push(blocked('sse-contract', 'BASE_URL is required for real HTTP verification'));
 }
 
 const failures = checks.filter(x => x.status === 'FAIL');
@@ -121,7 +124,7 @@ const result = {
   head: run('git', ['rev-parse', '--short', 'HEAD']).output.trim(),
   pass: failures.length === 0 && blockedChecks.length === 0,
   checks,
-  known_limitations: ['SSE endpoints remain 501; dashboard uses polling fallback', 'browser console may report cancelled ViewTransition during rapid navigation'],
+  known_limitations: ['dashboard keeps polling fallback when EventSource is unavailable', 'browser console may report cancelled ViewTransition during rapid navigation'],
 };
 
 console.log(JSON.stringify(result));

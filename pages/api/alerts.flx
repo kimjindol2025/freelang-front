@@ -26,10 +26,15 @@
       (log-error (str "Error handling GET /api/alerts: " $e))
       (server-json {"error" "Failed to retrieve alerts"} 500))))
 
-; ── GET /api/alerts/stream (SSE 미지원 → 폴링 안내) ──
-(defn handle-alerts-stream [$req]
-  (server-json {
-    "error" "SSE streaming not supported"
-    "hint" "Use GET /api/alerts with polling instead"
-    "poll_interval_ms" 3000
-  } 501))
+; ── GET /api/alerts/stream (SSE) ──
+(defn handle-alerts-stream-sse [$connection $req]
+  (add-alert-sse-connection $connection)
+  (sse_send $connection (json-stringify {
+    "type" "ready"
+    "source" "alerts"
+    "timestamp" (str (date-now))
+  }))
+  nil)
+
+(defn authorize-alerts-sse [$req]
+  nil)

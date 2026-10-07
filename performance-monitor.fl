@@ -7,6 +7,7 @@
 (define performance-log (atom []))
 (define MAX-PERF-RECORDS 500)
 (define performance-watchers (atom []))
+(define metric-sse-connections (atom []))
 
 ; ── 알림 저장소 & 임계값 (v0.7.0) ──
 (define alert-log (atom []))
@@ -18,6 +19,7 @@
   "long-task" 500
 })
 (define alert-watchers (atom []))
+(define alert-sse-connections (atom []))
 
 ; ── 커스텀 메트릭 저장소 (v0.8.0) ──
 (define custom-metrics (atom {}))
@@ -49,6 +51,35 @@
         (catch $e
           (log-warn (str "Watcher error: " $e)))))))
 
+; ── Front SSE 브리지 ──
+; server_sse가 연결을 보류하므로 기록/알림 함수는 살아 있는
+; 연결에만 이벤트를 보내고, 끊긴 연결은 다음 발행 때 정리한다.
+(defn add-metric-sse-connection [$connection]
+  (swap! metric-sse-connections conj $connection))
+
+(defn add-alert-sse-connection [$connection]
+  (swap! alert-sse-connections conj $connection))
+
+(defn publish-metric-sse [$record]
+  (let [$data (json-stringify $record)]
+    (swap! metric-sse-connections
+      (fn [$connections]
+        (filter (fn [$connection]
+          (if (sse_alive $connection)
+            (sse_send $connection $data)
+            false))
+          $connections)))))
+
+(defn publish-alert-sse [$alert]
+  (let [$data (json-stringify $alert)]
+    (swap! alert-sse-connections
+      (fn [$connections]
+        (filter (fn [$connection]
+          (if (sse_alive $connection)
+            (sse_send $connection $data)
+            false))
+          $connections)))))
+
 ; ── 성능 기록 함수 ──
 (defn record-performance [$metric]
   (let [perf-record {
@@ -74,6 +105,7 @@
 
     ; EventSource 워처 알림
     (notify-watchers perf-record)
+    (publish-metric-sse perf-record)
 
     ; 알림 감지 (v0.7.0)
     (detect-performance-alert perf-record)
@@ -309,7 +341,8 @@
             (try
               ($callback $alert)
               (catch $e
-                (log-warn (str "Alert watcher error: " $e))))))))))
+                (log-warn (str "Alert watcher error: " $e)))))
+          (publish-alert-sse $alert))))))
 
 ; ── 알림 워처 등록 함수 (v0.7.0) ──
 (defn register-alert-watcher [$callback]

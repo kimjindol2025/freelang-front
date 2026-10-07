@@ -7,10 +7,11 @@ npm run build
 node scripts/front-typecheck.js --json
 node scripts/state-contract-gate.js --json
 node scripts/ui-contract-gate.js
+BASE_URL=http://127.0.0.1:40860 node scripts/sse-contract-gate.js
 ```
 
 전체 관문은 한 번의 빌드에서 빌드 진단·Island 회귀 결과를 함께 수집하고,
-manifest·UI·타입·상태·회귀·HTTP smoke를 이어서 실행한다.
+manifest·UI·타입·상태·SSE·회귀·HTTP smoke를 이어서 실행한다.
 
 ```bash
 npm run verify

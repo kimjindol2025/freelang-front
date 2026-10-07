@@ -27,6 +27,11 @@
 
 (server-get "/~hmr-state" "dev-hmr-state")
 
+; SSE는 페이지 load 부작용이 아니라 정본 서버 진입점에서 등록한다.
+; 페이지의 일반 GET보다 먼저 등록해 stream page가 501 fallback을 가리지 않게 한다.
+(server_sse "/api/alerts/stream" "handle-alerts-stream-sse" "authorize-alerts-sse")
+(server_sse "/api/metrics/stream" "handle-stream-metrics-sse" "authorize-metrics-sse")
+
 ; 빌드 결과물 로드 (라우트 등록 + server-get 포함)
 (load "_app.fl")
 

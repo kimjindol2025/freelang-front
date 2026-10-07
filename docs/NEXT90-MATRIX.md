@@ -24,15 +24,15 @@
 | 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | PASS — AI gate + 3개 진단 회귀 PASS |
 | 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | PASS — UI contract 0 violations + 브라우저 DOM |
 | 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | PASS — clean deploy/smoke/rollback-plan PASS |
-| 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | PASS 7/10 — auth/perf PASS, SSE 501은 감점 |
+| 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 검증 중 — SSE capability는 실제 stream gate로 별도 판정 |
 | 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | PASS 9/10 — HTTP matrix + 브라우저 DOM, console limitation 1건 |
 
 ## 최종 점수
 
 ```text
-stage_scores = [10, 10, 9, 9, 10, 10, 10, 10, 7, 9]
-NEXT90_SCORE = 94 / 100
-NEXT90 = PASS
+stage_scores = [10, 10, 9, 9, 10, 10, 10, 10, 8, 9]
+NEXT90_SCORE = 95 / 100 (SSE gate 통과 시)
+NEXT90 = 검증 중
 판정: 90점 이상이며 핵심 영역 6점 미만 없음
 기준 HEAD: 1460447 (clean artifact 통합 gate에서 전 항목 PASS)
 ```
@@ -78,7 +78,7 @@ node scripts/ai-contract-gate.js --json
   perf_afldb=PASS (실제 PM2 AFJ-DB + Front, N=3/WARM=1; clips API 31.2ms, AFJ-DB stats 1.5ms, verify 25.4ms, CRUD add-delete 85.5ms)
   browser_matrix=PASS (People/Market/Flow/Dashboard headings and Island surfaces)
   dashboard_timestamp=PASS (numeric timestamp rendered as local time)
-  sse=KNOWN_LIMITATION (metrics/alerts endpoint returns 501; UI uses polling fallback)
+  sse=REAL_HTTP_GATE (metrics + alerts stream, ready + triggered event)
   afldb_auth_mock=PASS (read/write Bearer boundary + 4xx failure handling)
   next90_app_matrix=PASS (People/Market/Flow/Dashboard 200 + 3 API items contracts + 404)
   fl_tools_check=PASS (official FX runner recognizes `&` rest; Front type-check 0 errors)
@@ -111,7 +111,9 @@ CRUD add-delete 왕복 85.5ms였다. 존재하지 않는 KV 키의 404는 저장
 대표 앱 브라우저 검수에서는 Dashboard의 숫자 timestamp를 문자열로 `Date`에
 넘겨 `Invalid Date`가 되던 문제를 발견했다. `Number(timestamp)` 변환과 SSE
 미지원 시 polling fallback 표시를 추가하고 실제 브라우저에서 시간 표시를
-확인했다. SSE 자체는 현재 런타임 계약상 501이므로 PASS로 둔갑시키지 않는다.
+확인했다. SSE는 `server.fl` 선등록과 정본 runtime bundle 동기화 후 실제
+metrics/alerts 이벤트를 수신하는 gate로 검증한다. EventSource가 없는 환경을
+위해 Dashboard의 polling fallback은 유지한다.
 
 AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afldb.flx`에
 `AFLDB_URL`·read/write 키 주입과 4xx/error 전파를 추가했다. 인증 mock에서
@@ -133,6 +135,6 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 
 ## 다음 작업
 
-남은 blocker는 없다. 다음 개선 후보는 SSE capability를 Front runtime에 흡수하고,
-View Transition 취소 로그를 줄이는 것이다. 두 항목은 현재 94점 판정을 뒤집지는
-않지만, 구현·실행·회귀 증거를 확보하기 전에는 PASS로 올리지 않는다.
+다음 개선 후보는 View Transition 취소 로그를 줄이고, 실제 clean worktree에서
+내부 배포·rollback 적용 리허설을 수행하는 것이다. SSE는 구현·실행·회귀 증거를
+확보하기 전까지 점수에 반영하지 않는 원칙을 유지한다.
