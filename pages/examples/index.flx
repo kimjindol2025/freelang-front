@@ -45,7 +45,8 @@
                ["29" "BMI 계산기" "산술 + 비교로 분류" "29-bmi" "Island"]
                ["30" "라이트박스" "썸네일 클릭 확대 오버레이" "30-lightbox" "Island"]
                ["31" "Island 4대 패턴" "필터·펼침·즉시추가 — Front 언어 3층" "31-island-patterns" "Island"]
-               ["32" "afl-db 배치 쓰기" "item + index 를 batch-put 으로 동시 기록" "32-afldb-batch-write" "앱"]]]
+               ["32" "afl-db 배치 쓰기" "item + index 를 batch-put 으로 동시 기록" "32-afldb-batch-write" "앱"]
+               ["33" "UI 컴포넌트 계약" "AI가 조합할 수 있는 공통 UI 컴포넌트" "33-ui-components" "DX"]]]
     (layout-html "FreeLang 예제 갤러리"
       (h "div" {:style "max-width:960px;margin:0 auto;padding:48px 24px"}
         (str
