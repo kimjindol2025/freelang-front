@@ -110,10 +110,13 @@ if (BASE_URL) {
   checks.push(smoke.exit === 0 ? pass('internal-smoke', BASE_URL) : fail('internal-smoke', `exit=${smoke.exit}`));
   const sse = run(process.execPath, ['scripts/sse-contract-gate.js'], { BASE_URL });
   checks.push(sse.exit === 0 ? pass('sse-contract', 'metrics + alerts real HTTP stream') : fail('sse-contract', `exit=${sse.exit}`));
+  const spa = run(process.execPath, ['scripts/spa-contract-gate.js'], { BASE_URL });
+  checks.push(spa.exit === 0 ? pass('spa-contract', 'CSP-safe SSR/Island bridge over real HTTP') : fail('spa-contract', `exit=${spa.exit}`));
 } else {
   checks.push(blocked('next90-app', 'BASE_URL is required for real HTTP verification'));
   checks.push(blocked('internal-smoke', 'BASE_URL is required for real HTTP verification'));
   checks.push(blocked('sse-contract', 'BASE_URL is required for real HTTP verification'));
+  checks.push(blocked('spa-contract', 'BASE_URL is required for real HTTP verification'));
 }
 
 const failures = checks.filter(x => x.status === 'FAIL');

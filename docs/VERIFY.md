@@ -8,6 +8,7 @@ node scripts/front-typecheck.js --json
 node scripts/state-contract-gate.js --json
 node scripts/ui-contract-gate.js
 BASE_URL=http://127.0.0.1:40860 node scripts/sse-contract-gate.js
+BASE_URL=http://127.0.0.1:40860 node scripts/spa-contract-gate.js
 ```
 
 전체 관문은 한 번의 빌드에서 빌드 진단·Island 회귀 결과를 함께 수집하고,
@@ -32,3 +33,7 @@ npm run verify:internal
 dirty worktree는 기존 사용자 변경을 보존하기 위해 `clean-worktree=BLOCKED`로
 남을 수 있다. 이 상태에서 기능 검사가 PASS여도 `.freelang/deploy.sh check`는
 반드시 배포를 차단한다.
+
+`spa-contract`는 `/people`·`/market`의 실제 HTTP 응답에서 layout, Island
+mount, CSP, legacy `eval` 부재를 확인한다. 브라우저 클릭·폼 상호작용은
+HTTP PASS로 확대 해석하지 않고 지정된 단일 브라우저 탭 검수로 별도 기록한다.

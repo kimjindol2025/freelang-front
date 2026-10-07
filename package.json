@@ -17,6 +17,7 @@
     "typecheck": "node scripts/front-typecheck.js",
     "statecheck": "node scripts/state-contract-gate.js",
     "ssecheck": "node scripts/sse-contract-gate.js",
+    "spacheck": "node scripts/spa-contract-gate.js",
     "verify": "node scripts/next90-release-gate.js",
     "verify:internal": "BASE_URL=http://127.0.0.1:40860 node scripts/next90-release-gate.js",
     "deploy:internal": "bash .freelang/internal-deploy.sh",
