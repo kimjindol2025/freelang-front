@@ -13,7 +13,7 @@
       (h "form" {:method "POST" :action "/bookmarks/api" :style "display:inline"}
         (h! "input" {:type "hidden" :name "action" :value "delete"})
         (h! "input" {:type "hidden" :name "id" :value id})
-        (h! "button" {:type "submit"} "삭제")))))
+        (h "button" {:type "submit"} "삭제")))))
 
 (defn render [req]
   (let [items (bookmarks-all)]
@@ -25,7 +25,7 @@
           (h! "input" {:type "hidden" :name "action" :value "add"})
           (h! "input" {:type "text" :name "title" :placeholder "title" :required "required"})
           (h! "input" {:type "text" :name "url" :placeholder "https://…" :required "required"})
-          (h! "button" {:type "submit"} "추가"))
+          (h "button" {:type "submit"} "추가"))
         (h "ul" {}
           (arr-join (map bookmarks-row items) "")))
       req)))

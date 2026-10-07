@@ -20,4 +20,4 @@
 
 (defn router-print [routes]
   (for [r routes]
-    (println (str "  " (:route r) "  →  " (:file r)))))
+    (println (str "  " (get r "route") "  →  " (get r "file")))))

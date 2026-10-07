@@ -1084,9 +1084,9 @@ const INJECTED_HELPERS = `
             pairs))
         ""))))
 
-(defn h [tag attrs content]
+(defn h [tag attrs & content]
   (let [a (h-attrs attrs)
-        c (if (= content nil) "" (str content))]
+        c (arr-join content "")]
     (str "<" tag a ">" c "</" tag ">")))
 
 ; 자기닫힘 태그용
