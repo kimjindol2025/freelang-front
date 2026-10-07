@@ -60,7 +60,7 @@ node scripts/ai-contract-gate.js --json
   http_pages=/people,/market,/flow,/dashboard,/examples/33-ui-components => 200
   ui_example_marker=PASS
   browser_ui_matrix=PASS (5 rows rendered with accessible text)
-  internal_smoke=PASS (5 pages 200 + POST validation 400)
+  internal_smoke=PASS (5 pages 200 + canonical /api/hello JSON 200)
   internal_deploy=BLOCKED (dirty-worktree)
   perf_afldb=PASS (실제 PM2 AFJ-DB + Front, N=3/WARM=1; clips API 31.2ms, AFJ-DB stats 1.5ms, verify 25.4ms, CRUD add-delete 85.5ms)
   browser_matrix=PASS (People/Market/Flow/Dashboard headings and Island surfaces)

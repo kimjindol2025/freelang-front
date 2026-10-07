@@ -27,12 +27,11 @@ check_page "/flow"
 check_page "/dashboard"
 check_page "/examples/33-ui-components" "UI 컴포넌트 계약"
 api_status="$(curl -sS -o "$tmp_body" -w '%{http_code}' --max-time 15 \
-  -X POST -H 'content-type: application/json' \
-  --data '{"question":"","options":[]}' "${base_url}/api/decision")"
-if [[ "$api_status" != "400" ]] || ! rg -F -q "question과 options가 필요합니다" "$tmp_body"; then
-  echo "SMOKE_FAIL path=/api/decision status=${api_status}" >&2
+  "${base_url}/api/hello")"
+if [[ "$api_status" != "200" ]] || ! rg -F -q '"ok":true' "$tmp_body"; then
+  echo "SMOKE_FAIL path=/api/hello status=${api_status}" >&2
   exit 1
 fi
-echo "SMOKE_PASS path=/api/decision method=POST status=400 validation"
+echo "SMOKE_PASS path=/api/hello method=GET status=200 json-contract"
 
 echo "SMOKE_PASS all=6 base=${base_url}"

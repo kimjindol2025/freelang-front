@@ -34,5 +34,6 @@ clean worktree 확인
 
 - 계약 파일: 구현됨
 - 실제 clean deploy: `BLOCKED` — 기존 사용자 dirty 변경이 존재함
-- 실제 smoke: `PASS` — 5개 대표 화면 200 + Decision API POST validation 400
+- 실제 smoke: `PASS` — 5개 대표 화면 200 + 정본 `/api/hello` JSON contract 200
+- 사용자 dirty 기능(예: `/api/decision`)은 별도 feature smoke/e2e로 검증하며 clean artifact gate의 의존성으로 사용하지 않는다.
 - 외부 공개 배포: 범위 밖
