@@ -9,8 +9,12 @@ Front의 타입 검사는 두 층으로 나눈다.
 
 ```bash
 npm run build
-npm run typecheck -- --json
+npm run typecheck
+node scripts/front-typecheck.js --json
 ```
+
+`npm run`은 npm 자체 배너를 stdout에 출력할 수 있으므로, JSON을 파이프로
+넘길 때는 두 번째처럼 스크립트를 직접 호출한다.
 
 출력 스키마는 `fl-front-typecheck/1`이다. 두 check가 모두 `PASS`일 때만
 `pass=true`이며, `_app.fl`이 없거나 FX runner가 없으면 성공으로 간주하지
