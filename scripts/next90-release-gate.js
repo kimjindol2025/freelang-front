@@ -66,9 +66,15 @@ checks.push(ui.exit === 0 && uiJson?.pass === true
   ? pass('ui-contract', `violations=${uiJson.violations?.length ?? 0}`)
   : fail('ui-contract', `exit=${ui.exit}`));
 
-const typecheck = run('fl-tools', ['check', ROOT], { FREELANG_AFJ_RUNNER: FX_RUNNER });
-const typecheckPass = typecheck.exit === 0 && /FREELANG_CHECK=PASS/.test(typecheck.output);
-checks.push(typecheckPass ? pass('typecheck', 'official FX runner') : fail('typecheck', `exit=${typecheck.exit}`));
+const typecheck = run(process.execPath, ['scripts/front-typecheck.js', '--json'], {
+  FREELANG_AFJ_RUNNER: FX_RUNNER,
+});
+let typecheckJson = null;
+try { typecheckJson = JSON.parse(typecheck.output.trim()); } catch (_) {}
+const typecheckPass = typecheck.exit === 0 && typecheckJson?.pass === true;
+checks.push(typecheckPass
+  ? pass('typecheck', 'source + generated _app.fl via official FX runner')
+  : fail('typecheck', `exit=${typecheck.exit}`));
 
 const islandBuild = run(process.execPath, ['fl-front-build.js']);
 const islandPass = islandBuild.exit === 0
