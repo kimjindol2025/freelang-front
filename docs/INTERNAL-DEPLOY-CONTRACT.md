@@ -14,6 +14,7 @@
 - 검수: `.freelang/smoke.sh`
 - 배포 전 검사: `.freelang/deploy.sh check`
 - 내부 반영: `.freelang/internal-deploy.sh` 또는 `npm run deploy:internal`
+- clean clone 리허설: `npm run deploy:internal:dry` (`PM2`·실제 smoke는 건너뜀)
 - 복구 계획: `.freelang/rollback.sh <verified-commit>`
 - DB: 프로젝트의 런타임 `.db`; Git에 추가하지 않는다.
 
@@ -42,5 +43,7 @@ clean worktree 확인
 - 실제 smoke: `PASS` — 5개 대표 화면 200 + 정본 `/api/hello` JSON contract 200
 - 내부 계약은 dirty worktree, 준비 실패, smoke 실패를 각각 `BLOCKED`/`FAIL`로
   구분하고, 성공 시 `INTERNAL_DEPLOY_COMMIT`, `ARTIFACT_HASH`, `ROLLBACK_TARGET`을 출력한다.
+- `DRY_RUN=1`은 clean clone에서 정적 계약과 artifact만 검증하는 리허설이며
+  실제 내부 배포 완료를 의미하지 않는다.
 - 사용자 dirty 기능(예: `/api/decision`)은 별도 feature smoke/e2e로 검증하며 clean artifact gate의 의존성으로 사용하지 않는다.
 - 외부 공개 배포: 범위 밖

@@ -27,6 +27,17 @@ node scripts/state-contract-gate.js --json > "$state_json"
 node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); if(!x.pass) process.exit(1); console.log("STATE_CONTRACT_PASS")' "$state_json"
 node scripts/ui-contract-gate.js >/tmp/freelang-front-internal-ui.txt
 
+artifact_hash="$(sha256sum _app.fl public/app.css server.fl | sha256sum | awk '{print $1}')"
+if [[ "${FL_INTERNAL_DEPLOY_DRY_RUN:-0}" == 1 ]]; then
+  echo "INTERNAL_DEPLOY=DRY_RUN_PASS"
+  echo "INTERNAL_DEPLOY_COMMIT=$commit"
+  echo "ARTIFACT_HASH=$artifact_hash"
+  echo "ROLLBACK_TARGET=$(git rev-parse --short "$commit")"
+  echo "PM2=SKIPPED"
+  echo "SMOKE=SKIPPED"
+  exit 0
+fi
+
 pm2 startOrRestart ecosystem.config.js --only freelang-front >/tmp/freelang-front-internal-pm2.txt 2>&1
 ready=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
@@ -41,7 +52,6 @@ if [[ "$ready" != 1 ]]; then
 fi
 
 FL_FRONT_BASE_URL="$base_url" bash .freelang/smoke.sh
-artifact_hash="$(sha256sum _app.fl public/app.css server.fl | sha256sum | awk '{print $1}')"
 echo "INTERNAL_DEPLOY=PASS"
 echo "INTERNAL_DEPLOY_COMMIT=$commit"
 echo "ARTIFACT_HASH=$artifact_hash"
