@@ -46,19 +46,28 @@ function fail(name, detail) { return { name, status: 'FAIL', detail }; }
 
 const checks = [];
 
-const build = run(process.execPath, ['fl-front-build.js', '--json']);
-const buildJson = lastJson(build.output);
-if (build.exit === 0 && buildJson?.ok && buildJson.summary?.errors === 0) {
+// 전체 빌드는 한 번만 실행한다. 일반 출력으로 Island 회귀 결과까지 받고,
+// builder가 저장한 .build-state.json을 같은 실행의 구조화 결과로 사용한다.
+const build = run(process.execPath, ['fl-front-build.js']);
+let buildJson = null;
+try { buildJson = JSON.parse(fs.readFileSync(path.join(ROOT, '.build-state.json'), 'utf8')); } catch (_) {}
+const islandPass = build.exit === 0
+  && /Island 테스트 \d+\/\d+ PASS/.test(build.output)
+  && /island 경계 이상 없음/.test(build.output);
+if (build.exit === 0 && buildJson?.ok && buildJson.summary?.errors === 0 && islandPass) {
   checks.push(pass('build', `errors=${buildJson.summary.errors} warnings=${buildJson.summary.warnings} routes=${buildJson.routes.length}`));
 } else {
   checks.push(fail('build', `exit=${build.exit}`));
 }
+checks.push(islandPass
+  ? pass('island-regression', 'included in the single build run')
+  : fail('island-regression', 'build-integrated test missing or failed'));
 
-const ai = run(process.execPath, ['scripts/ai-contract-gate.js']);
-const aiJson = lastJson(ai.output);
-checks.push(ai.exit === 0 && aiJson?.pass === true
-  ? pass('ai-contract', `errors=${aiJson.build?.issues?.filter?.(x => x.level === 'error').length ?? 0}`)
-  : fail('ai-contract', `exit=${ai.exit}`));
+const manifest = run(process.execPath, ['fl-manifest.js', '--json']);
+const manifestJson = lastJson(manifest.output);
+checks.push(buildJson?.ok && manifest.exit === 0 && manifestJson?.schema === 'fl-manifest/1'
+  ? pass('ai-contract', `errors=${buildJson.summary.errors} manifest=${manifestJson.schema}`)
+  : fail('ai-contract', `build=${build.exit} manifest=${manifest.exit}`));
 
 const ui = run(process.execPath, ['scripts/ui-contract-gate.js']);
 const uiJson = lastJson(ui.output);
@@ -76,11 +85,11 @@ checks.push(typecheckPass
   ? pass('typecheck', 'source + generated _app.fl via official FX runner')
   : fail('typecheck', `exit=${typecheck.exit}`));
 
-const islandBuild = run(process.execPath, ['fl-front-build.js']);
-const islandPass = islandBuild.exit === 0
-  && /Island 테스트 \d+\/\d+ PASS/.test(islandBuild.output)
-  && /island 경계 이상 없음/.test(islandBuild.output);
-checks.push(islandPass ? pass('island-regression', 'build-integrated') : fail('island-regression', 'build-integrated test missing or failed'));
+const stateContract = run(process.execPath, ['scripts/state-contract-gate.js', '--json']);
+const stateJson = lastJson(stateContract.output);
+checks.push(stateContract.exit === 0 && stateJson?.pass === true
+  ? pass('state-contract', 'targeted atom/store fixture')
+  : fail('state-contract', `exit=${stateContract.exit}`));
 
 for (const script of ['test-fl-loop-humanshare.js', 'test-fl-comment-defn-narrow.js', 'test-fl-req-key-collision.js']) {
   const result = run(process.execPath, [script]);
