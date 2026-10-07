@@ -16,13 +16,13 @@
 
 | 단계 | 영역 | 완료 기준 | 현재 상태 |
 |---:|---|---|---|
-| 1 | 언어 코어·진단 | `.flx` 문법, 오류 코드, `--json`, manifest, AI gate | 진행 중 — AI gate PASS, warnings 30 |
-| 2 | 파일 라우팅 | 정적·동적·중첩·404·redirect·충돌 판정 | 진행 중 — 144 route build 확인 |
+| 1 | 언어 코어·진단 | `.flx` 문법, 오류 코드, `--json`, manifest, AI gate | 진행 중 — AI gate PASS, errors 0, warnings 30 |
+| 2 | 파일 라우팅 | 정적·동적·중첩·404·redirect·충돌 판정 | 진행 중 — 145 route build 확인 |
 | 3 | SSR·레이아웃 | layout/landing, metadata, loading/error, 공통 셸 | 진행 중 |
 | 4 | API·데이터 | CRUD, validation, SQLite/AFJ, 표준 오류 응답 | 진행 중 |
 | 5 | Island UI | atom, fetch, form, filter, expand, optimistic update | 진행 중 — 기존 island 테스트 존재 |
 | 6 | AI 개발 인터페이스 | manifest, diagnostics, headless test, 자동수정 루프 | 부분 완료 — AI contract gate 추가 |
-| 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | 미착수 |
+| 7 | 컴포넌트·스타일 | `_ui`, 재사용 컴포넌트, CSS DSL, theme, 접근성 | 진행 중 — UI contract PASS, 예제 33 추가 |
 | 8 | 개발 경험·내부 운영 | HMR, logs, overlay, start/review, 내부 deploy/rollback | 부분 완료 |
 | 9 | 성능·보안 | cache, session, CSRF, rate limit, performance regression | 진행 중 |
 | 10 | 실제 앱 검증 | People/Market/Flow/Dashboard 기능 매트릭스와 browser evidence | 미착수 |
@@ -53,7 +53,8 @@ node scripts/ai-contract-gate.js --json
   pass=true
   errors=0
   warnings=30
-  routes=144
+  routes=145
+  ui_contract=PASS
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반이
