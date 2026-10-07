@@ -15,6 +15,7 @@ const path = require('node:path');
 const ROOT = path.resolve(__dirname, '..');
 const FX_RUNNER = process.env.FREELANG_AFJ_RUNNER || '/home/kim/kim/platform/freelang-v11-fx/bootstrap.js';
 const BASE_URL = process.env.BASE_URL || process.env.FL_FRONT_BASE_URL || '';
+const initialStatus = run('git', ['status', '--porcelain']);
 
 function run(command, args, extraEnv = {}) {
   const result = spawnSync(command, args, {
@@ -80,8 +81,9 @@ for (const script of ['test-fl-loop-humanshare.js', 'test-fl-comment-defn-narrow
   checks.push(result.exit === 0 ? pass(script, 'regression') : fail(script, `exit=${result.exit}`));
 }
 
-const dirty = run('git', ['status', '--porcelain']);
-const cleanDeploy = dirty.output.trim() === '';
+// build가 갱신하는 generated state는 검증 산출물이다. 사용자 변경 보호 판정은
+// build 이전 상태를 기준으로 해야 clean artifact가 자기 자신을 dirty로 만들지 않는다.
+const cleanDeploy = initialStatus.output.trim() === '';
 checks.push(cleanDeploy
   ? pass('clean-worktree', 'clean')
   : blocked('clean-worktree', 'existing user changes preserved'));
