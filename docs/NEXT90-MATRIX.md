@@ -63,6 +63,9 @@ node scripts/ai-contract-gate.js --json
   internal_smoke=PASS (5 pages 200 + POST validation 400)
   internal_deploy=BLOCKED (dirty-worktree)
   perf_afldb=BLOCKED (AFJ-DB key not supplied; prior legacy /stats probe returned 401)
+  browser_matrix=PASS (People/Market/Flow/Dashboard headings and Island surfaces)
+  dashboard_timestamp=PASS (numeric timestamp rendered as local time)
+  sse=KNOWN_LIMITATION (metrics/alerts endpoint returns 501; UI uses polling fallback)
 ```
 
 이 수치는 전체 Next-90 점수가 아니다. 현재 AI 친화적 빌드·manifest 기반과
@@ -84,6 +87,11 @@ Chrome 접근성 트리에서 5개 행의 컴포넌트·그룹·상태 텍스트
 성능 단계에서는 기존 측정기가 AFJ-DB의 이전 비인증 경로(`/stats`, `/verify`)를
 사용하고 있음을 발견했다. 측정기를 현재 `/v1/*` Bearer 계약으로 갱신했지만,
 검증 환경에 `AFLDB_ADMIN_KEY`가 없어 실제 수치 산출은 아직 BLOCKED다.
+
+대표 앱 브라우저 검수에서는 Dashboard의 숫자 timestamp를 문자열로 `Date`에
+넘겨 `Invalid Date`가 되던 문제를 발견했다. `Number(timestamp)` 변환과 SSE
+미지원 시 polling fallback 표시를 추가하고 실제 브라우저에서 시간 표시를
+확인했다. SSE 자체는 현재 런타임 계약상 501이므로 PASS로 둔갑시키지 않는다.
 
 ## 다음 작업
 
