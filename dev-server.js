@@ -20,6 +20,7 @@ const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');
 const BROWSER_STATE_FILE = path.join(ROOT, '.browser-state.json');
 const RUNTIME        = path.join(ROOT, 'runtime', 'bootstrap.js');
 const HMR_PORT       = 40851;
+const APP_PORT       = Number(process.env.PORT || 40860);
 
 let serverProc    = null;
 let debounceTimer = null;
@@ -449,11 +450,36 @@ function startServer() {
     if (serverProc) { serverProc.kill('SIGTERM'); serverProc = null; }
 
     serverProc = cp.spawn('node', [RUNTIME, 'run', APP_FL], {
-      cwd: ROOT, stdio: 'pipe',
+      cwd: ROOT,
+      stdio: 'pipe',
+      env: {
+        ...process.env,
+        FL_HTTP_ALLOW: process.env.FL_HTTP_ALLOW || '127.0.0.1,localhost',
+      },
     });
 
     // stdout/stderr 출력 + 포트 오픈 감지
     let runtimeOk = false;
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+    const waitForHttp = (attempt = 0) => {
+      const probe = http.get({ hostname: '127.0.0.1', port: APP_PORT, path: '/', timeout: 250 }, (res) => {
+        res.resume();
+        if (res.statusCode && res.statusCode < 500) return finish();
+        retry();
+      });
+      probe.on('error', retry);
+      probe.on('timeout', () => { probe.destroy(); retry(); });
+      function retry() {
+        if (settled) return;
+        if (attempt >= 40) return finish();
+        setTimeout(() => waitForHttp(attempt + 1), 100);
+      }
+    };
     const handleOutput = (raw) => {
       // 런타임 파서 에러 감지 (stdout + stderr 공통)
       if (raw.includes('Unexpected character') || raw.includes('실행 오류')) {
@@ -480,7 +506,7 @@ function startServer() {
           recordToAIRC([], runtimeErrors);
           runtimeErrors.forEach(e => lastBuildErrors.delete(e));
         }
-        resolve();
+        waitForHttp();
       }
     });
     serverProc.stderr.on('data', d => {
@@ -493,7 +519,7 @@ function startServer() {
     });
 
     // 안전망: 3초 후 무조건 resolve
-    setTimeout(resolve, 3000);
+    setTimeout(finish, 5000);
   });
 }
 
