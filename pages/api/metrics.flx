@@ -20,7 +20,7 @@
         (handle-export-metrics $req)
 
       (and (= $method "GET") (str-includes $path "/stream"))
-        (handle-stream-metrics $req)
+        (server-json {"error" "SSE route is registered by server.fl"} 404)
 
       (= $method "POST")
         (handle-post-metrics $req)
@@ -81,7 +81,7 @@
   (sse_send $connection (json-stringify {
     "type" "ready"
     "source" "metrics"
-    "timestamp" (str (date-now))
+    "timestamp" (now_iso)
   }))
   nil)
 

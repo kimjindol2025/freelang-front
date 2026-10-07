@@ -6,7 +6,7 @@
   (let [$path (get $req "path")]
     (cond
       (str-includes $path "/api/alerts/stream")
-      (handle-alerts-stream $req)
+      (server-json {"error" "SSE route is registered by server.fl"} 404)
 
       (str-includes $path "/api/alerts")
       (handle-get-alerts $req)
@@ -32,7 +32,7 @@
   (sse_send $connection (json-stringify {
     "type" "ready"
     "source" "alerts"
-    "timestamp" (str (date-now))
+    "timestamp" (now_iso)
   }))
   nil)
 

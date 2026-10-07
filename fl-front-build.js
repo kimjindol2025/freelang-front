@@ -197,6 +197,7 @@ const FL_FRONT_HELPERS = new Set([
   'load',
   'req-query-default','req_query_default',
   'server-response','server_response',
+  'sse_send','sse-send',
   'export-to-csv','export_to_csv','export-to-json','export_to_json',
   'type','type-of','type_of',
   'html-escape','html_escape',

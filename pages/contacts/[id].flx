@@ -37,11 +37,11 @@
                             ym       (if (> (length dt) 6) (str-slice dt 0 7) dt)
                             existing (get acc ym)]
                         (if existing
-                          (assoc acc ym (conj existing arow))
+                          (assoc acc ym (push existing arow))
                           (assoc acc ym [arow]))))
                     {}
                     acts)
-          keys    (sort (js-keys grouped))]
+          keys    (sort (json_keys grouped))]
       (map (fn [k] {:ym k :rows (get grouped k)}) (reverse keys)))))
 
 (defn render-timeline [acts]
