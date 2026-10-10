@@ -1,0 +1,4 @@
+(defn render [req]
+  (layout-html "invalid fixture"
+    (h "div" {} "broken")
+    req)

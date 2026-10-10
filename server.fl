@@ -16,13 +16,24 @@
 ; 개발 모드 HMR 브리지 — 브라우저는 앱 origin(:40860)만 사용한다.
 (defn dev-hmr-state [req]
   (if (= (fl-env-get "FL_DEV") "1")
-    (let [raw (try (file-read ".hmr-event.json")
-                   (catch $e "{\"version\":0,\"type\":\"\"}"))
-          state (json-parse raw)
+    (let [state-path (or (fl-env-get "FL_HMR_STATE_FILE") ".hmr-event.json")
           since (str-to-num (or (server-req-query req "since") "0"))
+          hmr-port (fl-env-get "FL_HMR_PORT")
+          proxy (try (if hmr-port
+                    (http-get-data (str "http://127.0.0.1:" hmr-port "/~hmr-state?since=" since))
+                    nil)
+                  (catch $e nil))
+          raw (try (if proxy (json-stringify proxy) (file-read state-path))
+                   (catch $e "{\"version\":0,\"type\":\"\"}"))
+          state (or proxy (json-parse raw))
           version (or (get state "version") 0)
           kind (if (> version since) (or (get state "type") "") "")]
-      (server-json {"version" version "type" kind}))
+      (server-json {"version" version "type" kind
+                    "message" (or (get state "message") "")
+                    "source" (or (get state "source") "")
+                    "line" (or (get state "line") 0)
+                    "col" (or (get state "col") 0)
+                    "stack" (or (get state "stack") "")}))
     (server_status 404 "")))
 
 (server-get "/~hmr-state" "dev-hmr-state")

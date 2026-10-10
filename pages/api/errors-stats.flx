@@ -3,6 +3,13 @@
 
 (load "error-api.fl")
 
+(defn render_post [req]
+  (if (= (form-get req "action") "clear")
+    (do
+      (clear-errors)
+      (server-redirect "/errors-stats"))
+    (server-redirect "/errors-stats")))
+
 (style stats-container :p "24px" :max-w "1200px" :mx "auto")
 (style stats-grid :display "grid" :grid-cols "repeat(auto-fit, minmax(200px, 1fr))" :gap "16px" :mb "24px")
 (style stat-card :bg "white" :border "1px solid #e5e7eb" :rounded "md" :p "16px" :shadow-sm "true")
@@ -70,7 +77,10 @@
         (h "div" {:style "mt:24px;display:flex;gap:8px"}
           (h "a" {:href "/api/errors?limit=50" :class "btn" :style "display:inline-block;padding:10px 16px;background:#6366f1;color:white;border-radius:6px;text-decoration:none;font-weight:600;cursor:pointer"}
             "📥 JSON 다운로드")
-          (h "button" {:onclick "fetch('/api/errors',{method:'DELETE'}).then(()=>location.reload())" :style "padding:10px 16px;background:#ef4444;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer"}
-            "🗑️ 에러 초기화")))
+          (h "form" {:method "POST" :action "/errors-stats" :style "display:inline"}
+            (str
+              (h! "input" {:type "hidden" :name "action" :value "clear"})
+              (h "button" {:type "submit" :style "padding:10px 16px;background:#ef4444;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer"}
+                "🗑️ 에러 초기화")))))
 
       $req)))

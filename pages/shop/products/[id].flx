@@ -4,14 +4,14 @@
 (load "pages/shop/_shared.flx")
 
 (defn fetch-product [id]
-  (let [res    (http-get (str (shop-api-base) "/api/products/" id))
+  (let [res    (front-http-get (str (shop-api-base) "/api/products/" id))
         parsed (json_parse (get res "body"))]
     (if (get parsed "ok") (get parsed "data") nil)))
 
-;; 장바구니 담기 Island — 상품 정보는 서버가 JS 변수로 주입
+;; 장바구니 담기 Island — 서버 props를 FreeLang 언어 경계로 전달
 (island AddToCart []
-  (let [pid   (atom (or window.PRODUCT_ID 0))
-        stock (atom (or window.PRODUCT_STOCK 0))
+  (let [pid   (or (prop "product-id") 0)
+        stock (or (prop "stock") 0)
         uid   (atom 1)
         qty   (atom 1)
         msg   (atom "")
@@ -38,22 +38,22 @@
           "+"))
       (h "button"
         {"style" (str "width:100%;padding:14px;border:none;border-radius:10px;font-size:1rem;font-weight:700;cursor:pointer;"
-                      (if (> (deref stock) 0)
+                      (if (> stock 0)
                         "background:#6366f1;color:#fff"
                         "background:#e5e7eb;color:#9ca3af;cursor:not-allowed"))
          "on-click" (fn []
-           (when (and (> (deref stock) 0) (not (deref busy)))
+           (when (and (> stock 0) (not (deref busy)))
              (reset! busy true)
              (reset! msg "")
              (fetch-post! (str (shop-api-base) "/api/cart")
-               {:user_id (deref uid) :product_id (deref pid) :qty (deref qty)}
+               {:user_id (deref uid) :product_id pid :qty (deref qty)}
                (fn [res]
                  (reset! busy false)
                  (reset! msg
                    (if (get res "ok")
                      (str "✅ 장바구니에 담았습니다! (" (deref qty) "개)")
                      (str "❌ " (?? (get res "error") "오류"))))))))}
-        (if (> (deref stock) 0)
+        (if (> stock 0)
           (if (deref busy) "처리 중..." "🛒 장바구니 담기")
           "품절"))
       (when (not (or (nil? (deref msg)) (= (deref msg) "")))
@@ -93,8 +93,6 @@ body{background:#f9fafb}
 .meta{font-size:.8rem;color:#9ca3af}
 </style>
 """
-          ;; 상품 ID·재고를 JS 전역 변수로 주입
-          (str "<script>var PRODUCT_ID=" (get p "id") ";var PRODUCT_STOCK=" (get p "stock") ";</script>")
           (h "div" {"class" "wrap"}
             (h "div" {"class" "nav"}
               (h "a" {"href" "/shop"} "상품 목록")
@@ -115,8 +113,10 @@ body{background:#f9fafb}
                   {"class" (if (> (get p "stock") 0) "stock-badge stock-ok" "stock-badge stock-none")}
                   (if (> (get p "stock") 0) (str "재고 " (get p "stock") "개") "품절"))
                 (h "div" {"class" "divider"})
-                "ISLAND_PLACEHOLDER"
-                "ISLAND_SCRIPTS"
+                (str "<div data-fl-props='" (json-stringify {"product-id" (get p "id") "stock" (get p "stock")}) "'>"
+                     "ISLAND_PLACEHOLDER"
+                     "</div>"
+                     "ISLAND_SCRIPTS")
                 (h "div" {"class" "divider"})
                 (h "p" {"class" "meta"} (str "상품번호: #" (get p "id") " · 등록일: " (get p "created_at")))))
             (h "div" {"style" "margin-top:24px;display:flex;gap:12px"}

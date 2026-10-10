@@ -75,17 +75,19 @@
 (island LogPoller []
   (let [polling (atom false)]
     (when (not @polling)
-      (reset! polling true)
-      (dispatch "log_running" true)
-      (let [tick (atom 0)]
-        (fetch! "/api/logs/recent"
-          (fn [res]
-            (dispatch "logs" (or (get res "logs") []))))))
+      (do
+        (reset! polling true)
+        (dispatch "log_running" true)
+        (let [poll (fn []
+                     (fetch! "/api/logs/recent"
+                       (fn [res]
+                         (dispatch "logs" (or (get res "logs") [])))))]
+          (poll)
+          (every! 3000 poll))))
     (h "span" {})))
 
 (defn render [req]
   (layout-html "로그 뷰어"
     (str "ISLAND_PLACEHOLDER_0" "ISLAND_PLACEHOLDER_1"
-         "<script>setInterval(()=>fetch('/api/logs/recent').then(r=>r.json()).then(d=>{if(window._fl)_fl.dispatch('logs',d.logs||[]);}),3000)</script>"
          "ISLAND_SCRIPTS")
     req))

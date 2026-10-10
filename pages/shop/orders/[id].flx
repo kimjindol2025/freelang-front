@@ -4,7 +4,7 @@
 (defn SHOP_API [] "http://localhost:40081")
 
 (defn fetch-order [id]
-  (let [res (http-get (str (SHOP_API) "/api/orders/" id))
+  (let [res (front-http-get (str (SHOP_API) "/api/orders/" id))
         p   (json_parse (get res "body"))]
     (if (get p "ok") (get p "data") nil)))
 

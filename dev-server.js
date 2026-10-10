@@ -20,13 +20,17 @@ const BUILD_STATE_FILE = path.join(ROOT, '.build-state.json');
 const BROWSER_STATE_FILE = path.join(ROOT, '.browser-state.json');
 const HMR_STATE_FILE = path.join(ROOT, '.hmr-event.json');
 const RUNTIME        = path.join(ROOT, 'runtime', 'bootstrap.js');
-const HMR_PORT       = 40851;
+const HMR_PORT       = Number(process.env.HMR_PORT || 40851);
 const APP_PORT       = Number(process.env.PORT || 40860);
 
 let serverProc    = null;
 let debounceTimer = null;
 let hmrClients    = [];
 let hmrVersion    = 0;
+let hmrType       = '';
+let hmrMeta       = {};
+let rebuildInProgress = false;
+const pendingChanges = new Set();
 const fileHashes  = new Map();   // full file hash
 const logicHashes = new Map();   // (style …) 제거 후 해시 — CSS-only 판별
 
@@ -103,6 +107,16 @@ const hmrServer = http.createServer((req, res) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, cors); res.end(); return;
+  }
+
+  // HMR state proxy
+  if (req.url.startsWith('/~hmr-state')) {
+    const query = new URL(req.url, 'http://127.0.0.1').searchParams;
+    const since = Number(query.get('since') || 0);
+    const type = hmrVersion > since ? hmrType : '';
+    res.writeHead(200, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ version: hmrVersion, type, ...hmrMeta }));
+    return;
   }
 
   // HMR SSE
@@ -289,10 +303,12 @@ const hmrServer = http.createServer((req, res) => {
   res.writeHead(404, cors); res.end();
 });
 
-function hmrReload(type = 'reload') {
+function hmrReload(type = 'reload', meta = {}) {
   hmrVersion += 1;
+  hmrType = type;
+  hmrMeta = meta && typeof meta === 'object' ? meta : {};
   try {
-    fs.writeFileSync(HMR_STATE_FILE, JSON.stringify({ version: hmrVersion, type }));
+    fs.writeFileSync(HMR_STATE_FILE, JSON.stringify({ version: hmrVersion, type, ...hmrMeta }));
   } catch (e) {
     console.warn(`[hmr] 상태 파일 기록 실패: ${e.message}`);
   }
@@ -303,6 +319,20 @@ function hmrReload(type = 'reload') {
   }
   hmrClients = hmrClients.filter(c => !dead.includes(c));
   console.log(`[hmr] ${type} → ${hmrClients.length}개 클라이언트`);
+}
+
+function buildErrorMeta(error, changedFile = '') {
+  const output = String(error?.output || error?.message || 'build failed');
+  const clean = output.replace(/\x1b\[[0-9;]*m/g, '');
+  const sourceMatch = clean.match(/(?:^|\s)((?:pages|components|src)\/[^\s:]+\.flx):(\d+)(?::(\d+))?/m);
+  const known = [...parseFatalBuildErrors(clean), ...parseBuildErrors(clean)][0];
+  return {
+    message: (known || clean.split('\n').filter(Boolean).slice(-1)[0] || 'build failed').slice(0, 1600),
+    source: sourceMatch?.[1] || (changedFile ? path.relative(ROOT, changedFile) : ''),
+    line: sourceMatch ? Number(sourceMatch[2]) : Number(clean.match(/line (\d+)/i)?.[1] || 0),
+    col: sourceMatch?.[3] ? Number(sourceMatch[3]) : 0,
+    stack: clean.slice(-2400),
+  };
 }
 
 // ── 파일 해시 (변경 감지용) ───────────────────────────────────
@@ -411,8 +441,18 @@ function parseBuildErrors(output) {
     // 파서 에러
     const p = line.match(/Unexpected character.+at line \d+/);
     if (p) errors.add(p[0]);
+    if (/미닫힘|파싱 오류|E_PARSE_|Unexpected token|syntax error/i.test(line)) {
+      errors.add(line.trim());
+    }
   }
   return errors;
+}
+
+function parseFatalBuildErrors(output) {
+  return new Set(output.split('\n')
+    .filter((line) => /미닫힘|파싱 오류|E_PARSE_|Unexpected token|Unexpected character|syntax error/i.test(line))
+    .map((line) => line.trim())
+    .filter(Boolean));
 }
 
 // ── 빌드 ──────────────────────────────────────────────────────
@@ -444,9 +484,18 @@ function build() {
           recordToAIRC(newErrors, resolved);
         }
         lastBuildErrors = currentErrors;
+        const fatalErrors = parseFatalBuildErrors(output);
+        if (fatalErrors.size > 0) {
+          const error = new Error('build diagnostics reported errors');
+          error.output = output;
+          reject(error);
+          return;
+        }
         resolve();
       } else {
-        reject(new Error(`build exit ${code}`));
+        const error = new Error(`build exit ${code}`);
+        error.output = output;
+        reject(error);
       }
     });
   });
@@ -454,7 +503,7 @@ function build() {
 
 // ── 서버 시작 (포트 오픈 감지) ────────────────────────────────
 function startServer() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     if (serverProc) { serverProc.kill('SIGTERM'); serverProc = null; }
 
     serverProc = cp.spawn('node', [RUNTIME, 'run', APP_FL], {
@@ -463,6 +512,9 @@ function startServer() {
       env: {
         ...process.env,
         FL_DEV: '1',
+        FL_FILE_BASE: process.env.FL_FILE_BASE || ROOT,
+        FL_HMR_STATE_FILE: HMR_STATE_FILE,
+        FL_HMR_PORT: String(HMR_PORT),
         FL_HTTP_ALLOW: process.env.FL_HTTP_ALLOW || '127.0.0.1,localhost',
       },
     });
@@ -470,10 +522,10 @@ function startServer() {
     // stdout/stderr 출력 + 포트 오픈 감지
     let runtimeOk = false;
     let settled = false;
-    const finish = () => {
+    const finish = (error = null) => {
       if (settled) return;
       settled = true;
-      resolve();
+      if (error) reject(error); else resolve();
     };
     const waitForHttp = (attempt = 0) => {
       const probe = http.get({ hostname: '127.0.0.1', port: APP_PORT, path: '/', timeout: 250 }, (res) => {
@@ -485,7 +537,7 @@ function startServer() {
       probe.on('timeout', () => { probe.destroy(); retry(); });
       function retry() {
         if (settled) return;
-        if (attempt >= 40) return finish();
+        if (attempt >= 40) return finish(new Error(`server did not become ready on :${APP_PORT}`));
         setTimeout(() => waitForHttp(attempt + 1), 100);
       }
     };
@@ -525,15 +577,21 @@ function startServer() {
     });
     serverProc.on('exit', (code, signal) => {
       if (signal !== 'SIGTERM') console.log(`[dev] 서버 종료 (code=${code})`);
+      if (signal !== 'SIGTERM' && !runtimeOk) {
+        finish(new Error(`runtime exited before ready (code=${code}, signal=${signal || 'none'})`));
+      }
     });
 
-    // 안전망: 3초 후 무조건 resolve
-    setTimeout(finish, 5000);
+    // 안전망: 준비 신호가 없으면 실패로 처리한다. 죽은 서버에
+    // soft-reload를 보내 브라우저를 더 나쁜 상태로 만들지 않는다.
+    setTimeout(() => {
+      if (!runtimeOk) finish(new Error(`server readiness timeout on :${APP_PORT}`));
+    }, 5000);
   });
 }
 
 // ── 리빌드 핸들러 ─────────────────────────────────────────────
-async function rebuild(changedFile) {
+async function performRebuild(changedFile) {
   const prevLogic = logicHashes.get(changedFile) || '';
   if (!hasChanged(changedFile) && path.basename(changedFile) !== 'app.css') {
     console.log(`[dev] 변경 없음 (캐시 일치): ${path.relative(ROOT, changedFile)}`);
@@ -557,7 +615,10 @@ async function rebuild(changedFile) {
         // inline <style>만 바뀐 경우는 soft-reload로 HTML 갱신
         hmrReload('soft-reload');
       }
-    } catch (e) { console.error('[dev] 빌드 실패:', e.message); }
+    } catch (e) {
+      console.error('[dev] 빌드 실패:', e.message);
+      hmrReload('build-error', buildErrorMeta(e, changedFile));
+    }
     return;
   }
 
@@ -574,6 +635,29 @@ async function rebuild(changedFile) {
     hmrReload('soft-reload'); // L3 (클라이언트 실패 시 full reload)
   } catch (e) {
     console.error('[dev] 실패:', e.message);
+    hmrReload('build-error', buildErrorMeta(e, changedFile));
+  }
+}
+
+// 빌드가 산출한 app.css/_app.fl 변경을 감시 입력으로 재큐잉하지 않는다.
+// 사용자의 다음 편집은 빌드가 끝난 뒤 정상적으로 새로 들어온다.
+async function rebuild(changedFile) {
+  if (rebuildInProgress) {
+    // 빌드 중 들어온 사용자 변경을 버리지 않는다. 산출물(app.css)은
+    // watcher에서 제외하고, 실제 소스 변경만 여기로 들어온다.
+    pendingChanges.add(changedFile);
+    return;
+  }
+  rebuildInProgress = true;
+  try {
+    return await performRebuild(changedFile);
+  } finally {
+    rebuildInProgress = false;
+    const nextChange = pendingChanges.values().next().value;
+    if (nextChange) {
+      pendingChanges.delete(nextChange);
+      setTimeout(() => rebuild(nextChange), 50);
+    }
   }
 }
 
@@ -603,6 +687,8 @@ function watchAll() {
         if (!filename.endsWith('.flx') && !filename.endsWith('.js') && filename !== 'app.css') return;
         if (filename.includes('_app') || filename.startsWith('dev-server')) return;
         const full = path.join(dir, filename);
+        // 빌드가 생성한 CSS 이벤트는 입력으로 재큐잉하지 않는다.
+        if (rebuildInProgress && full === CSS_FILE) return;
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => rebuild(full), 250);  // 300→250ms
       });

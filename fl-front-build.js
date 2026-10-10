@@ -73,6 +73,39 @@ function fileHash(p) {
 }
 
 const PAGES_DIR   = path.join(__dirname, 'pages');
+const LANGUAGE_CONTRACT_PATH = path.join(__dirname, 'front-language.contract.json');
+
+function validateLanguageContract() {
+  let contract;
+  try {
+    contract = JSON.parse(fs.readFileSync(LANGUAGE_CONTRACT_PATH, 'utf8'));
+  } catch (error) {
+    issue('error', 'language-contract', 'front-language.contract.json', 0, `언어 계약을 읽을 수 없음: ${error.message}`);
+    return null;
+  }
+  const requiredAdapters = new Set(['v11-afj', 'browser-bridge', 'freelang-script']);
+  const adapters = new Set((contract.adapters || []).map((adapter) => adapter.id));
+  const requiredPrimitives = new Set(['date-add-days', 'every!', 'fetch!', 'fetch-post!']);
+  const primitives = new Set(contract.primitives || []);
+  const validLayers = (contract.layers || []).every((layer) => layer.syntax === 'FreeLang' || layer.syntax === 'FreeLang Front');
+  if (contract.schema !== 'fl-front-language/1' || contract.source?.extension !== '.flx' || !validLayers
+      || [...requiredAdapters].some((id) => !adapters.has(id))
+      || [...requiredPrimitives].some((id) => !primitives.has(id))) {
+    issue('error', 'language-contract', 'front-language.contract.json', 0, 'FreeLang Front 언어 계약이 정본 요구사항을 만족하지 않음');
+    return null;
+  }
+  const bridgeModules = contract.browser_bridge?.modules || [];
+  const bridgeSource = fs.readFileSync(path.join(__dirname, contract.browser_bridge?.source || 'pages/_layout.flx'), 'utf8');
+  const missingBridgeModules = bridgeModules.filter((module) => !bridgeSource.includes(`(define ${module.symbol}`));
+  if (contract.browser_bridge?.source !== 'pages/_layout.flx' || bridgeModules.length !== 7 || missingBridgeModules.length) {
+    issue('error', 'language-contract', 'front-language.contract.json', 0,
+      `브라우저 bridge 모듈 계약 불일치: ${missingBridgeModules.map((module) => module.id).join(', ') || '개수/소스 확인 필요'}`);
+    return null;
+  }
+  return contract;
+}
+
+const LANGUAGE_CONTRACT = validateLanguageContract();
 
 // (style ...) 블록을 괄호 깊이 추적으로 정확히 제거
 function removeStyleBlocks(src) {
@@ -170,8 +203,8 @@ const FL_FRONT_HELPERS = new Set([
   'server_json','server-json','server_redirect','server-redirect',
   'uuid','uuid_short','uuid-short',
   // Island 전용 런타임 함수
-  'dispatch','get-store','get_store',
-  'fetch!','fetch-post!','fetch-delete!','fetch_delete',
+  'dispatch','get-store','get_store','prop',
+  'fetch!','fetch-post!','fetch-delete!','fetch_delete','copy!','every!','date-add-days',
   // 서버 req 헬퍼
   'server-req-param','server-req-query','server-req-json',
   'server_req_param','server_req_query','server_req_json',
@@ -763,7 +796,7 @@ function scanPages(dir, base = '') {
 
 // _ 접두사 헬퍼 파일 스캔 (최상위 pages/ 만 — 하위 폴더 헬퍼는 불필요)
 // 헬퍼 의존성 순서: layout → db → auth → error → charts → 나머지
-const HELPER_ORDER = ['_layout', '_db', '_afldb', '_auth', '_error', '_charts'];
+const HELPER_ORDER = ['_layout', '_db', '_http', '_afldb', '_auth', '_error', '_charts'];
 
 function scanHelpers(dir) {
   const helpers = [];
@@ -1607,6 +1640,7 @@ function checkAllParens(routes, helpers) {
     const lineOf = idx => src.slice(0, idx).split('\n').length;
     const st = [];
     let err = null;
+    let errLine = 0;
     for (let i = 0; i < src.length && !err; i++) {
       const c = src[i];
       if (src.startsWith('"""', i)) {            // 삼중따옴표 — 닫는 """ 까지 스킵
@@ -1619,22 +1653,32 @@ function checkAllParens(routes, helpers) {
       if (open[c]) st.push({ c, i });
       else if (close[c]) {
         const t = st.pop();
-        if (!t) err = `여는 짝 없는 '${c}' (line ${lineOf(i)})`;
-        else if (t.c !== close[c]) err = `짝 불일치 '${c}' (line ${lineOf(i)}, 여는 '${t.c}' line ${lineOf(t.i)})`;
+        if (!t) {
+          errLine = lineOf(i);
+          err = `여는 짝 없는 '${c}' (line ${errLine})`;
+        } else if (t.c !== close[c]) {
+          errLine = lineOf(i);
+          err = `짝 불일치 '${c}' (line ${errLine}, 여는 '${t.c}' line ${lineOf(t.i)})`;
+        }
       }
     }
     if (!err && st.length) {
       const t = st[st.length - 1];
-      err = `미닫힘 '${t.c}' (line ${lineOf(t.i)}, 총 ${st.length}개)`;
+      errLine = lineOf(t.i);
+      err = `미닫힘 '${t.c}' (line ${errLine}, 총 ${st.length}개)`;
     }
-    if (err) errors.push(`  \x1b[31m✗\x1b[0m ${path.basename(f)} — ${err}`);
+    if (err) {
+      const file = path.relative(__dirname, f).replaceAll(path.sep, '/');
+      issue('error', 'syntax', file, errLine, err);
+      errors.push(`  \x1b[31m✗\x1b[0m ${file}:${errLine} — ${err}`);
+    }
   }
   if (errors.length) {
-    console.log('\x1b[31m❌ 괄호 오류 — 빌드 중단\x1b[0m');
-    errors.forEach(e => console.log(e));
-    process.exit(1);
-  }
-  console.log('  \x1b[32m✅ 괄호 균형 정상\x1b[0m');
+    if (!JSON_MODE) {
+      _log('\x1b[31m❌ 괄호 오류 — 구조화 진단으로 기록\x1b[0m');
+      errors.forEach(e => _log(e));
+    }
+  } else if (!JSON_MODE) _log('  \x1b[32m✅ 괄호 균형 정상\x1b[0m');
 }
 
 // h() {:class} — 정의된 CSS 바인딩에 없는 클래스명 경고

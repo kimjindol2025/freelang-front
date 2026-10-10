@@ -11,6 +11,7 @@ Front의 타입 검사는 두 층으로 나눈다.
 npm run build
 npm run typecheck
 node scripts/front-typecheck.js --json
+npm run language:diagnostics
 ```
 
 `npm run`은 npm 자체 배너를 stdout에 출력할 수 있으므로, JSON을 파이프로
@@ -37,6 +38,10 @@ node scripts/front-typecheck.js --json
 메타데이터 누락은 현재 FreeLang runner의 경고로 남을 수 있다. 문법·타입
 오류와 경고를 섞어 PASS로 보고하지 않으며, 오류가 발생하면 exit code가 1이
 된다.
+
+문법 오류는 `fl-diagnostics/1`의 `syntax` 진단으로 파일·라인·힌트를 포함해
+반환한다. `npm run language:diagnostics`는 임시 build tree의 잘못된 `.flx`
+fixture로 이 계약과 exit code 1을 재현한다.
 
 `route-shadow`는 동적 경로가 정적 경로와 겹친다는 사실만으로 경고하지 않는다.
 생성된 실제 등록 순서에서 동적 경로가 정적 경로보다 먼저 나올 때만 경고한다.

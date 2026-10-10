@@ -69,6 +69,41 @@ checks.push(buildJson?.ok && manifest.exit === 0 && manifestJson?.schema === 'fl
   ? pass('ai-contract', `errors=${buildJson.summary.errors} manifest=${manifestJson.schema}`)
   : fail('ai-contract', `build=${build.exit} manifest=${manifest.exit}`));
 
+const languageConformance = run(process.execPath, ['scripts/front-language-conformance.js']);
+const languageConformanceJson = lastJson(languageConformance.output);
+checks.push(languageConformance.exit === 0 && languageConformanceJson?.pass === true
+  ? pass('language-conformance', `source_files=${languageConformanceJson.source_files}`)
+  : fail('language-conformance', `exit=${languageConformance.exit}`));
+
+const languageScript = run(process.execPath, [
+  '/home/kim/freelang-script/bin/fl-script-unified.js',
+  'run',
+  '--allow-read=.,/home/kim/freelang-script',
+  'scripts/front-language-contract.fls',
+  'front-language.contract.json',
+]);
+checks.push(languageScript.exit === 0 && /LANGUAGE_CONTRACT_FLS=PASS/.test(languageScript.output)
+  ? pass('language-script', 'FreeLangScript contract entrypoint')
+  : fail('language-script', `exit=${languageScript.exit}`));
+
+const languageDiagnostics = run(process.execPath, ['scripts/front-diagnostics-contract.js']);
+const languageDiagnosticsJson = lastJson(languageDiagnostics.output);
+checks.push(languageDiagnostics.exit === 0 && languageDiagnosticsJson?.pass === true
+  ? pass('language-diagnostics', `schema=${languageDiagnosticsJson.build_schema} code=${languageDiagnosticsJson.diagnostic?.code}`)
+  : fail('language-diagnostics', `exit=${languageDiagnostics.exit}`));
+
+const collectionAdapter = run(process.execPath, ['scripts/front-collection-adapter-contract.js']);
+const collectionAdapterJson = lastJson(collectionAdapter.output);
+checks.push(collectionAdapter.exit === 0 && collectionAdapterJson?.pass === true
+  ? pass('collection-adapter', `profile=${collectionAdapterJson.profile} operations=${collectionAdapterJson.operations.join(',')}`)
+  : fail('collection-adapter', `exit=${collectionAdapter.exit}`));
+
+const hmrContract = run(process.execPath, ['scripts/hmr-contract.js']);
+const hmrJson = lastJson(hmrContract.output);
+checks.push(hmrContract.exit === 0 && hmrJson?.pass === true
+  ? pass('hmr-contract', `events=${hmrJson.events.join(',')}`)
+  : fail('hmr-contract', `exit=${hmrContract.exit}`));
+
 const ui = run(process.execPath, ['scripts/ui-contract-gate.js']);
 const uiJson = lastJson(ui.output);
 checks.push(ui.exit === 0 && uiJson?.pass === true

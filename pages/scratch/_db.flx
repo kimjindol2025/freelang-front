@@ -4,25 +4,25 @@
 (define scratch_ns "scratch")
 
 (defn scratch-all []
-  (afldb-coll-all scratch_ns))
+  (front-collection-all scratch_ns))
 
 (defn scratch-get [id]
-  (afldb-coll-get scratch_ns id))
+  (front-collection-get scratch_ns id))
 
 (defn scratch-add [title body]
-  (afldb-coll-create scratch_ns {"title" title "body" body}))
+  (front-collection-create scratch_ns {"title" title "body" body}))
 
 (defn scratch-update [id title body]
-  (afldb-coll-update scratch_ns id {"title" title "body" body}))
+  (front-collection-update scratch_ns id {"title" title "body" body}))
 
 (defn scratch-delete [id]
-  (afldb-coll-delete scratch_ns id))
+  (front-collection-delete scratch_ns id))
 
 (defn scratch-history [id]
-  (afldb-coll-history scratch_ns id))
+  (front-collection-history scratch_ns id))
 
 ; 하위 호환 — events 등에서 쓰던 이름
-(define scratch_index_key (afldb-coll-index-key scratch_ns))
+(define scratch_index_key (front-collection-index-key scratch_ns))
 
 (defn scratch-item-key [id]
-  (afldb-coll-item-key scratch_ns id))
+  (front-collection-item-key scratch_ns id))

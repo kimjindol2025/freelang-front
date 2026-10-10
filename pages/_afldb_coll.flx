@@ -7,6 +7,19 @@
 ; 도메인 필드(title/body, content/pinned …)만 앱 _db 에서 채운다.
 
 (define afldb_coll_namespaces ["scratch" "notes" "todo" "bookmarks" "clips"])
+(define front_collection_adapter (or (env_get "FL_FRONT_COLLECTION_ADAPTER") "afj-db95"))
+(define front_collection_memory (atom {}))
+
+; memory는 production backend가 아니라 동일 언어 계약을 검증하는 test provider다.
+(defn front-collection-memory? []
+  (= front_collection_adapter "memory"))
+
+(defn front-collection-memory-items [ns]
+  (or (get (deref front_collection_memory) ns) []))
+
+(defn front-collection-memory-save [ns items]
+  (swap! front_collection_memory (fn [store] (assoc store ns items)))
+  items)
 
 (defn afldb-coll-index-key [ns]
   (str "fl:" ns ":index"))
@@ -68,3 +81,60 @@
        "index" (afldb-coll-index-key ns)
        "items" (afldb-coll-item-keys ns)})
     afldb_coll_namespaces))
+
+; FreeLang Front 언어 표면 — 페이지는 front-collection-*만 사용한다.
+; 실제 AFJ-DB95 collection 호출은 이 adapter 구현 파일에 격리한다.
+(defn front-collection-index-key [ns]
+  (afldb-coll-index-key ns))
+
+(defn front-collection-item-key [ns id]
+  (afldb-coll-item-key ns id))
+
+(defn front-collection-all [ns]
+  (if (front-collection-memory?)
+    (front-collection-memory-items ns)
+    (afldb-coll-all ns)))
+
+(defn front-collection-get [ns id]
+  (if (front-collection-memory?)
+    (first (filter (fn [item] (= (str (get item "id")) (str id)))
+                   (front-collection-memory-items ns)))
+    (afldb-coll-get ns id)))
+
+(defn front-collection-create [ns item]
+  (if (front-collection-memory?)
+    (let [id (str (now-ms))
+          full (obj-merge item {"id" id "updated" (now-ms)})
+          current (front-collection-memory-items ns)]
+      (front-collection-memory-save ns (push current full))
+      full)
+    (afldb-coll-create ns item)))
+
+(defn front-collection-update [ns id patch]
+  (if (front-collection-memory?)
+    (let [current (front-collection-memory-items ns)
+          prev (first (filter (fn [item] (= (str (get item "id")) (str id))) current))]
+      (if (= prev nil)
+        nil
+        (let [full (obj-merge prev (obj-merge patch {"id" id "updated" (now-ms)}))
+              next (map (fn [item]
+                          (if (= (str (get item "id")) (str id)) full item)) current)]
+          (front-collection-memory-save ns next)
+          full)))
+    (afldb-coll-update ns id patch)))
+
+(defn front-collection-delete [ns id]
+  (if (front-collection-memory?)
+    (let [current (front-collection-memory-items ns)
+          next (filter (fn [item] (not (= (str (get item "id")) (str id)))) current)]
+      (front-collection-memory-save ns next)
+      true)
+    (afldb-coll-delete ns id)))
+
+(defn front-collection-history [ns id]
+  (if (front-collection-memory?)
+    []
+    (afldb-coll-history ns id)))
+
+(defn front-collection-known []
+  (afldb-coll-known))

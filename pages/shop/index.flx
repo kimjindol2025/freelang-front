@@ -9,7 +9,7 @@
                (not (or (nil? kw) (= kw "")))            (str base "&q=" kw)
                (not (or (nil? category) (= category ""))) (str base "&category=" category)
                true                                       base)
-        res    (http-get url)
+        res    (front-http-get url)
         parsed (json_parse (get res "body"))]
     (if (get parsed "ok")
       (?? (get (get parsed "data") "data") (get parsed "data"))

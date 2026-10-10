@@ -1,0 +1,4 @@
+; FreeLang Front date-add-days primitive contract fixture
+(island DateContract []
+  (h "span" {:data-test "date-add-days"}
+    (date-add-days "2024-02-28" 2)))

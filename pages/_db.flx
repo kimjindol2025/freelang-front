@@ -2,6 +2,14 @@
 ; DB 설정 — data/app.db
 (define DB {:type "sqlite" :path "data/app.db"})
 
+; FreeLang Front 언어 표면 — 페이지는 이 이름을 사용하고,
+; 실제 SQLite provider 호출은 _db 어댑터 경계에만 남긴다.
+(defn front-db-query [$db $sql $params]
+  (db-query $db $sql $params))
+
+(defn front-db-exec [$db $sql $params]
+  (db-exec $db $sql $params))
+
 ; 마이그레이션 — 서버 시작 시 자동 실행
 (defn db-migrate []
   (db-exec DB "CREATE TABLE IF NOT EXISTS sessions (

@@ -13,7 +13,7 @@
 (defn auth-check [req]
   (let [sid (auth-session-id req)]
     (if sid
-      (let [rows (db-query DB "SELECT username FROM sessions WHERE id = ?" [sid])]
+      (let [rows (front-db-query DB "SELECT username FROM sessions WHERE id = ?" [sid])]
         (if (> (length rows) 0)
           (get (first rows) "username")
           nil))
@@ -23,7 +23,7 @@
 (defn auth-login [username password]
   (if (and (= username DEMO_USER) (= password DEMO_PASS))
     (let [sid (uuid)]
-      (db-exec DB "INSERT INTO sessions (id, username) VALUES (?, ?)" [sid username])
+      (front-db-exec DB "INSERT INTO sessions (id, username) VALUES (?, ?)" [sid username])
       (server-set-cookie COOKIE_NAME sid {:max_age 86400 :secure false}))
     nil))
 
@@ -31,7 +31,7 @@
 (defn auth-logout [req]
   (let [sid (auth-session-id req)]
     (if sid
-      (db-exec DB "DELETE FROM sessions WHERE id = ?" [sid])
+      (front-db-exec DB "DELETE FROM sessions WHERE id = ?" [sid])
       nil)
     (server-set-cookie COOKIE_NAME "" {:max_age 0 :secure false})))
 

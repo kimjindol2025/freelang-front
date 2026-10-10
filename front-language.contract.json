@@ -1,0 +1,74 @@
+{
+  "schema": "fl-front-language/1",
+  "name": "FreeLang Front",
+  "source": {
+    "extension": ".flx",
+    "truth": "source .flx files",
+    "language": "FreeLang v11"
+  },
+  "layers": [
+    {"id": "ssr", "syntax": "FreeLang", "responsibility": "HTML, SEO, layout"},
+    {"id": "api", "syntax": "FreeLang", "responsibility": "HTTP, JSON, validation, DB calls"},
+    {"id": "island", "syntax": "FreeLang Front", "responsibility": "state, events, async UI"}
+  ],
+  "adapters": [
+    {"id": "front-core", "side": "language", "contract": "stable FreeLang Front capability surface"},
+    {"id": "v11-afj", "side": "server", "contract": "FreeLang runtime execution"},
+    {"id": "fx", "side": "server", "contract": "native/runtime capabilities"},
+    {"id": "afj-db95", "side": "server", "contract": "database persistence"},
+    {"id": "browser-bridge", "side": "browser", "contract": "DOM, events, fetch, scheduling"},
+    {"id": "freelang-script", "side": "tooling", "contract": "build, review, test, release automation"}
+  ],
+  "adapter_contract": {
+    "policy": "Source may call only adapter tokens declared here; changing an adapter requires preserving the token contract or adding a migration.",
+    "tokens": [
+      {"adapter": "front-core", "patterns": ["^front-db-query$", "^front-db-exec$", "^front-http-get$", "^front-collection-"]},
+      {"adapter": "v11-afj", "patterns": ["^server-", "^db-"]},
+      {"adapter": "afj-db95", "patterns": ["^afldb-", "^http_request$"]},
+      {"adapter": "fx", "patterns": ["^http-get$", "^shell$"]},
+      {"adapter": "browser-bridge", "patterns": ["^copy!$", "^date-add-days$", "^every!$", "^fetch!$", "^fetch-post!$", "^prop$"]}
+    ],
+    "raw_runtime_boundaries": [
+      {"adapter": "v11-afj", "tokens": ["^db-query$", "^db-exec$"], "file_suffixes": ["/_db.flx"]}
+      ,{"adapter": "fx", "tokens": ["^http-get$"], "file_suffixes": ["/_http.flx"]}
+      ,{"adapter": "afj-db95", "tokens": ["^http_request$"], "file_suffixes": ["/_afldb.flx"]}
+      ,{"adapter": "afj-db95", "tokens": ["^afldb-coll-"], "file_suffixes": ["/_afldb_coll.flx"]}
+    ],
+    "profiles": [
+      {"id": "afj-db95", "kind": "production", "adapter": "afj-db95", "selection": "default"},
+      {"id": "memory-test", "kind": "test", "adapter": "front-core", "selection": "FL_FRONT_COLLECTION_ADAPTER=memory"}
+    ]
+  },
+  "primitives": ["copy!", "date-add-days", "every!", "fetch!", "fetch-post!", "prop"],
+  "browser_boundaries": [
+    {"file": "pages/_layout.flx", "kind": "shared-runtime", "reason": "DOM error reporting, HMR, SPA navigation, metrics bridge"},
+    {"file": "pages/fx2-wasm/index.html.flx", "kind": "experimental-runtime", "reason": "FX2/WASM browser adapter"}
+  ],
+  "browser_bridge": {
+    "source": "pages/_layout.flx",
+    "policy": "Only declared bridge modules may contain browser JavaScript; product features belong in .flx.",
+    "modules": [
+      {"id": "theme", "symbol": "dark_mode_script", "capabilities": ["theme-toggle", "local-storage"]},
+      {"id": "hmr", "symbol": "HMR-SCRIPT", "capabilities": ["css-reload", "soft-reload", "full-reload"]},
+      {"id": "devtools", "symbol": "DEBUG-PANEL", "capabilities": ["island-inspection", "error-list"]},
+      {"id": "error-overlay", "symbol": "ERROR-OVERLAY", "capabilities": ["runtime-error-ui"]},
+      {"id": "error-collector", "symbol": "ERROR-COLLECTOR", "capabilities": ["error-reporting"]},
+      {"id": "performance", "symbol": "PERFORMANCE-MONITOR", "capabilities": ["page-load", "api-timing", "long-task"]},
+      {"id": "spa", "symbol": "SPA-ROUTER", "capabilities": ["client-navigation", "view-transition"]}
+    ]
+  },
+  "invariants": [
+    "A product feature is authored in .flx before host adapter code is considered.",
+    "Server behavior is executed by the FreeLang runtime, not a JavaScript application rewrite.",
+    "Browser JavaScript is a generated bridge and runtime boundary, not the source language.",
+    "Database access goes through a declared adapter contract.",
+    "Tooling behavior is reproducible from a FreeLangScript contract where available."
+  ],
+  "independence": {
+    "framework_dependency": "none",
+    "browser_bridge_allowed": true,
+    "browser_bridge_reason": "the browser requires a small executable runtime; generated bridge only",
+    "nextjs_compatibility": "comparison baseline only",
+    "current_stage": 1
+  }
+}

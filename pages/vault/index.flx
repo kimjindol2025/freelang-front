@@ -100,7 +100,7 @@
                         {(str id) (not (get @show-pw (str id)))})))
 
         copy-pw (fn [text]
-                  (js-eval (str "navigator.clipboard.writeText(" (json-stringify text) ")")))]
+                  (copy! text))]
 
     (boot)
 

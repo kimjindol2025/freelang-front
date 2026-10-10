@@ -135,13 +135,38 @@ function cssReload(){
         else document.head.appendChild(document.importNode(newStyles[i],true));
       }
       console.log('[hmr] css-reload');
+      if(window.__FL_EO&&window.__FL_EO.clearType) window.__FL_EO.clearType('build');
     });
 }
+function captureDom(){
+  var fields=[];
+  document.querySelectorAll('input,textarea,select').forEach(function(el,i){
+    var type=(el.getAttribute('type')||'').toLowerCase();
+    if(type==='password'||type==='file')return;
+    fields.push({key:el.id||el.name||el.getAttribute('data-hmr-key')||('index:'+i),value:el.value,checked:!!el.checked});
+  });
+  var a=document.activeElement;
+  return {scrollX:window.scrollX,scrollY:window.scrollY,fields:fields,focus:a&& (a.id||a.name||a.getAttribute('data-hmr-key')||'')};
+}
+function restoreDom(snap){
+  if(!snap)return;
+  var byKey={};(snap.fields||[]).forEach(function(f){byKey[f.key]=f;});
+  document.querySelectorAll('input,textarea,select').forEach(function(el,i){
+    var key=el.id||el.name||el.getAttribute('data-hmr-key')||('index:'+i), f=byKey[key];
+    if(!f)return;
+    if(el.type!=='password'&&el.type!=='file'&&f.value!==undefined)el.value=f.value;
+    if(el.type==='checkbox'||el.type==='radio')el.checked=!!f.checked;
+  });
+  if(snap.focus){var target=document.getElementById(snap.focus)||document.querySelector('[name="'+snap.focus+'"]');if(target&&target.focus)target.focus();}
+  if(typeof snap.scrollX==='number')window.scrollTo(snap.scrollX,snap.scrollY);
+}
 function softReload(){
+  var domSnap=null;
   try{
     if(window._fl&&_fl.hmr_snapshot){
       sessionStorage.setItem('__fl_hmr',JSON.stringify(_fl.hmr_snapshot()));
     }
+    sessionStorage.setItem('__fl_hmr_dom',JSON.stringify(captureDom()));
   }catch(e){}
   return fetch(location.href,{cache:'no-store',headers:{'Accept':'text/html'}})
     .then(function(r){if(!r.ok)throw new Error('http '+r.status);return r.text();})
@@ -149,7 +174,10 @@ function softReload(){
       document.open();
       document.write(html);
       document.close();
+      try{domSnap=JSON.parse(sessionStorage.getItem('__fl_hmr_dom')||'null');sessionStorage.removeItem('__fl_hmr_dom');}catch(e){}
+      setTimeout(function(){restoreDom(domSnap);},0);
       console.log('[hmr] soft-reload');
+      if(window.__FL_EO&&window.__FL_EO.clearType) window.__FL_EO.clearType('build');
     })
     .catch(function(err){
       console.warn('[hmr] soft-reload failed → full reload',err);
@@ -171,7 +199,9 @@ function connect(){
     })
     .then(function(state){
       if(typeof state.version==='number') hmrSince=state.version;
-      if(state.type) onMsg(state.type);
+      if(state.type==='build-error'){
+        if(window.__FL_EO&&window.__FL_EO.report) window.__FL_EO.report({type:'build',message:state.message||'FreeLang build failed',source:state.source||'',line:state.line||0,col:state.col||0,stack:state.stack||'',url:location.href});
+      }else if(state.type) onMsg(state.type);
       hmrOffLogged=false;
       setTimeout(connect,400);
     })
@@ -453,7 +483,7 @@ function paint(){
         +'<div style="color:#fb7185;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">'+esc(e.type||'error')+'</div>'
         +'<div style="color:#fafafa;font-size:18px;font-weight:650;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+esc(e.message)+'</div>'
         +'<div style="margin-top:10px;color:#a1a1aa;font-size:12px">'
-          +esc(e.source||'(unknown)')+(e.line?':'+e.line:'')
+          +esc(e.source||'(unknown)')+(e.line?':'+e.line:'')+(e.col?':'+e.col:'')
           +' · '+esc(shortUrl(e.url||location.href))
         +'</div>'
       +'</div>'
@@ -499,6 +529,7 @@ function report(entry){
     message:String(msg),
     source:entry.source||'',
     line:entry.line||0,
+    col:entry.col||0,
     stack:String(entry.stack||''),
     url:entry.url||location.href,
     ts:Date.now()
@@ -523,6 +554,10 @@ function report(entry){
 window.__FL_EO={
   report:report,
   clear:function(){ errors=[]; idx=0; paint(); },
+  clearType:function(type){
+    var kept=[];for(var i=0;i<errors.length;i++)if(errors[i].type!==type)kept.push(errors[i]);
+    errors=kept;if(idx>=errors.length)idx=Math.max(0,errors.length-1);paint();
+  },
   open:function(){ if(errors.length){ open=true; paint(); } },
   list:function(){ return errors.slice(); }
 };
@@ -563,9 +598,9 @@ function noisy(msg){
     || s.indexOf('Failed to fetch')>=0;
 }
 
-function send(type,msg,src,line,stack){
+function send(type,msg,src,line,col,stack){
   if(noisy(msg)||noisy(stack)) return;
-  var payload={type:type,message:String(msg),source:src||'',line:line||0,stack:String(stack||''),url:location.href};
+  var payload={type:type,message:String(msg),source:src||'',line:line||0,col:col||0,stack:String(stack||''),url:location.href};
   if(window.__FL_EO&&window.__FL_EO.report){
     try{window.__FL_EO.report(payload);}catch(x){}
   }
@@ -587,15 +622,27 @@ function send(type,msg,src,line,stack){
   });
 }
 
-window.onerror=function(m,s,l,c,e){send('error',m,s,l,e&&e.stack);return false;};
+window.onerror=function(m,s,l,c,e){send('error',m,s,l,c,e&&e.stack);return false;};
 window.addEventListener('unhandledrejection',function(e){
   var r=e.reason;
-  send('promise',r&&r.message||String(r),'',0,r&&r.stack);
+  send('promise',r&&r.message||String(r),'',0,0,r&&r.stack);
 });
+function consolePayload(args){
+  var arr=Array.from(args), err=null;
+  for(var i=0;i<arr.length;i++){
+    if(arr[i]&&typeof arr[i]==='object'&&(arr[i].stack||arr[i] instanceof Error)){err=arr[i];break;}
+  }
+  return {message:arr.map(function(v){return v&&v.message&&v.stack?v.message:typeof v==='string'?v:String(v);}).join(' '),stack:err&&err.stack||''};
+}
 var _ce=console.error.bind(console);
 console.error=function(){
   _ce.apply(console,arguments);
-  send('console',Array.from(arguments).join(' '),'',0,'');
+  var p=consolePayload(arguments);send('console',p.message,'',0,0,p.stack);
+};
+var _cw=console.warn.bind(console);
+console.warn=function(){
+  _cw.apply(console,arguments);
+  var p=consolePayload(arguments);send('warning',p.message,'',0,0,p.stack);
 };
 })()</script>")
 

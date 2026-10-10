@@ -5,13 +5,13 @@
 (define bookmarks_ns "bookmarks")
 
 (defn bookmarks-all []
-  (afldb-coll-all bookmarks_ns))
+  (front-collection-all bookmarks_ns))
 
 (defn bookmarks-add [title url]
-  (afldb-coll-create bookmarks_ns {"title" title "url" url}))
+  (front-collection-create bookmarks_ns {"title" title "url" url}))
 
 (defn bookmarks-delete [id]
-  (afldb-coll-delete bookmarks_ns id))
+  (front-collection-delete bookmarks_ns id))
 
 (defn bookmarks-history [id]
-  (afldb-coll-history bookmarks_ns id))
+  (front-collection-history bookmarks_ns id))

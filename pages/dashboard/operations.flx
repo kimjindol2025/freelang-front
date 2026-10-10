@@ -1,5 +1,54 @@
-; pages/dashboard/operations.flx — 고급 운영 대시보드 (v1.1.0)
+; pages/dashboard/operations.flx — 운영 대시보드
+; 서비스 상태를 서버에서 확인하고 FreeLang SSR로 렌더링한다.
+
+(define SERVICES
+  [{"name" "freelang-front" "port" 40850}
+   {"name" "trading-sim" "port" 40804}
+   {"name" "pm2-board" "port" 40255}
+   {"name" "claude-mon" "port" 40101}
+   {"name" "port-reg" "port" 40254}])
+
+(defn probe-service [service]
+  (let [port (get service "port")
+        url  (str "http://localhost:" port)]
+    (try
+      (do (front-http-get url)
+          (assoc service "online" true))
+      (catch $e
+        (assoc service "online" false)))))
+
+(defn service-card [service]
+  (let [online (get service "online")
+        tone   (if online "#10b981" "#ef4444")]
+    (h "article" {:style (str "background:white;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.1);border-left:4px solid " tone)}
+      (str
+        (h "div" {:style "display:flex;justify-content:space-between;align-items:center"}
+          (str
+            (h "strong" {:style "font-size:14px"} (get service "name"))
+            (h "span" {:style (str "padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;background:" (if online "#d1fae5" "#fee2e2") ";color:" (if online "#065f46" "#7f1d1d"))}
+              (if online "online" "offline"))))
+        (h "div" {:style "display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#666;margin-top:12px;padding-top:10px;border-top:1px solid #eee"}
+          (str
+            (h "span" {} (str "포트 " (get service "port")))
+            (h "span" {:style "text-align:right"} (if online "✓ 정상" "✗ 오류"))))))))
 
 (defn render [$req]
-  (let [$html "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>운영 대시보드</title><style>*{margin:0;padding:0}body{font-family:\"Segoe UI\",system-ui;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px;color:#1a1a1a}.container{max-width:1400px;margin:0 auto}.header{background:white;border-radius:12px;padding:30px;margin-bottom:30px;box-shadow:0 8px 32px rgba(0,0,0,0.1)}.title{font-size:32px;font-weight:700;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}.desc{color:#666;font-size:14px}.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:30px}.stat-card{background:white;border-radius:8px;padding:20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.1)}.stat-value{font-size:28px;font-weight:700;color:#667eea}.stat-label{font-size:12px;color:#999;margin-top:8px}.services-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px;margin-bottom:30px}.service-card{background:white;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.1);border-left:4px solid;transition:all 0.3s}.service-card.online{border-left-color:#10b981;background:linear-gradient(135deg,#f0fdf4,#ffffff)}.service-card.offline{border-left-color:#ef4444;background:linear-gradient(135deg,#fef2f2,#ffffff)}.service-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}.service-name{font-weight:600;font-size:14px}.status-badge{display:inline-block;padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600}.badge.online{background:#d1fae5;color:#065f46}.badge.offline{background:#fee2e2;color:#7f1d1d}.service-details{display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;color:#666;margin-top:10px;padding-top:10px;border-top:1px solid #eee}.detail-row{display:flex;justify-content:space-between}.detail-label{color:#999}.detail-value{font-weight:600}.table{width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1)}.table th{background:linear-gradient(135deg,#667eea,#764ba2);color:white;padding:15px;text-align:left;font-weight:600;font-size:12px}.table td{padding:15px;border-bottom:1px solid #eee}.table tr:hover{background:#f9f9f9}.footer{text-align:center;padding:30px;color:#999;font-size:12px}</style></head><body><div class=\"container\"><div class=\"header\"><div class=\"title\">🚀 운영 대시보드</div><div class=\"desc\">freelang-front v1.1.0 | 실시간 시스템 모니터링</div></div><div class=\"stats\"><div class=\"stat-card\"><div class=\"stat-value\" id=\"online-count\">5</div><div class=\"stat-label\">온라인 서비스</div></div><div class=\"stat-card\"><div class=\"stat-value\" id=\"uptime\">99.9%</div><div class=\"stat-label\">가용성</div></div><div class=\"stat-card\"><div class=\"stat-value\" id=\"response\">45ms</div><div class=\"stat-label\">평균 응답</div></div></div><div class=\"services-grid\" id=\"services\"></div><div class=\"footer\"><p>🔄 매 3초 갱신 | freelang-front v1.1.0 프로덕션 | 7일 운영 검증 완료</p></div></div><script>const D={services:{\"freelang-front\":{port:40850},\"trading-sim\":{port:40804},\"pm2-board\":{port:40255},\"claude-mon\":{port:40101},\"port-reg\":{port:40254}},async load(){const g=document.getElementById(\"services\");let html=\"\";let online=0;for(const[n,s] of Object.entries(this.services)){const ok=await this.check(s.port);if(ok)online++;const st=ok?\"online\":\"offline\";html+=`<div class=\"service-card ${st}\"><div class=\"service-header\"><div class=\"service-name\">${n}</div><span class=\"status-badge badge ${st}\">${st}</span></div><div class=\"service-details\"><div class=\"detail-row\"><span class=\"detail-label\">포트</span><span class=\"detail-value\">${s.port}</span></div><div class=\"detail-row\"><span class=\"detail-label\">상태</span><span class=\"detail-value\">${ok?\"✓ 정상\":\"✗ 오류\"}</span></div></div></div>`}g.innerHTML=html;document.getElementById(\"online-count\").textContent=online},async check(p){try{const r=await fetch(`http://localhost:${p}`,{method:\"HEAD\",mode:\"no-cors\"});return true}catch{return false}}};setInterval(()=>D.load(),3000);D.load()</script></body></html>"]
-    (server_html $html)))
+  (let [services (map probe-service SERVICES)
+        online   (length (filter (fn [service] (get service "online")) services))]
+    (layout-html "운영 대시보드"
+      (str
+        (h "main" {:style "max-width:1400px;margin:0 auto;padding:20px"}
+          (str
+            (h "header" {:style "background:white;border-radius:12px;padding:30px;margin-bottom:30px;box-shadow:0 8px 32px rgba(0,0,0,.1)"}
+              (str
+                (h "h1" {:style "margin:0 0 8px;font-size:32px"} "🚀 운영 대시보드")
+                (h "p" {:style "margin:0;color:#666;font-size:14px"} "FreeLang SSR 서비스 상태")))
+            (h "section" {:style "display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:15px;margin-bottom:30px"}
+              (h "article" {:style "background:white;border-radius:8px;padding:20px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.1)"}
+                (str
+                  (h "strong" {:style "display:block;font-size:28px;color:#667eea"} (str online))
+                  (h "span" {:style "font-size:12px;color:#999"} "온라인 서비스"))))
+            (h "section" {:style "display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:15px"}
+              (arr-join (map service-card services) "")))
+        ))
+      $req)))

@@ -89,7 +89,7 @@ function makeVDocument() {
 }
 
 // ── Island 실행 컨텍스트 ──────────────────────────────────────
-function makeContext(vdoc) {
+function makeContext(vdoc, initialProps = {}) {
   const events = [];
 
   const _fl = {
@@ -146,6 +146,25 @@ function makeContext(vdoc) {
       events.push({ type:'fetch-delete', url });
       setTimeout(() => cb({ ok:true }), 0);
     },
+    copy: (value) => {
+      events.push({ type:'copy', value:String(value ?? '') });
+      return Promise.resolve();
+    },
+    every: (ms, fn) => {
+      events.push({ type:'every', ms });
+      setTimeout(() => { try { fn(); } catch (error) { events.push({ type:'error', phase:'every', message:String(error?.message||error) }); } }, 0);
+      return 1;
+    },
+    date_add_days: (ymd, n) => {
+      events.push({ type:'date-add-days', ymd, n });
+      if (!ymd) return '';
+      const m = String(ymd).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (!m) return '';
+      const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+      if (Number.isNaN(d.getTime())) return '';
+      d.setUTCDate(d.getUTCDate() + Number(n || 0));
+      return d.toISOString().slice(0, 10);
+    },
     _err: (id, e, phase) => {
       events.push({ type:'error', island:id, phase, message:String(e?.message||e) });
     },
@@ -157,7 +176,7 @@ function makeContext(vdoc) {
         while (el.children[0]) el.removeChild(el.children[0]);
         el.children = [];
         try {
-          const r = renderFn(update);
+          const r = renderFn(update, initialProps);
           if (r) el.appendChild(r);
           events.push({ type:'render', island:id });
         } catch(e) {
@@ -220,7 +239,7 @@ async function run(flxFile, opts={}) {
     if (!scripts.length) continue;
 
     const vdoc = makeVDocument();
-    const ctx  = makeContext(vdoc);
+    const ctx  = makeContext(vdoc, opts.props || {});
 
     // store 초기값 주입
     if (opts.store) {
@@ -277,6 +296,7 @@ if (require.main === module) {
   const clickArg  = args.find(a => a.startsWith('--click='))?.split('=')[1];
   const dispArg   = args.find(a => a.startsWith('--dispatch='))?.split('=')[1];
   const storeArg  = args.find(a => a.startsWith('--store='))?.split('=')[1];
+  const propsArg  = args.find(a => a.startsWith('--props='))?.slice('--props='.length);
 
   if (!file) {
     console.error('사용법: node island-runner.js <file.flx> [--island=Name] [--click=#id] [--dispatch=key:val] [--store={"key":0}]');
@@ -285,8 +305,10 @@ if (require.main === module) {
 
   let store = {};
   if (storeArg) try { store = JSON.parse(storeArg); } catch {}
+  let props = {};
+  if (propsArg) try { props = JSON.parse(propsArg); } catch {}
 
-  run(path.resolve(file), { island:islandArg, click:clickArg, dispatch:dispArg, store })
+  run(path.resolve(file), { island:islandArg, click:clickArg, dispatch:dispArg, store, props })
     .then(r => { console.log(JSON.stringify(r, null, 2)); process.exit(r.ok ? 0 : 1); })
     .catch(e => { console.error(JSON.stringify({ok:false,error:e.message})); process.exit(1); });
 }

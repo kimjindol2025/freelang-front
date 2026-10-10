@@ -152,8 +152,24 @@
   :size ".95rem"
   :overflow "hidden")
 
+(style note-edit-form
+  :display "flex"
+  :flex-dir "column"
+  :gap "8px"
+  :height "100%")
+
+(style note-save-btn
+  :align-self "flex-end"
+  :bg "#6366f1"
+  :color "white"
+  :border "none"
+  :radius "6px"
+  :p "6px 12px"
+  :cursor "pointer"
+  :weight "600")
+
 ; ── DB 마이그레이션 ──
-(db-exec DB "CREATE TABLE IF NOT EXISTS notes (
+(front-db-exec DB "CREATE TABLE IF NOT EXISTS notes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   content TEXT NOT NULL,
   color TEXT DEFAULT '#fff9c4',
@@ -161,38 +177,37 @@
   created_at TEXT DEFAULT (datetime('now','localtime')),
   updated_at TEXT DEFAULT (datetime('now','localtime'))
 )" [])
-(try (db-exec DB "ALTER TABLE notes ADD COLUMN pinned INTEGER DEFAULT 0" []) (catch $e nil))
-(try (db-exec DB "ALTER TABLE notes ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))" []) (catch $e nil))
+(try (front-db-exec DB "ALTER TABLE notes ADD COLUMN pinned INTEGER DEFAULT 0" []) (catch $e nil))
+(try (front-db-exec DB "ALTER TABLE notes ADD COLUMN updated_at TEXT DEFAULT (datetime('now','localtime'))" []) (catch $e nil))
 
 ; ── DB 헬퍼 ──
 (defn notes-fetch [q]
   (if (= q "")
-    (db-query DB "SELECT * FROM notes ORDER BY pinned DESC, id DESC" [])
-    (db-query DB "SELECT * FROM notes WHERE content LIKE ? ORDER BY pinned DESC, id DESC" [(str "%" q "%")])))
+    (front-db-query DB "SELECT * FROM notes ORDER BY pinned DESC, id DESC" [])
+    (front-db-query DB "SELECT * FROM notes WHERE content LIKE ? ORDER BY pinned DESC, id DESC" [(str "%" q "%")])))
 
 (defn notes-add [content color]
-  (db-exec DB "INSERT INTO notes (content, color) VALUES (?, ?)" [content color]))
+  (front-db-exec DB "INSERT INTO notes (content, color) VALUES (?, ?)" [content color]))
 
 (defn notes-del [id]
-  (db-exec DB "DELETE FROM notes WHERE id = ?" [id]))
+  (front-db-exec DB "DELETE FROM notes WHERE id = ?" [id]))
 
 (defn notes-update [id content]
-  (db-exec DB "UPDATE notes SET content=?, updated_at=datetime('now','localtime') WHERE id=?" [content id]))
+  (front-db-exec DB "UPDATE notes SET content=?, updated_at=datetime('now','localtime') WHERE id=?" [content id]))
 
 (defn notes-pin [id pinned]
-  (db-exec DB "UPDATE notes SET pinned=? WHERE id=?" [pinned id]))
+  (front-db-exec DB "UPDATE notes SET pinned=? WHERE id=?" [pinned id]))
 
 ; ── 색상 팔레트 ──
 (define NOTE-COLORS ["#fff9c4" "#c8e6c9" "#bbdefb" "#f8bbd0" "#e1bee7" "#ffe0b2" "#ffffff"])
 
 (defn color-btn [c]
-  (str "<button type='button'"
-       " onclick=\"document.getElementById('color-inp').value='" c "';"
-       "document.querySelectorAll('.cbtn').forEach(b=>b.style.outline='none');"
-       "this.style.outline='3px solid #6366f1'\""
-       " class='cbtn'"
-       " style='width:26px;height:26px;border-radius:50%;background:" c
-       ";border:1px solid #d1d5db;cursor:pointer'></button>"))
+  (str "<label class='cbtn' title='색상 " c "'"
+       " style='display:inline-flex;width:26px;height:26px;border-radius:50%;background:" c
+       ";border:1px solid #d1d5db;cursor:pointer;align-items:center;justify-content:center'>"
+       "<input type='radio' name='color' value='" c
+       "' style='position:absolute;opacity:0;width:1px;height:1px'>"
+       "</label>"))
 
 ; ── 메모 카드 ──
 (defn note-card [note]
@@ -212,17 +227,17 @@
             (h "div" {:class pin-badge :style "top:-8px;left:12px"} "📌 고정")
             "")
 
-          ; 내용 영역
+          ; 내용 영역 — 서버 폼으로 편집 (raw JS 불필요)
           (h "div" {:class note-content-area}
-            (str
-              (h "div" {:id (str "view-" id)
-                        :class note-view
-                        :onclick (str "startEdit('" id "')")
-                        :title "클릭하여 수정"} text)
-              (h "textarea" {:id (str "edit-" id)
-                             :style "display:none;width:100%;border:none;background:transparent;font-size:.95rem;line-height:1.65;resize:none;outline:none;font-family:inherit;min-height:80px"
-                             :onblur (str "saveEdit('" id "')")
-                             :onkeydown (str "if(event.key==='Escape')cancelEdit('" id "')")} "")))
+            (h "form" {:method "POST" :action "/notes" :class note-edit-form}
+              (str
+                (h! "input" {:type "hidden" :name "action" :value "edit"})
+                (h! "input" {:type "hidden" :name "id" :value id})
+                (h "textarea" {:name "content"
+                               :class note-view
+                               :style "width:100%;border:none;background:transparent;resize:vertical;outline:none;font-family:inherit;min-height:80px;box-sizing:border-box"}
+                     text)
+                (h "button" {:type "submit" :class note-save-btn} "저장"))))
 
           ; 액션 바
           (h "div" {:class note-action-bar}
@@ -244,15 +259,6 @@
                       (h! "input" {:type "hidden" :name "action" :value "del"})
                       (h! "input" {:type "hidden" :name "id" :value id})
                       (h "button" {:type "submit" :class del-btn :title "삭제"} "🗑"))))))))))))
-
-; ── 인라인 편집 스크립트 ──
-(define EDIT-SCRIPT
-  "<script>
-function startEdit(id){var v=document.getElementById('view-'+id),e=document.getElementById('edit-'+id);e.value=v.textContent;v.style.display='none';e.style.display='block';e.focus();e.style.height='auto';e.style.height=e.scrollHeight+'px';}
-function cancelEdit(id){document.getElementById('view-'+id).style.display='block';document.getElementById('edit-'+id).style.display='none';}
-async function saveEdit(id){var e=document.getElementById('edit-'+id),v=document.getElementById('view-'+id),c=e.value.trim();if(!c||c===v.textContent.trim()){cancelEdit(id);return;}await fetch('/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'edit',id:id,content:c})});v.textContent=c;v.style.display='block';e.style.display='none';}
-document.getElementById('search-inp')?.addEventListener('input',function(){var q=this.value.toLowerCase();document.querySelectorAll('[id^=card-]').forEach(function(c){c.style.display=c.textContent.toLowerCase().includes(q)?'':'none';});});
-</script>")
 
 ; ── GET 핸들러 ──
 (defn render [req]
@@ -278,11 +284,11 @@ document.getElementById('search-inp')?.addEventListener('input',function(){var q
                    (str (str count) "개 메모"
                         (if (> pin-c 0) (str " · 📌 " (str pin-c) "개 고정") ""))))))
 
-        ; 검색바
-        (h "div" {:class search-wrap}
+        ; 검색바 — 서버 GET 검색으로 처리
+        (h "form" {:method "GET" :action "/notes" :class search-wrap}
           (str
-            (h! "input" {:id "search-inp" :class search-bar :type "text"
-                         :placeholder "메모 검색..." :value q})
+            (h! "input" {:id "search-inp" :class search-bar :type "search"
+                         :name "q" :placeholder "메모 검색..." :value q})
             (h "span" {:class search-icon :style "left:14px;top:50%;transform:translateY(-50%)"} "🔍")))
 
         ; 입력 폼
@@ -290,23 +296,19 @@ document.getElementById('search-inp')?.addEventListener('input',function(){var q
           (str
             (h! "input" {:type "hidden" :name "action" :value "add"})
             (h "textarea" {:name "content" :rows "2"
-                           :placeholder "새 메모... (Ctrl+Enter 추가)"
+                           :placeholder "새 메모..."
                            :maxlength "1000"
                            :style "width:100%;border:none;outline:none;font-size:.95rem;resize:none;font-family:inherit;line-height:1.6;box-sizing:border-box"
-                           :onkeydown "if(event.ctrlKey&&event.key==='Enter')this.closest('form').submit()"
                            :required "true"} "")
             (h "div" {:class form-toolbar}
               (str
                 (h "div" {:class color-row}
-                  (str (arr-join (map color-btn NOTE-COLORS) "")
-                       (h! "input" {:type "hidden" :name "color" :id "color-inp" :value "#fff9c4"})))
+                  (arr-join (map color-btn NOTE-COLORS) ""))
                 (h "button" {:type "submit" :class add-btn} "추가")))))
 
         ; 메모 그리드
         (h "div" {:class note-grid :style "grid-template-columns:repeat(auto-fill,minmax(260px,1fr))"}
-          cards)
-
-        EDIT-SCRIPT)
+          cards))
       req)))
 
 ; ── POST 핸들러 ──

@@ -2,7 +2,7 @@
 ; 알려진 키는 afldb_coll_namespaces 레지스트리에서만 옴 (앱 _db load 불필요)
 
 (defn events-known-keys []
-  (let [cols (afldb-coll-known)
+  (let [cols (front-collection-known)
         scratch (first (filter (fn [c] (= (get c "ns") "scratch")) cols))
         notes (first (filter (fn [c] (= (get c "ns") "notes")) cols))]
     {"collections" cols

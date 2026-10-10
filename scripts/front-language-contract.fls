@@ -1,0 +1,25 @@
+;; FreeLangScript entrypoint for the FreeLang Front language contract.
+;; The runner is capability-bound: the caller must grant read access explicitly.
+
+(define contract-path (or (get-arg 0) "./front-language.contract.json"))
+(define contract (json-parse (file-read contract-path)))
+(define source (get contract "source"))
+(define layers (get contract "layers"))
+(define adapters (get contract "adapters"))
+(define boundaries (get contract "browser_boundaries"))
+(define independence (get contract "independence"))
+
+(if (and (= (get contract "schema") "fl-front-language/1")
+         (= (get source "extension") ".flx")
+         (> (length layers) 0)
+         (> (length adapters) 0)
+         (> (length boundaries) 0))
+  (do
+    (println (str "LANGUAGE_CONTRACT_FLS=PASS layers=" (length layers)
+                  " adapters=" (length adapters)
+                  " boundaries=" (length boundaries)
+                  " stage=" (get independence "current_stage")))
+    0)
+  (do
+    (println "LANGUAGE_CONTRACT_FLS=FAIL")
+    1))

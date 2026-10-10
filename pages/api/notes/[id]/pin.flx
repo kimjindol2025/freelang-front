@@ -1,7 +1,7 @@
 ; POST /api/notes/:id/pin
-(defn render [req]
+(defn render_post [req]
   (let [id (get (get req "params") "id")
         db {:type "sqlite" :path "/tmp/fl-notes.sqlite"}]
-    (db-exec db
+    (front-db-exec db
       "UPDATE notes SET pinned = CASE WHEN pinned=1 THEN 0 ELSE 1 END WHERE id=?" [id])
     (server-json {:ok true})))

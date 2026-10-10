@@ -21,6 +21,11 @@
   브라우저 정책이나 프록시가 `:40851`을 차단해도 앱 origin 기반 HMR 검증은 가능하다.
 - `:40851`은 개발 서버의 기존 SSE/AI 보조 엔드포인트이며 브라우저의 필수 경로가 아니다.
 - 개발 서버는 재시작 로그만 기다리지 않고 앱 포트가 HTTP 응답 가능한 상태가 된 뒤 HMR 신호를 보낸다.
+- 검수: `npm run hmr:contract`가 격리된 앱/HMR 포트에서 CSS reload와 실제 `.flx` 변경 후 soft reload를 확인한다.
+- HMR 보조 포트는 `HMR_PORT`로 덮어쓸 수 있으며, 앱 origin 브리지는 개발 서버의 JSON 상태 endpoint를 사용한다.
+- 브라우저 오류는 `console.error`/`console.warn`/`window.onerror`/unhandled rejection을 수집한다. `Error.stack`을 보존해 오류창에 `source:line:column`을 표시한다.
+- 빌드 문법 오류는 서버를 재시작하지 않고 `build-error` 신호로 오류창에 전달한다. 수정된 빌드가 다시 성공하면 해당 오류가 자동으로 사라진다.
+- soft reload는 Island store/atom뿐 아니라 일반 form 값·checkbox·focus·scroll 위치도 개발 세션에서 복원한다. password/file 입력값은 보안상 저장하지 않는다.
 - 운영 PM2와 개발 서버는 같은 앱 포트를 사용하므로 동시에 실행하지 않는다.
 
 ## 검증
@@ -39,3 +44,4 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:40860/front
 - `pages/_layout.flx` `HMR-SCRIPT` — same-origin 클라이언트 폴링
 - `server.fl` `dev-hmr-state` — 개발 전용 상태 브리지
 - `island-compiler.js` — `hmr_snapshot` / `hmr_register` / atom 복원
+- `pages/_layout.flx` `ERROR-OVERLAY`/`ERROR-COLLECTOR` — 콘솔 오류와 코드 위치 표시

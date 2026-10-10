@@ -4,25 +4,25 @@
 (define notes_ns "notes")
 
 (defn notes-afldb-all []
-  (afldb-coll-all notes_ns))
+  (front-collection-all notes_ns))
 
 (defn notes-afldb-add [content]
-  (afldb-coll-create notes_ns {"content" content "pinned" false}))
+  (front-collection-create notes_ns {"content" content "pinned" false}))
 
 (defn notes-afldb-toggle-pin [id]
-  (let [prev (afldb-coll-get notes_ns id)]
+  (let [prev (front-collection-get notes_ns id)]
     (if (= prev nil)
       nil
-      (afldb-coll-update notes_ns id {"pinned" (not (get prev "pinned"))}))))
+      (front-collection-update notes_ns id {"pinned" (not (get prev "pinned"))}))))
 
 (defn notes-afldb-delete [id]
-  (afldb-coll-delete notes_ns id))
+  (front-collection-delete notes_ns id))
 
 (defn notes-afldb-history [id]
-  (afldb-coll-history notes_ns id))
+  (front-collection-history notes_ns id))
 
 ; 하위 호환
-(define notes_afldb_index (afldb-coll-index-key notes_ns))
+(define notes_afldb_index (front-collection-index-key notes_ns))
 
 (defn notes-afldb-key [id]
-  (afldb-coll-item-key notes_ns id))
+  (front-collection-item-key notes_ns id))

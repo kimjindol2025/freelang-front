@@ -41,8 +41,14 @@ clean worktree 확인
 
 - 계약 파일: 구현됨
 - 실제 clean deploy: `BLOCKED` — 기존 사용자 dirty 변경이 존재함
+- 임시 clean clone 배포 검증: `PASS` — build 149 routes, typecheck/state contract, artifact dry-run 및 rollback target 생성 확인
+- 임시 clean clone 실제 HTTP: `PASS` — 대표 5페이지, `/api/hello`, SPA 계약, SSE metrics/alerts 계약 확인
 - 실제 smoke: `PASS` — 5개 대표 화면 200 + 정본 `/api/hello` JSON contract 200
 - 실제 SPA 계약: `PASS` — `/people`·`/market` layout/Island/CSP 경계 확인
+- 최신 내부 release gate: `PASS` — `BASE_URL=http://127.0.0.1:40860`로 next90 앱,
+  smoke, SSE(metrics/alerts), SPA 계약을 모두 실제 HTTP 검증
+- collection adapter 계약: `PASS` — `memory-test` provider의 list/create/update/history/delete
+  및 AFJ-DB95 route 인증 실패(`E_UNAUTHORIZED`) 경계 확인
 - 내부 계약은 dirty worktree, 준비 실패, smoke 실패를 각각 `BLOCKED`/`FAIL`로
   구분하고, 성공 시 `INTERNAL_DEPLOY_COMMIT`, `ARTIFACT_HASH`, `ROLLBACK_TARGET`을 출력한다.
 - `DRY_RUN=1`은 clean clone에서 정적 계약과 artifact만 검증하는 리허설이며

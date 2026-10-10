@@ -175,21 +175,4 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         "<div class='footer'>FL-Front · <a href='/test-helpers'>헬퍼 검증</a> · <a href='/'>홈</a></div>"
         "</div>"
 
-        ; View Transitions SPA 라우터
-        "<script>(function(){"
-        "function doNav(href){"
-        "return fetch(href,{headers:{'X-SPA':'1'}})"
-        ".then(function(r){return r.text();})"
-        ".then(function(html){"
-        "document.open();document.write(html);document.close();"
-        "history.pushState({href:href},'',href);"
-        "window.scrollTo(0,0);}).catch(function(){location.href=href;});}"
-        "function spa(href){"
-        "if(document.startViewTransition){document.startViewTransition(function(){return doNav(href);});}"
-        "else{doNav(href);}}"
-        "document.addEventListener('click',function(e){"
-        "var a=e.target.closest('[data-spa]');if(!a)return;"
-        "e.preventDefault();spa(a.getAttribute('href'));});"
-        "})()</script>"
-
         "</body></html>"))))

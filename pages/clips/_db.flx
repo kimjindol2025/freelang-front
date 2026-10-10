@@ -4,13 +4,13 @@
 (define clips_ns "clips")
 
 (defn clips-all []
-  (afldb-coll-all clips_ns))
+  (front-collection-all clips_ns))
 
 (defn clips-add [content]
-  (afldb-coll-create clips_ns {"content" content}))
+  (front-collection-create clips_ns {"content" content}))
 
 (defn clips-delete [id]
-  (afldb-coll-delete clips_ns id))
+  (front-collection-delete clips_ns id))
 
 (defn clips-history [id]
-  (afldb-coll-history clips_ns id))
+  (front-collection-history clips_ns id))

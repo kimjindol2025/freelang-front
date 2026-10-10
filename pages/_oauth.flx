@@ -190,13 +190,13 @@
     (let [$email    (get $provider-user "email")
           $name     (get $provider-user "name")
           $provider (get $provider-user "provider")
-          $existing (db-query DB
+          $existing (front-db-query DB
                       "SELECT id FROM users WHERE email = ?" [$email])]
       (if (> (length $existing) 0)
         ; 기존 사용자 → 로그인
         (get (first $existing) "id")
         ; 신규 사용자 → 자동 가입
-        (let [$_ (db-exec DB
+        (let [$_ (front-db-exec DB
                    "INSERT INTO users (email, name, provider, created_at) VALUES (?,?,?,datetime('now'))"
                    [$email $name $provider])]
-          (get (first (db-query DB "SELECT id FROM users WHERE email = ?" [$email])) "id"))))))
+          (get (first (front-db-query DB "SELECT id FROM users WHERE email = ?" [$email])) "id"))))))

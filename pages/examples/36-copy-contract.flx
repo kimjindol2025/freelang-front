@@ -1,0 +1,19 @@
+; 예제 36 — 브라우저 clipboard 경계도 FreeLang primitive로 선언한다.
+
+(island CopyContract []
+  (h "button" {:type "button"
+                :on-click (fn [] (copy! "freelang-front-copy-contract"))}
+    "복사 primitive 실행"))
+
+(defn render [req]
+  (layout-html "36 · Copy 계약"
+    (str
+      (h "main" {:style "max-width:520px;margin:0 auto;padding:32px 16px"}
+        (str
+          (h "h1" {} "36 · Copy 계약")
+          (h "p" {} "복사 동작도 페이지 JS가 아니라 (copy! text)로 작성합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:16px;font-size:.85rem;color:#6b7280"}
+            "실제 클립보드 접근은 브라우저 bridge가 담당합니다.")))
+      "ISLAND_SCRIPTS")
+    req))

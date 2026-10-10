@@ -1,0 +1,4 @@
+; pages/_http.flx — FreeLang Front HTTP 언어 표면
+; 페이지는 front-http-get만 사용하고, FX의 네이티브 HTTP 호출은 이 경계에 둔다.
+(defn front-http-get [$url]
+  (http-get $url))

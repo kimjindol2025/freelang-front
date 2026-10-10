@@ -5,22 +5,6 @@
 (load "pages/flash/_db.flx")
 (flash-init)
 
-(island FlipCard []
-  (let [flipped (atom false)]
-    (h "div" {}
-      (str
-        (h "div"
-          {:id "card-face"
-           :style "background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);min-height:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;margin-bottom:20px;transition:transform .3s"
-           :on-click (fn []
-                       (reset! flipped true)
-                       (.classList.remove (js-eval "document.getElementById('answer-btns')") "hidden")
-                       (.classList.add (js-eval "document.getElementById('flip-hint')") "hidden")
-                       (.classList.remove (js-eval "document.getElementById('card-back')") "hidden")
-                       (.classList.add (js-eval "document.getElementById('card-front')") "hidden"))}
-          "")
-        (h "div" {:id "answer-btns" :class "hidden" :style "display:none"} "")))))
-
 (defn render [req]
   (let [deck-id  (server-req-query req "deck")
         deck     (if deck-id (flash-deck-by-id deck-id) nil)]
@@ -54,11 +38,13 @@
                       (h "span" {:style "font-size:.85rem;color:#6b7280"} (str "남은 " count " 개"))
                       (h "a" {:href "/flash" :style "font-size:.8rem;color:#9ca3af;text-decoration:none"} "← 나중에")))
 
-                  ; 카드 앞면/뒷면 (JS로 토글)
+                  ; 카드 앞면/뒷면 — 브라우저 내장 details로 토글
                   (str
                     """
 <style>
-.hidden { display: none !important; }
+.flash-card { background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);min-height:200px;margin-bottom:20px; }
+.flash-card summary { cursor:pointer;list-style:none; }
+.flash-card summary::-webkit-details-marker { display:none; }
 .ans-btn {
   padding: 12px; border-radius: 10px; cursor: pointer;
   font-size: .85rem; font-weight: 600; border: 1px solid;
@@ -67,20 +53,20 @@
 .ans-btn:hover { opacity: .8; }
 </style>
 """
-                    (h "div" {:style "background:white;border-radius:20px;padding:40px 32px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.1);min-height:200px;cursor:pointer;margin-bottom:20px"
-                               :onclick "document.getElementById('card-back').classList.remove('hidden');document.getElementById('card-front').classList.add('hidden');document.getElementById('flip-hint').classList.add('hidden');document.getElementById('answer-btns').classList.remove('hidden')"}
+                    (h "details" {:class "flash-card"}
                       (str
-                        (h "div" {:style "font-size:.72rem;font-weight:700;color:#f59e0b;letter-spacing:.08em;margin-bottom:16px"} "앞면 (질문)")
-                        (h "div" {:id "card-front"}
-                          (h "p" {:style "font-size:1.2rem;line-height:1.6;margin:0"} (get card "front")))
-                        (h "div" {:id "card-back" :class "hidden" :style "display:none"}
+                        (h "summary" {}
+                          (str
+                            (h "div" {:style "font-size:.72rem;font-weight:700;color:#f59e0b;letter-spacing:.08em;margin-bottom:16px"} "앞면 (질문)")
+                            (h "p" {:style "font-size:1.2rem;line-height:1.6;margin:0"} (get card "front"))
+                            (h "div" {:style "margin-top:20px;font-size:.8rem;color:#9ca3af"} "탭하면 답 보기")))
+                        (h "div" {:style "margin-top:28px;border-top:1px solid #f3f4f6;padding-top:24px"}
                           (str
                             (h "div" {:style "font-size:.72rem;font-weight:700;color:#6b7280;letter-spacing:.08em;margin-bottom:16px"} "뒷면 (답)")
-                            (h "p" {:style "font-size:1.2rem;line-height:1.6;margin:0"} (get card "back"))))
-                        (h "div" {:id "flip-hint" :style "margin-top:20px;font-size:.8rem;color:#9ca3af"} "탭하면 답 보기")))
+                            (h "p" {:style "font-size:1.2rem;line-height:1.6;margin:0"} (get card "back"))))))
 
-                    ; 평가 버튼 (숨김 → 뒤집기 후 표시)
-                    (h "div" {:id "answer-btns" :class "hidden" :style "display:none"}
+                    ; 평가 버튼 — 카드를 펼친 뒤 표시
+                    (h "div" {:style "margin-top:16px"}
                       (str
                         (h "p" {:style "text-align:center;font-size:.85rem;color:#6b7280;margin:0 0 10px"} "얼마나 잘 기억했나요?")
                         (h "div" {:style "display:grid;grid-template-columns:repeat(3,1fr);gap:8px"}

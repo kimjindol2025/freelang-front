@@ -167,6 +167,7 @@ function emitList(node, ctx) {
   if (head?.sym === 'rest')    return `(${emit(args[0],ctx)})?.slice(1) ?? []`;
   // ── 글로벌 store ──
   if (head?.sym === 'get-store')    return args.length ? `_fl.get_store(${emit(args[0],ctx)})` : `_fl.get_store()`;
+  if (head?.sym === 'prop')         return `(__props?.[String(${emit(args[0],ctx)})] ?? null)`;
   if (head?.sym === 'dispatch')     return `_fl.dispatch(${emit(args[0],ctx)}${args[1]!==undefined?','+emit(args[1],ctx):''})`;
   if (head?.sym === 'watch-store')  return `_fl.watch_store(${emit(args[0],ctx)})`;
   if (head?.sym === 'empty?')  return `(!((${emit(args[0],ctx)}) && (${emit(args[0],ctx)}).length > 0))`;
@@ -174,6 +175,9 @@ function emitList(node, ctx) {
   if (head?.sym === 'fetch!')        return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'fetch-post!')   return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
   if (head?.sym === 'fetch-delete!') return `_fl.fetch_delete(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'copy!')          return `_fl.copy(${emit(args[0],ctx)})`;
+  if (head?.sym === 'every!')        return `_fl.every(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
+  if (head?.sym === 'date-add-days') return `_fl.date_add_days(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'read-file-dataurl!') return `_fl.read_file_dataurl(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   // Clojure interop: (.-prop obj) → (obj).prop  — DOM 이벤트 값 접근 등
   if (head?.sym && head.sym.startsWith('.-'))
@@ -199,6 +203,7 @@ function emitIsland(args, ctx, islandId = null) {
   // (island Name [] body)
   // islandId: HMR soft-reload 시 atom 복원 키
   const body = args.slice(2);
+  const islandCtx = { ...ctx, islandProps: true };
   const hid = islandId ? JSON.stringify(islandId) : 'null';
 
   // 최상위 let 바인딩에서 atom 선언을 외부 클로저로 끌어올림
@@ -213,7 +218,7 @@ function emitIsland(args, ctx, islandId = null) {
     for (let i = 0; i < bindings.length; i += 2) {
       const name    = emitSym(bindings[i]?.sym ?? String(bindings[i]));
       const valNode = bindings[i + 1];
-      const val     = emit(valNode, ctx);
+      const val     = emit(valNode, islandCtx);
       const isAtom  = Array.isArray(valNode) && valNode[0]?.sym === 'atom';
       if (isAtom) {
         const initExpr = valNode[1] !== undefined ? emit(valNode[1], ctx) : 'null';
@@ -230,7 +235,7 @@ function emitIsland(args, ctx, islandId = null) {
     if (stateDecls.length > 0) {
       // 마지막 표현식만 return — 앞 표현식은 side-effect (fetch! 등)
       const bodyJs = letBody.map((n, i) =>
-        i === letBody.length - 1 ? `return ${emit(n, ctx)}` : emit(n, ctx)
+        i === letBody.length - 1 ? `return ${emit(n, islandCtx)}` : emit(n, islandCtx)
       ).join(';\n      ');
       const inner  = renderDecls.length > 0
         ? `${renderDecls.join('; ')}; ${bodyJs};`
@@ -238,12 +243,12 @@ function emitIsland(args, ctx, islandId = null) {
       const reg = atomNames.length
         ? `_fl.hmr_register(__hid,{${atomNames.map(n => `${n}:${n}`).join(',')}});`
         : '';
-      return `(() => { const __hid=${hid}; const __saved=(_fl._pending_restore&&_fl._pending_restore[__hid])||{}; ${stateDecls.join('; ')}; ${reg}\n  return (update) => { ${inner} };\n})()`;
+      return `(() => { const __hid=${hid}; const __saved=(_fl._pending_restore&&_fl._pending_restore[__hid])||{}; ${stateDecls.join('; ')}; ${reg}\n  return (update,__props={}) => { ${inner} };\n})()`;
     }
   }
 
-  const bodyJs = body.map(n => emit(n, ctx)).join(';\n    ');
-  return `(update) => {\n    return ${bodyJs};\n  }`;
+  const bodyJs = body.map(n => emit(n, islandCtx)).join(';\n    ');
+  return `(update,__props={}) => {\n    return ${bodyJs};\n  }`;
 }
 
 function emitLet(args, ctx) {
@@ -256,8 +261,10 @@ function emitLet(args, ctx) {
     const val  = emit(bindings[i + 1], ctx);
     decls.push(`const ${name} = ${val}`);
   }
-  const bodyJs = body.map(n => emit(n, ctx)).join(';\n  ');
-  return `(() => { ${decls.join('; ')}; return ${bodyJs}; })()`;
+  const bodyJs = body.map((n, i) =>
+    i === body.length - 1 ? `return ${emit(n, ctx)}` : emit(n, ctx)
+  ).join(';\n  ');
+  return `(() => { ${decls.join('; ')}; ${bodyJs}; })()`;
 }
 
 function emitFn(args, ctx) {
@@ -413,6 +420,30 @@ const _fl={
       .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-delete!',e,'callback'); } })
       .catch(err=>{ _fl._err('fetch-delete!',new Error('DELETE '+url+' → '+err),'request'); });
   },
+  // copy! — 브라우저 clipboard API를 감싼 FreeLang Front primitive.
+  copy:(text)=>{
+    const value=String(text??'');
+    if(!navigator.clipboard||!navigator.clipboard.writeText){
+      _fl._err('copy!',new Error('Clipboard API unavailable'),'request');
+      return Promise.reject(new Error('Clipboard API unavailable'));
+    }
+    return navigator.clipboard.writeText(value).catch(err=>{
+      _fl._err('copy!',err,'request');
+      throw err;
+    });
+  },
+  // every! — FreeLang Front 스케줄 primitive. 반환값은 취소용 timer id.
+  every:(ms,fn)=>setInterval(()=>{try{fn();}catch(e){_fl._err('every!',e,'callback');}},Number(ms)),
+  // date-add-days — YYYY-MM-DD를 UTC 기준으로 가감하는 결정적 날짜 primitive.
+  date_add_days:(ymd,n)=>{
+    if(!ymd)return '';
+    const m=String(ymd).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!m)return '';
+    const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
+    if(Number.isNaN(d.getTime()))return '';
+    d.setUTCDate(d.getUTCDate()+Number(n||0));
+    return d.toISOString().slice(0,10);
+  },
   // ── Island 에러 리포터 (콘솔 + Next.js 스타일 오버레이)
   _err:(islandId,err,phase)=>{
     const msg=err&&err.message?err.message:String(err);
@@ -434,10 +465,12 @@ const _fl={
   mount:(id,renderFn)=>{
     const el=document.getElementById(id);
     if(!el)return;
+    let props={};
+    try{const raw=el.parentElement?.getAttribute('data-fl-props');if(raw)props=JSON.parse(raw);}catch(e){_fl._err(id,e,'props');}
     const update=()=>{
       try{
         while(el.firstChild)el.removeChild(el.firstChild);
-        const r=renderFn(update);
+        const r=renderFn(update,props);
         if(r)el.appendChild(r);
       }catch(e){
         _fl._err(id,e,'render');

@@ -5,7 +5,7 @@
 (define NOTES-DB {:type "sqlite" :path "/tmp/fl-notes.sqlite"})
 
 (defn ensure-notes-db []
-  (db-exec NOTES-DB "CREATE TABLE IF NOT EXISTS notes (
+  (front-db-exec NOTES-DB "CREATE TABLE IF NOT EXISTS notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     content TEXT NOT NULL,
     pinned INTEGER DEFAULT 0,
@@ -14,7 +14,7 @@
 
 (defn render [req]
   (ensure-notes-db)
-  (let [rows (db-query NOTES-DB
+  (let [rows (front-db-query NOTES-DB
                 "SELECT * FROM notes ORDER BY pinned DESC, id DESC" [])]
     (server-json {:ok true :notes rows})))
 
@@ -25,7 +25,7 @@
     (if (str-blank? content)
       (server-json {:ok false :error "내용이 없습니다"})
       (do
-        (db-exec NOTES-DB "INSERT INTO notes (content) VALUES (?)" [content])
-        (let [rows (db-query NOTES-DB
+        (front-db-exec NOTES-DB "INSERT INTO notes (content) VALUES (?)" [content])
+        (let [rows (front-db-query NOTES-DB
                      "SELECT * FROM notes ORDER BY id DESC LIMIT 1" [])]
           (server-json {:ok true :note (first rows)}))))))

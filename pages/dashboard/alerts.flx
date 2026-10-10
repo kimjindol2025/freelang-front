@@ -1,7 +1,51 @@
-; pages/dashboard/alerts.flx — 실시간 알림 대시보드 (v0.7.0)
+; pages/dashboard/alerts.flx — 실시간 알림 대시보드
+; API 조회·표현·주기 갱신을 FreeLang Island으로 처리한다.
+
+(island AlertsDashboard []
+  (let [alerts   (atom [])
+        loaded   (atom false)
+        started  (atom false)
+        reload   (fn [res]
+                   (reset! alerts (or (get res "alerts") []))
+                   (reset! loaded true))
+        refresh  (fn [] (fetch! "/api/alerts?limit=20" reload))
+        alert-card
+          (fn [alert]
+            (h "article"
+              {:style "padding:15px;margin-bottom:10px;border-left:4px solid;border-radius:4px;background:#f8fafc"}
+              (str
+                (h "div" {:style "display:flex;justify-content:space-between;gap:12px"}
+                  (str
+                    (h "strong" {:style "text-transform:uppercase;font-size:12px"}
+                      (or (get alert "severity") "info"))
+                    (h "span" {:style "font-size:12px;color:#666"}
+                      (or (get alert "timestamp") ""))))
+                (h "div" {:style "margin-top:8px;font-weight:600"}
+                  (or (get alert "message") "알림"))
+                (h "div" {:style "margin-top:8px;font-size:12px;color:#666"}
+                  (str (or (get alert "metric") "") " · "
+                       (or (get alert "value") "") " / "
+                       (or (get alert "threshold") ""))))))]
+    (when (not @started)
+      (reset! started true)
+      (refresh)
+      (every! 10000 refresh))
+    (if (not @loaded)
+      (h "div" {:style "padding:40px;text-align:center;color:#999"} "알림 로드 중…")
+      (h "main" {:style "max-width:1000px;margin:0 auto;padding:20px"}
+        (str
+          (h "h1" {:style "font-size:28px;margin:0 0 20px;color:#333"} "🔔 실시간 알림")
+          (if (= (length @alerts) 0)
+            (h "div" {:style "padding:40px;text-align:center;color:#999;background:white;border-radius:8px"} "알림 없음")
+            (h "section" {:style "background:white;border-radius:8px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,.1)"}
+              (arr-join (map alert-card @alerts) ""))))))))
 
 (defn render [$req]
-  (let [$html "<html><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>실시간 알림</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui;background:#f5f5f5;padding:20px}h1{font-size:28px;margin-bottom:20px;color:#333}.container{max-width:1000px;margin:0 auto}.card{background:white;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);padding:20px;margin-bottom:20px}.alert{padding:15px;margin-bottom:10px;border-left:4px solid;border-radius:4px;display:flex;align-items:center;gap:12px}.alert.high{background:#fee;border-color:#dc3545}.alert.warning{background:#ffeaa7;border-color:#f39c12}.severity{font-weight:600;text-transform:uppercase;font-size:12px}.message{flex:1}.timestamp{font-size:12px;color:#666}.metric{display:inline-block;padding:4px 8px;background:#e8f4f8;color:#0056b3;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px}.threshold{display:inline-block;padding:4px 8px;background:#f0f0f0;color:#666;border-radius:4px;font-size:11px}.empty{text-align:center;color:#999;padding:40px}.status{display:flex;align-items:center;gap:8px;padding:15px;background:#f0f8ff;border-radius:8px;margin-bottom:20px}.dot{width:10px;height:10px;border-radius:50%;background:#48bb78;animation:pulse 1.5s infinite}@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}</style></head><body><div class=\"container\"><h1>🔔 실시간 알림 대시보드</h1><div class=\"status\"><div class=\"dot\" id=\"dot\"></div><span id=\"status\">알림 스트림 연결 중...</span></div><div class=\"card\"><div id=\"alerts-container\"><div class=\"empty\">알림 대기 중...</div></div></div></div><script>const AlertsDashboard={alerts:[],init(){this.loadAlerts();this.stream()},loadAlerts(){fetch('/api/alerts?limit=20').then(r=>r.json()).then(d=>{this.alerts=d.alerts||[];this.render()}).catch(e=>{document.getElementById('status').textContent='알림 로드 실패';console.error(e)})},render(){const container=document.getElementById('alerts-container');if(!this.alerts.length){container.innerHTML='<div class=\"empty\">알림 없음</div>';return}container.innerHTML=this.alerts.map(a=>'<div class=\"alert '+a.severity+'\"><div style=\"width:100%\"><div class=\"severity\">'+a.severity+'</div><span class=\"metric\">'+a.metric+'</span><span class=\"threshold\">'+a.value+'ms / '+a.threshold+'ms</span><div class=\"message\">'+a.message+'</div><div class=\"timestamp\">'+new Date(a.timestamp).toLocaleTimeString()+'</div></div></div>').join('')},stream(){try{const es=new EventSource('/api/alerts/stream');es.addEventListener('message',e=>{try{const alert=JSON.parse(e.data);this.alerts.unshift(alert);if(this.alerts.length>20)this.alerts.pop();this.render()}catch(err){console.error('Parse error:',err)}});es.onerror=()=>{document.getElementById('dot').style.background='#dc3545';document.getElementById('status').textContent='연결 끊김'};document.getElementById('dot').style.background='#48bb78';document.getElementById('status').textContent='알림 스트림 연결됨'}catch(e){console.error(e)}}};AlertsDashboard.init()</script></body></html>"]
-    (server_html (str-replace
-      (str-replace $html "new Date(a.timestamp)" "new Date(Number(a.timestamp))")
-      "'연결 끊김'" "'폴링 모드'"))))
+  (layout-html "실시간 알림"
+    (str
+      (h "main" {:style "max-width:1000px;margin:0 auto;padding:20px"}
+        (str
+          (h "h1" {:style "font-size:28px;margin:0 0 20px;color:#333"} "🔔 실시간 알림")
+          "ISLAND_PLACEHOLDER"))
+      "ISLAND_SCRIPTS")
+    $req))

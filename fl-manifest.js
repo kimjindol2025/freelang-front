@@ -22,6 +22,12 @@ const PKG = (() => {
 })();
 
 const BUILD_STATE_PATH = path.join(__dirname, '.build-state.json');
+const LANGUAGE_CONTRACT_PATH = path.join(__dirname, 'front-language.contract.json');
+
+function loadLanguageContract() {
+  try { return JSON.parse(fs.readFileSync(LANGUAGE_CONTRACT_PATH, 'utf8')); }
+  catch { return null; }
+}
 
 function loadBuildExtras() {
   try {
@@ -43,6 +49,7 @@ const extras = loadBuildExtras();
 const manifest = {
   schema: 'fl-manifest/1',
   tool: 'freelang-front',
+  language: loadLanguageContract(),
   version: PKG.version || '0.2.5',
   codesSchema,
   diagnosticCodes: DIAGNOSTIC_CODES,

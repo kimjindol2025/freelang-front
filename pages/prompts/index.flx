@@ -41,7 +41,7 @@
 
         copy-body (fn [text id]
                     (do
-                      (.writeText (.-clipboard (.-navigator window)) (or text ""))
+                      (copy! (or text ""))
                       (reset! copied (str id))))
 
         tag-known? (fn [acc t]

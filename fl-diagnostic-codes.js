@@ -29,6 +29,14 @@
 const DIAGNOSTIC_CODES = [
   // ── errors ──────────────────────────────────────────────
   {
+    code: 'syntax',
+    title: 'FreeLang Front 문법 오류',
+    severity: 'error',
+    fixable: false,
+    applicability: 'manual',
+    hint: '괄호·문자열·주석의 짝과 보고된 파일·라인을 확인한 뒤 다시 빌드',
+  },
+  {
     code: 'reserved-word',
     title: '예약어를 식별자로 사용',
     severity: 'error',
