@@ -33,6 +33,10 @@ try {
   } catch (_) {}
   const diagnostics = report?.diagnostics || [];
   const syntax = diagnostics.find((item) => item.code === 'syntax');
+  const requiredFields = ['code', 'severity', 'file', 'line', 'column', 'message', 'hint', 'fixable', 'applicability'];
+  const schemaComplete = diagnostics.length > 0 && diagnostics.every((item) =>
+    requiredFields.every((field) => Object.prototype.hasOwnProperty.call(item, field))
+  );
   const pass = run.status !== 0
     && report?.schema === 'fl-diagnostics/1'
     && report?.ok === false
@@ -40,13 +44,15 @@ try {
     && syntax?.file === 'pages/diagnostics-invalid.flx'
     && syntax?.line === 1
     && typeof syntax?.hint === 'string'
-    && syntax.hint.length > 0;
+    && syntax.hint.length > 0
+    && schemaComplete;
   const output = {
     schema: 'fl-front-diagnostics-contract/1',
     pass,
     exit: run.status,
     build_schema: report?.schema || null,
     diagnostic: syntax || null,
+    schema_complete: schemaComplete,
     stdout_tail: (run.stdout || '').trim().split(/\r?\n/).slice(-8),
     stderr: (run.stderr || '').trim().split(/\r?\n/).slice(-8),
   };

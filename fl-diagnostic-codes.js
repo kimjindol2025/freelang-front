@@ -95,6 +95,14 @@ const DIAGNOSTIC_CODES = [
     hint: 'FL_HTTP_ALLOW=127.0.0.1,localhost 설정 (ecosystem/env)',
   },
   {
+    code: 'contract-readiness',
+    title: '계약 검증 baseline이 현재 소스와 다름',
+    severity: 'warning',
+    fixable: false,
+    applicability: 'manual',
+    hint: 'npm run contracts:verify 실행 후 실제 syntax/route/schema/smoke 결과를 다시 확인',
+  },
+  {
     code: 'helper-load-order',
     title: '헬퍼 파일명이 부모보다 먼저 정렬',
     severity: 'warning',

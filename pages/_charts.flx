@@ -3,19 +3,19 @@
 ; (chart-line data w h): [{:label "A" :value 40} ...] → SVG 문자열
 
 ; 막대 차트
-(defn chart-bar [data w h]
+(defn chart-bar [data width height]
   (let [n       (length data)
         pad     40
-        inner-w (- w (* pad 2))
-        inner-h (- h (* pad 2))
+        inner-w (- width (* pad 2))
+        inner-h (- height (* pad 2))
         values  (map (fn [d] (get d :value)) data)
         max-v   (reduce (fn [a b] (if (> a b) a b)) 1 values)
         bar-w   (- (/ inner-w n) 6)]
     (str
-      "<svg viewBox='0 0 " w " " h "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
+      "<svg viewBox='0 0 " width " " height "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
       "<line x1='" pad "' y1='" pad "' x2='" pad "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
       "<line x1='" pad "' y1='" (+ pad inner-h) "' x2='" (+ pad inner-w) "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
-      (reduce str ""
+      (str-join
         (map-indexed
           (fn [i d]
             (let [val   (get d :value)
@@ -30,15 +30,16 @@
                 "' text-anchor='middle' font-size='11' fill='#6b7280'>" label "</text>"
                 "<text x='" (+ x (/ bar-w 2)) "' y='" (- y 4)
                 "' text-anchor='middle' font-size='10' fill='#374151'>" val "</text>")))
-          data))
+          data)
+        "")
       "</svg>")))
 
 ; 선 차트
-(defn chart-line [data w h]
+(defn chart-line [data width height]
   (let [n       (length data)
         pad     40
-        inner-w (- w (* pad 2))
-        inner-h (- h (* pad 2))
+        inner-w (- width (* pad 2))
+        inner-h (- height (* pad 2))
         values  (map (fn [d] (get d :value)) data)
         max-v   (reduce (fn [a b] (if (> a b) a b)) 1 values)
         min-v   (reduce (fn [a b] (if (< a b) a b)) max-v values)
@@ -53,7 +54,7 @@
                       (str cx "," cy)))
                   data)]
     (str
-      "<svg viewBox='0 0 " w " " h "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
+      "<svg viewBox='0 0 " width " " height "' xmlns='http://www.w3.org/2000/svg' style='width:100%;height:auto'>"
       "<line x1='" pad "' y1='" pad "' x2='" pad "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
       "<line x1='" pad "' y1='" (+ pad inner-h) "' x2='" (+ pad inner-w) "' y2='" (+ pad inner-h) "' stroke='#e5e7eb' stroke-width='1'/>"
       ; 그라데이션 영역 (fill)
@@ -62,10 +63,10 @@
       "<stop offset='100%' stop-color='#6366f1' stop-opacity='0'/>"
       "</linearGradient></defs>"
       "<polyline points='"
-      (reduce str "" (map (fn [p] (str p " ")) points))
+      (str-join (map (fn [point] (str point " ")) points) "")
       "' fill='none' stroke='#6366f1' stroke-width='2.5' stroke-linejoin='round'/>"
       ; 데이터 포인트 + 레이블
-      (reduce str ""
+      (str-join
         (map-indexed
           (fn [i d]
             (let [val   (get d :value)
@@ -78,5 +79,6 @@
                 "' text-anchor='middle' font-size='11' fill='#6b7280'>" label "</text>"
                 "<text x='" cx "' y='" (- cy 8)
                 "' text-anchor='middle' font-size='10' fill='#374151'>" val "</text>")))
-          data))
+          data)
+        "")
       "</svg>")))

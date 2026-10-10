@@ -24,25 +24,25 @@
       cat)))
 
 
-(defn product-card [p]
-  (let [price (str (get p "price"))
-        pid   (str (get p "id"))]
+(defn product-card [product]
+  (let [price (str (get product "price"))
+        pid   (str (get product "id"))]
     (h "a"
       {"href"  (str "/shop/products/" pid)
        "style" "background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column;text-decoration:none;color:inherit;cursor:pointer"}
       (h "div"
         {"style" "background:linear-gradient(135deg,#f3f4f6,#e5e7eb);height:160px;display:flex;align-items:center;justify-content:center;font-size:3rem"}
-        (shop-product-emoji (get p "category")))
+        (shop-product-emoji (get product "category")))
       (h "div" {"style" "padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:6px"}
         (h "span"
           {"style" "font-size:.72rem;font-weight:700;color:#6366f1;text-transform:uppercase;letter-spacing:.05em"}
-          (get p "category"))
+          (get product "category"))
         (h "p"
           {"style" "font-size:.92rem;font-weight:600;color:#111827;line-height:1.4;flex:1"}
-          (get p "name"))
+          (get product "name"))
         (h "p"
           {"style" "font-size:.8rem;color:#9ca3af;line-height:1.4"}
-          (?? (get p "description") ""))
+          (?? (get product "description") ""))
         (h "div"
           {"style" "display:flex;align-items:center;justify-content:space-between;margin-top:8px"}
           (h "span"
@@ -50,11 +50,11 @@
             (str "₩" price))
           (h "span"
             {"style" (str "font-size:.75rem;font-weight:600;padding:3px 8px;border-radius:99px;"
-                          (if (> (get p "stock") 0)
+                          (if (> (get product "stock") 0)
                             "background:#dcfce7;color:#166534"
                             "background:#fee2e2;color:#991b1b"))}
-            (if (> (get p "stock") 0)
-              (str "재고 " (get p "stock") "개")
+            (if (> (get product "stock") 0)
+              (str "재고 " (get product "stock") "개")
               "품절")))))))
 
 (defn render [req]

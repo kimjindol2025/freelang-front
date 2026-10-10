@@ -824,9 +824,30 @@ function readGitHeadShort() {
   }
 }
 
+// 계약 검증 후 생성되는 commit line만 바뀐 문서 커밋은 baseline을
+// 무효화하지 않는다. 실제 소스가 바뀐 경우에는 반드시 재검증을 요구한다.
+function contractBaselineValid(file, verifiedCommit, headCommit) {
+  if (!verifiedCommit || !headCommit) return false;
+  if (verifiedCommit === headCommit) return true;
+  try {
+    const ancestor = cp.spawnSync('git', ['merge-base', '--is-ancestor', verifiedCommit, headCommit], {
+      cwd: __dirname, stdio: 'ignore',
+    });
+    if (ancestor.status !== 0) return false;
+    const diff = cp.execFileSync('git', ['diff', '--unified=0', `${verifiedCommit}..${headCommit}`, '--', file], {
+      cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    });
+    const changes = diff.split('\n').filter(line => /^[+-]/.test(line) && !line.startsWith('+++') && !line.startsWith('---'));
+    return changes.length > 0 && changes.every(line => /^[+-];\s*commit:\s*\S+\s*$/.test(line));
+  } catch {
+    return false;
+  }
+}
+
 function parseContractBlock(lines, file) {
   const contract = {
     file: path.basename(file),
+    source_file: file,
     route: '',
     purpose: '',
     type: '',
@@ -933,7 +954,7 @@ function scanContracts(routes, helpers) {
 function computeContractReadiness(contracts, headCommit) {
   const rows = contracts.map(c => {
     const verifiedCommit = String(c.last_verified?.commit || '').trim();
-    const verifiedMatchesHead = verifiedCommit !== '' && headCommit !== '' && verifiedCommit === headCommit;
+    const verifiedMatchesHead = contractBaselineValid(c.source_file, verifiedCommit, headCommit);
     const checks = c.check_summary || { total: 0, pass: 0, fail: 0 };
     const routeReady = String(c.route || '').trim() !== '';
     const routeLinks = contractRouteLinks(c);
@@ -2173,7 +2194,9 @@ function checkReservedWords(routes, helpers) {
   const hits = [];
   for (const f of allFiles) {
     let src; try { src = fs.readFileSync(f, 'utf8'); } catch { continue; }
-    const code = stripComments(src);
+    // 문자열/CSS 안의 [p], [w] 같은 텍스트는 FreeLang scope가 아니다.
+    // 주석 제거만 하면 triple-quoted HTML/CSS가 함수 파라미터로 오인된다.
+    const code = maskStringsPreserveLines(stripComments(src));
     const base = path.basename(f);
     for (const m of code.matchAll(/\((?:defn|define)\s+([\w$-]+)/g))
       if (FL_RESERVED.has(m[1])) hits.push({ base, word: m[1], line: lineAtIdx(code, m.index), where: '함수 이름' });
@@ -2332,7 +2355,9 @@ function checkSingleCharShadow(routes, helpers) {
     const base = path.basename(f);
     for (const m of code.matchAll(/\((?:defn\s+[\w$-]+|fn)\s+\[([^\]]*)\]/g))
       for (const p of m[1].split(/\s+/).filter(Boolean)) {
-        const bare = p.replace(/^\$/, '');
+        // $name은 전역 helper와 별도 namespace를 쓰는 명시적 capture parameter다.
+        if (p.startsWith('$')) continue;
+        const bare = p;
         if (oneCharGlobals.has(bare)) hits.push({ base, name: bare, raw: p, line: lineAtIdx(code, m.index) });
       }
   }
@@ -2547,8 +2572,21 @@ function checkFlHttpAllow(routes, helpers) {
   }
   if (!needsAllow) { console.log('  \x1b[32m✅ FL_HTTP_ALLOW 불필요 (private HTTP 미사용)\x1b[0m'); return; }
   const allow = (process.env.FL_HTTP_ALLOW || '').trim();
+  let declaredAllow = '';
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+    const scripts = Object.values(pkg.scripts || {}).join(' ');
+    const match = scripts.match(/FL_HTTP_ALLOW=([^ ]+)/);
+    if (match) declaredAllow = match[1];
+    const ecosystem = fs.readFileSync(path.join(__dirname, 'ecosystem.config.js'), 'utf8');
+    if (!declaredAllow && /FL_HTTP_ALLOW/.test(ecosystem)) declaredAllow = 'ecosystem.config.js';
+  } catch {}
   if (allow) {
     console.log(`  \x1b[32m✅ FL_HTTP_ALLOW=${allow}\x1b[0m`);
+    return;
+  }
+  if (declaredAllow) {
+    console.log(`  \x1b[32m✅ FL_HTTP_ALLOW 실행 계약 선언됨 (${declaredAllow})\x1b[0m`);
     return;
   }
   console.log('\n\x1b[33m⚠️  [fl-http-allow] private HTTP 사용 — FL_HTTP_ALLOW 미설정\x1b[0m');

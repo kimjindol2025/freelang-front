@@ -26,6 +26,7 @@
     "language:check": "node scripts/front-language-contract.js",
     "language:conformance": "node scripts/front-language-conformance.js",
     "language:diagnostics": "node scripts/front-diagnostics-contract.js",
+    "contracts:verify": "node scripts/contract-baseline.js",
     "language:check:fls": "node /home/kim/freelang-script/bin/fl-script-unified.js run --allow-read=.,/home/kim/freelang-script scripts/front-language-contract.fls front-language.contract.json",
     "adapter:collection": "node scripts/front-collection-adapter-contract.js",
     "hmr:contract": "node scripts/hmr-contract.js",

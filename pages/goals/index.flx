@@ -29,10 +29,10 @@
                     (fetch-post! "/goals/api" {"action" "update-kr" "id" kr-id "current" val}
                       (fn [res] (reset! goals (get res "goals")))))
 
-        progress-color (fn [p]
+        progress-color (fn [progress]
                          (cond
-                           (>= p 80) "#10b981"
-                           (>= p 50) "#f59e0b"
+                           (>= progress 80) "#10b981"
+                           (>= progress 50) "#f59e0b"
                            true "#ef4444"))]
 
     (fetch! "/goals/api" (fn [res] (reset! goals (get res "goals"))))

@@ -148,51 +148,51 @@
               (h "p" {:style "margin:0"} "등록된 구독이 없습니다")))
           (h "div" {:style "display:flex;flex-direction:column;gap:10px"}
             (map
-              (fn [s]
+              (fn [subscription]
                 (h "div"
                   {:style (str "background:white;border-radius:12px;padding:16px 20px;"
                                "box-shadow:0 1px 4px rgba(0,0,0,.06);display:flex;"
                                "align-items:center;gap:14px;"
-                               "opacity:" (if (= (get s "active") 1) "1" ".55"))}
+                               "opacity:" (if (= (get subscription "active") 1) "1" ".55"))}
                   (str
                     (h "div"
                       {:style (str "width:42px;height:42px;border-radius:10px;background:"
-                                   (get s "color") ";display:flex;align-items:center;"
+                                   (get subscription "color") ";display:flex;align-items:center;"
                                    "justify-content:center;color:white;font-weight:800;"
                                    "font-size:.85rem;flex-shrink:0")}
-                      (str-slice (get s "name") 0 2))
+                      (str-slice (get subscription "name") 0 2))
                     (h "div" {:style "flex:1;min-width:0"}
                       (str
                         (h "div" {:style "font-weight:600;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}
-                          (get s "name"))
+                          (get subscription "name"))
                         (h "div" {:style "font-size:.78rem;color:#9ca3af;margin-top:2px"}
-                          (str (get s "category") " · "
+                          (str (get subscription "category") " · "
                                (cond
-                                 (= (get s "cycle") "yearly") "연간"
-                                 (= (get s "cycle") "weekly") "주간"
+                                 (= (get subscription "cycle") "yearly") "연간"
+                                 (= (get subscription "cycle") "weekly") "주간"
                                  true "월간")
-                               (if (not (= (get s "next_billing") ""))
-                                 (str " · " (get s "next_billing"))
+                               (if (not (= (get subscription "next_billing") ""))
+                                 (str " · " (get subscription "next_billing"))
                                  "")))))
                     (h "div" {:style "text-align:right;flex-shrink:0"}
                       (str
                         (h "div" {:style "font-weight:700;font-size:1rem"}
-                          (str "₩" (floor (get s "amount"))))
-                        (if (= (get s "cycle") "yearly")
+                          (str "₩" (floor (get subscription "amount"))))
+                        (if (= (get subscription "cycle") "yearly")
                           (h "div" {:style "font-size:.72rem;color:#9ca3af"}
-                            (str "월 ₩" (floor (/ (get s "amount") 12))))
+                            (str "월 ₩" (floor (/ (get subscription "amount") 12))))
                           "")))
                     (h "div" {:style "display:flex;gap:4px;flex-shrink:0"}
                       (str
                         (h "button"
                           {:title "활성/비활성"
                            :style "background:none;border:none;cursor:pointer;font-size:1.1rem;padding:4px;line-height:1"
-                           :on-click (fn [] (tog (str (get s "id"))))}
-                          (if (= (get s "active") 1) "✅" "⭕"))
+                           :on-click (fn [] (tog (str (get subscription "id"))))}
+                          (if (= (get subscription "active") 1) "✅" "⭕"))
                         (h "button"
                           {:title "삭제"
                            :style "background:none;border:none;cursor:pointer;color:#ef4444;font-size:1.1rem;padding:4px;line-height:1"
-                           :on-click (fn [] (del (str (get s "id"))))}
+                           :on-click (fn [] (del (str (get subscription "id"))))}
                           "×"))))))
               (get @data "subs"))))))))
 

@@ -17,7 +17,7 @@
 ;   schema: PASS
 ;   smoke: PASS
 ; last_verified:
-;   commit: f0e4a02
+;   commit: d7f7ec1
 ; @endcontract
 
 ; /api/afldb — freelang-front ↔ afl-db 연결 API

@@ -30,11 +30,11 @@
           (h "div" {:style "display:flex;gap:6px;justify-content:center"}
             (arr-join
               (map
-                (fn [p]
-                  (h "a" {:href (str "/examples/24-pagination?page=" (str p))
+                (fn [page-num]
+                  (h "a" {:href (str "/examples/24-pagination?page=" (str page-num))
                           :style (str "padding:8px 14px;border-radius:8px;text-decoration:none;font-weight:600;"
-                                      (if (= p page) "background:#6366f1;color:white" "background:white;color:#6366f1;border:1px solid #e5e7eb"))}
-                    (str p)))
+                                      (if (= page-num page) "background:#6366f1;color:white" "background:white;color:#6366f1;border:1px solid #e5e7eb"))}
+                    (str page-num)))
                 (map (fn [i] (+ i 1)) (range 0 pages)))
               ""))
           (h "p" {:style "margin-top:24px"}

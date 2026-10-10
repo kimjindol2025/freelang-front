@@ -16,13 +16,13 @@
           (h "div" {:style "display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px"}
             (arr-join
               (map
-                (fn [p]
+                (fn [product]
                   (h "div" {:style "background:white;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08)"}
                     (str
-                      (h "div" {:style "font-size:2rem;margin-bottom:8px"} (get p "emoji"))
-                      (h "h3" {:style "margin:0 0 4px;font-size:1.05rem"} (get p "name"))
+                      (h "div" {:style "font-size:2rem;margin-bottom:8px"} (get product "emoji"))
+                      (h "h3" {:style "margin:0 0 4px;font-size:1.05rem"} (get product "name"))
                       (h "p" {:style "color:#6366f1;font-weight:700;margin:0"}
-                        (str (get p "price") "원")))))
+                        (str (get product "price") "원")))))
                 products)
               ""))))
       req)))

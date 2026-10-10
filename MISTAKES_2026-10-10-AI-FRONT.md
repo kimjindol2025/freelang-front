@@ -6,6 +6,10 @@ FreeLang Front는 현재 이 서버의 내부 코딩용으로 사용할 수 있�
 이번 검수에서 보안 경계, HMR, 생성 artifact 회귀를 보완했고, 실제 내부
 release gate에서 기능 검사는 통과했다. 외부 공개 상용 배포로 판정하지 않는다.
 
+정교화 작업 후 현재 build diagnostics는 `errors=0, warnings=0`이다.
+계약 baseline은 `npm run contracts:verify`가 실제 build PASS를 확인한 뒤
+갱신하며, baseline-only 문서 커밋은 소스 변경과 구분한다.
+
 ## 이번에 고친 문제
 
 1. playground API가 요청 코드를 임시 파일에 쓰고 런타임으로 실행하던 경로에
@@ -72,7 +76,7 @@ npm run verify:internal
 
 결과:
 
-- build: PASS, errors=0, warnings=23
+- build: PASS, errors=0, warnings=0
 - language conformance: PASS
 - language diagnostics: PASS
 - collection adapter: PASS
@@ -88,30 +92,34 @@ npm run verify:internal
 - 무인증 `/api/playground/eval` → 403
 - CSS reload → soft reload → build-error 이벤트 순서
 
-## 남은 warning 분류
+## 정교화 전 warning 분류와 처리
 
-현재 23개는 다음 네 부류다.
+정교화 전 23개는 다음 네 부류였다.
 
 - `global-shadow`: 14개 — 짧은 매개변수 이름이 전역 helper를 가림
 - `contract-readiness`: 5개 — 계약/준비 상태 휴리스틱 경고
 - `str-loop-concat`: 3개 — loop/reduce 안 문자열 누적의 성능 경고
 - `fl-http-allow`: 1개 — HTTP allow 설정 확인 경고
 
-이번 head(`6dfe7a3`)에서 다시 수집한 결과, `contract-readiness` 5개는
+`contract-readiness` 5개는
 문법/라우트/smoke 실패가 아니라 계약 문서가 가리키는 마지막 검증 커밋
 `f0e4a02`와 현재 head가 달라진 상태다. 따라서 다음 순서는 계약 5개를
 현재 head에서 재검증해 baseline을 갱신하는 것이다. 이 경고를 단순히 끄면
 안 된다.
 
-`global-shadow` 14개는 자동 rename 후보지만, `_charts.flx`의 `w/h`처럼
-HTML helper 이름과 실제 파라미터가 겹치는 경우가 있어 일괄 치환하지 않는다.
-먼저 함수별 scope-aware rename을 설계한다. `str-loop-concat`은 실제 성능
-측정 없이 수정하지 않고, 배열 누적 + `str-join` 변환 fixture를 먼저 만든다.
-`fl-http-allow`는 코드보다 실행 계약 문제이므로 ecosystem/env와 smoke
-명령에 명시하는 방향으로 처리한다.
+다음처럼 처리해 현재 warning 0으로 만들었다.
 
-다음 작업에서는 먼저 warning별 실제 위험도를 판정한다. warning을 숨기거나
-검수 기준을 낮추지 않는다.
+- `global-shadow`: triple-quoted HTML/CSS 오탐과 `$` capture parameter를
+  제외하고, 실제 짧은 파라미터는 의미 있는 이름으로 변경했다.
+- `str-loop-concat`: `_charts.flx`를 배열/`str-join` 조합으로 변경했다.
+- `fl-http-allow`: package/ecosystem 실행 계약 선언을 build checker가 확인한다.
+- `contract-readiness`: `npm run contracts:verify`가 실제 PASS 뒤 baseline을
+  갱신하고, baseline-only 문서 커밋은 유효한 것으로 판정한다.
+- 진단 contract: 모든 diagnostic이 `code/severity/file/line/column/message/
+  hint/fixable/applicability`를 갖는지 회귀 테스트한다.
+
+warning을 숨기거나 검수 기준을 낮추지 않고, 실제 위험과 문서 baseline을
+분리했다.
 
 ## 다음 언어 정교화 순서
 

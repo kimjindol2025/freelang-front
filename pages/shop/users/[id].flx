@@ -15,10 +15,10 @@
       (?? (get (get p "data") "orders") [])
       [])))
 
-(defn status-chip [s]
-  (let [bg (cond (= s "paid") "#dcfce7" (= s "pending") "#fef9c3" true "#fee2e2")
-        fg (cond (= s "paid") "#166534" (= s "pending") "#854d0e" true "#991b1b")
-        lb (cond (= s "paid") "결제완료" (= s "pending") "대기중"  true "취소")]
+(defn status-chip [status]
+  (let [bg (cond (= status "paid") "#dcfce7" (= status "pending") "#fef9c3" true "#fee2e2")
+        fg (cond (= status "paid") "#166534" (= status "pending") "#854d0e" true "#991b1b")
+        lb (cond (= status "paid") "결제완료" (= status "pending") "대기중"  true "취소")]
     (h "span"
       {"style" (str "font-size:.72rem;font-weight:700;padding:3px 10px;border-radius:99px;background:" bg ";color:" fg)}
       lb)))

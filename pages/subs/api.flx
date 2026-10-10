@@ -7,10 +7,10 @@
 
 (defn calc-monthly [subs]
   (reduce
-    (fn [acc s]
-      (if (= (get s "active") 1)
-        (let [a (get s "amount")
-              c (get s "cycle")]
+    (fn [acc subscription]
+      (if (= (get subscription "active") 1)
+        (let [a (get subscription "amount")
+              c (get subscription "cycle")]
           (+ acc (cond
             (= c "yearly") (/ a 12)
             (= c "weekly") (* a 4.33)
