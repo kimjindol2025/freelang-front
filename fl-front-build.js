@@ -353,11 +353,11 @@ function validateFunctions(routes, helpers, bindings) {
         // (ns name) 선언 확인 — 있으면 defn에 접두사 붙여서 등록
         const nsM = loadedSrc.match(/^\s*\(ns\s+([\w-]+)\s*\)/m);
         const nsPrefix = nsM ? nsM[1] + '-' : '';
-        for (const lm of loadedSrc.matchAll(/\(defn\s+([\w-]+)/g)) {
+        for (const lm of loadedSrc.matchAll(/\(defn\s+([\w-]+[!?]?)/g)) {
           defined.add(nsPrefix + lm[1]);
           if (nsPrefix) defined.add(lm[1]); // 원본도 등록 (내부 호출용)
         }
-        for (const lm of loadedSrc.matchAll(/\(define\s+([\w-]+)/g)) defined.add(lm[1]);
+        for (const lm of loadedSrc.matchAll(/\(define\s+([\w-]+[!?]?)/g)) defined.add(lm[1]);
       } catch { /* 무시 */ }
     }
   }
