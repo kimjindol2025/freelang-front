@@ -97,6 +97,19 @@ npm run verify:internal
 - `str-loop-concat`: 3개 — loop/reduce 안 문자열 누적의 성능 경고
 - `fl-http-allow`: 1개 — HTTP allow 설정 확인 경고
 
+이번 head(`6dfe7a3`)에서 다시 수집한 결과, `contract-readiness` 5개는
+문법/라우트/smoke 실패가 아니라 계약 문서가 가리키는 마지막 검증 커밋
+`f0e4a02`와 현재 head가 달라진 상태다. 따라서 다음 순서는 계약 5개를
+현재 head에서 재검증해 baseline을 갱신하는 것이다. 이 경고를 단순히 끄면
+안 된다.
+
+`global-shadow` 14개는 자동 rename 후보지만, `_charts.flx`의 `w/h`처럼
+HTML helper 이름과 실제 파라미터가 겹치는 경우가 있어 일괄 치환하지 않는다.
+먼저 함수별 scope-aware rename을 설계한다. `str-loop-concat`은 실제 성능
+측정 없이 수정하지 않고, 배열 누적 + `str-join` 변환 fixture를 먼저 만든다.
+`fl-http-allow`는 코드보다 실행 계약 문제이므로 ecosystem/env와 smoke
+명령에 명시하는 방향으로 처리한다.
+
 다음 작업에서는 먼저 warning별 실제 위험도를 판정한다. warning을 숨기거나
 검수 기준을 낮추지 않는다.
 
