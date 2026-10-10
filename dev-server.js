@@ -98,11 +98,15 @@ function addError(entry) {
 
 // ── HMR + Error 서버 (포트 40851) ────────────────────────────
 const hmrServer = http.createServer((req, res) => {
+  const origin = req.headers.origin || '';
   const cors = {
-    'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type',
   };
+  if (origin === `http://localhost:${APP_PORT}` || origin === `http://127.0.0.1:${APP_PORT}`) {
+    cors['Access-Control-Allow-Origin'] = origin;
+    cors.Vary = 'Origin';
+  }
 
   // CORS preflight
   if (req.method === 'OPTIONS') {
@@ -216,7 +220,7 @@ const hmrServer = http.createServer((req, res) => {
             if (entry.isDirectory()) { scanDir(full); continue; }
             if (!entry.name.endsWith('.flx') && !entry.name.endsWith('.fl')) continue;
             const src = fs2.readFileSync(full,'utf8');
-            for (const m of src.matchAll(/\(defn\s+([\w-]+)\s+\[([^\]]*)\]/g)) {
+            for (const m of src.matchAll(/\(defn\s+([\w-]+[!?]?)\s+\[([^\]]*)\]/g)) {
               const key = m[1]+':'+path2.basename(full);
               if (seen.has(key)) continue; seen.add(key);
               fns.push({ name:m[1], params:m[2].trim().split(/\s+/).filter(Boolean), file:path2.basename(full) });
@@ -275,7 +279,12 @@ const hmrServer = http.createServer((req, res) => {
       const qs  = new URLSearchParams(req.url.split('?')[1] || '');
       const file = qs.get('file');
       if (!file) { json({ error: 'file 파라미터 필요. 예: /~ai/test?file=pages/examples/06-counter.flx' }); return; }
+      const pagesRoot = require('path').resolve(__dirname, 'pages');
       const fullPath = require('path').resolve(__dirname, file);
+      const insidePages = fullPath.startsWith(`${pagesRoot}${require('path').sep}`);
+      if (!insidePages || !fullPath.endsWith('.flx')) {
+        json({ error: 'pages 내부의 .flx 파일만 테스트할 수 있습니다' }); return;
+      }
       try {
         require('fs').accessSync(fullPath);
       } catch {
@@ -537,7 +546,7 @@ function startServer() {
       probe.on('timeout', () => { probe.destroy(); retry(); });
       function retry() {
         if (settled) return;
-        if (attempt >= 40) return finish(new Error(`server did not become ready on :${APP_PORT}`));
+        if (attempt >= 120) return finish(new Error(`server did not become ready on :${APP_PORT}`));
         setTimeout(() => waitForHttp(attempt + 1), 100);
       }
     };
@@ -586,7 +595,7 @@ function startServer() {
     // soft-reload를 보내 브라우저를 더 나쁜 상태로 만들지 않는다.
     setTimeout(() => {
       if (!runtimeOk) finish(new Error(`server readiness timeout on :${APP_PORT}`));
-    }, 5000);
+    }, 15000);
   });
 }
 
@@ -719,8 +728,8 @@ function snapshotHashes() {
 (async () => {
   console.log('[dev] FL-Front 개발 서버 시작...');
 
-  hmrServer.listen(HMR_PORT, () =>
-    console.log(`[hmr] SSE → http://localhost:${HMR_PORT}/~hmr`)
+  hmrServer.listen(HMR_PORT, '127.0.0.1', () =>
+    console.log(`[hmr] SSE → http://127.0.0.1:${HMR_PORT}/~hmr`)
   );
 
   hmrServer.on('error', (err) => {

@@ -18,6 +18,7 @@ function files(dir) {
 
 const flxFiles = files(PAGES).filter((file) => file.endsWith('.flx'));
 const text = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
+const generated = fs.existsSync(path.join(ROOT, '_app.fl')) ? text('_app.fl') : '';
 const rawScriptFiles = flxFiles
   .filter((file) => /<script[\s>]/i.test(fs.readFileSync(file, 'utf8')))
   .map((file) => path.relative(ROOT, file).replaceAll(path.sep, '/'))
@@ -87,6 +88,8 @@ const bridgeModules = contract.browser_bridge?.modules || [];
 const missingBridgeModules = bridgeModules.filter((module) => !bridgeSource.includes(`(define ${module.symbol}`));
 check('browser-bridge-contract', missingBridgeModules.length === 0 && bridgeModules.length === 7,
   `modules=${bridgeModules.length} missing=${missingBridgeModules.map((module) => module.id).join(',') || 'none'}`);
+check('browser-artifact-date-primitive', generated.includes('match(/^(\\\\d{4})-(\\\\d{2})-(\\\\d{2})$/)'),
+  'generated browser artifact preserves date-add-days regex escapes');
 const logsSource = text('pages/logs.flx');
 check('browser-boundary-absorption', !/<script[\s>]/i.test(logsSource), 'logs polling has no raw script tag');
 const notesSource = text('pages/notes.flx');

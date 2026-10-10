@@ -437,7 +437,7 @@ const _fl={
   // date-add-days — YYYY-MM-DD를 UTC 기준으로 가감하는 결정적 날짜 primitive.
   date_add_days:(ymd,n)=>{
     if(!ymd)return '';
-    const m=String(ymd).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const m=String(ymd).match(/^(\\d{4})-(\\d{2})-(\\d{2})$/);
     if(!m)return '';
     const d=new Date(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3])));
     if(Number.isNaN(d.getTime()))return '';

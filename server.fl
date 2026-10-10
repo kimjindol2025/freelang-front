@@ -55,4 +55,4 @@
 
 ; 서버 시작
 (println (str "FL-Front v0.1 — http://localhost:" PORT))
-(server-start PORT)
+(server-start {:port PORT :host "127.0.0.1"})

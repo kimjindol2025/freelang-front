@@ -52,6 +52,20 @@ function get(pathname, port) {
   });
 }
 
+function post(pathname, port, body, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const req = http.request({ hostname: '127.0.0.1', port, path: pathname, method: 'POST', headers }, (res) => {
+      let responseBody = '';
+      res.setEncoding('utf8');
+      res.on('data', (chunk) => { responseBody += chunk; });
+      res.on('end', () => resolve({ status: res.statusCode, body: responseBody }));
+    });
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 async function waitForHttp(pathname, port, timeout = 15000) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
@@ -141,6 +155,22 @@ async function main() {
   child.stderr.on('data', (chunk) => { childLogs += chunk.toString(); });
 
   await waitForHttp('/', APP_PORT);
+  const traversal = await get('/~ai/test?file=../../etc/passwd', HMR_PORT);
+  if (traversal.status !== 200 || !traversal.body.includes('pages 내부의 .flx')) {
+    throw new Error(`AI test path boundary failed: ${traversal.status} ${traversal.body}`);
+  }
+  const functions = await get('/~ai/fns', HMR_PORT);
+  const functionNames = JSON.parse(functions.body).fns.map((fn) => fn.name);
+  if (!functionNames.includes('front-collection-memory?')) {
+    throw new Error('AI function inventory omitted predicate function names');
+  }
+  const playground = await post('/api/playground/eval', APP_PORT, JSON.stringify({ code: '(+ 1 2)' }), {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(JSON.stringify({ code: '(+ 1 2)' })),
+  });
+  if (playground.status !== 403) {
+    throw new Error(`playground auth boundary failed: ${playground.status} ${playground.body}`);
+  }
   await connectHmr();
   await wait(200);
 
