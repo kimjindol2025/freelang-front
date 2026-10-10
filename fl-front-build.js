@@ -334,9 +334,11 @@ function validateFunctions(routes, helpers, bindings) {
   const defined = new Set();
   for (const f of allFiles) {
     const src = fs.readFileSync(f, 'utf8');
-    for (const m of src.matchAll(/\(defn\s+([\w-]+)/g))       defined.add(m[1]);
-    for (const m of src.matchAll(/\(define\s+([\w-]+)/g))     defined.add(m[1]);
-    for (const m of src.matchAll(/\(server-fn\s+([\w-]+)/g))  defined.add(m[1]);
+    // FreeLang predicate/bang 함수명(`foo?`, `bar!`)도 정의 목록에 포함한다.
+    // 호출부 정규식은 이미 접미사를 인식하므로 정의부만 놓치면 오탐이 난다.
+    for (const m of src.matchAll(/\(defn\s+([\w-]+[!?]?)/g))       defined.add(m[1]);
+    for (const m of src.matchAll(/\(define\s+([\w-]+[!?]?)/g))     defined.add(m[1]);
+    for (const m of src.matchAll(/\(server-fn\s+([\w-]+[!?]?)/g))  defined.add(m[1]);
     // (load "file.fl") 처리 — 로드된 파일의 정의 함수도 추가
     for (const m of src.matchAll(/\(load\s+"([^"]+)"/g)) {
       const candidates = [
