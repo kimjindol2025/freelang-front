@@ -26,6 +26,7 @@ check_page "/market"
 check_page "/flow"
 check_page "/dashboard"
 check_page "/examples/33-ui-components" "UI 컴포넌트 계약"
+check_page "/crew/jiwoo" "지우와의 작업 대화"
 api_status="$(curl -sS -o "$tmp_body" -w '%{http_code}' --max-time 15 \
   "${base_url}/api/hello")"
 if [[ "$api_status" != "200" ]] || ! rg -F -q '"ok":true' "$tmp_body"; then
@@ -34,4 +35,4 @@ if [[ "$api_status" != "200" ]] || ! rg -F -q '"ok":true' "$tmp_body"; then
 fi
 echo "SMOKE_PASS path=/api/hello method=GET status=200 json-contract"
 
-echo "SMOKE_PASS all=6 base=${base_url}"
+echo "SMOKE_PASS all=7 base=${base_url}"

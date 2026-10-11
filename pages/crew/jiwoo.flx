@@ -1,0 +1,82 @@
+; Argo Crew 화면 — FreeLang Front 구현
+; route: /crew/jiwoo
+
+(defn nav-item [icon label active]
+  (h "div" {:style (str "display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:10px;margin-bottom:3px;" (if active "background:#eef2ff;color:#4338ca;font-weight:700" "color:#64748b"))}
+    (str (h "span" {:style "width:18px;text-align:center"} icon) (h "span" {:style "font-size:13px"} label))))
+
+(defn avatar [kind]
+  (h "div" {:style (str "width:34px;height:34px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex:none;" (if (= kind "agent") "background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff" "background:#e2e8f0;color:#334155"))} (if (= kind "agent") "지" "나")))
+
+(defn user-message [body]
+  (h "div" {:style "display:flex;justify-content:flex-end;gap:12px;align-items:flex-start;margin:22px 0"}
+    (str (h "div" {:style "max-width:560px;padding:12px 16px;border-radius:16px 16px 4px 16px;background:#4f46e5;color:#fff;font-size:14px;line-height:1.65"} body) (avatar "user"))))
+
+(defn agent-message [body]
+  (h "div" {:style "display:flex;gap:12px;align-items:flex-start;max-width:760px"}
+    (str (avatar "agent") (h "div" {:style "min-width:0"}
+      (str (h "div" {:style "display:flex;gap:8px;align-items:center;margin-bottom:6px"} (h "strong" {:style "font-size:13px;color:#0f172a"} "지우") (h "span" {:style "font-size:11px;color:#94a3b8"} "소프트웨어 개발자 · 2:17")) (h "div" {:style "font-size:14px;line-height:1.8;color:#334155"} body))))))
+
+(defn artifact []
+  (h "div" {:style "margin:16px 0 8px 46px;max-width:680px;border:1px solid #e2e8f0;border-radius:14px;background:#fff;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.05)"}
+    (str
+      (h "div" {:style "display:flex;justify-content:space-between;align-items:center;padding:13px 16px;border-bottom:1px solid #f1f5f9;background:#fafafa"}
+        (str (h "div" {:style "display:flex;align-items:center;gap:9px"} (h "span" {:style "width:28px;height:28px;border-radius:7px;background:#eef2ff;color:#4f46e5;display:flex;align-items:center;justify-content:center;font-size:13px"} "py") (h "strong" {:style "font-size:13px;color:#1e293b"} "pagination.py")) (h "span" {:style "font-size:11px;color:#16a34a;font-weight:700"} "검증 완료")))
+      (h "div" {:style "padding:15px 16px"}
+        (str (h "p" {:style "margin:0 0 10px;color:#475569;font-size:13px"} "페이지네이션 입력을 검증하고 작은 산출물로 정리했습니다.")
+          (h "div" {:style "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px"} (h "div" {:style "padding:10px 12px;background:#f8fafc;border-radius:9px;color:#64748b;font-size:12px"} "사용 예: pagination(3, 10)") (h "div" {:style "padding:10px 12px;background:#f8fafc;border-radius:9px;color:#64748b;font-size:12px"} "결과: limit 10 · offset 20"))
+          (h "div" {:style "display:flex;gap:6px;flex-wrap:wrap"} (h "span" {:style "padding:5px 8px;border-radius:6px;background:#ecfdf5;color:#15803d;font-size:11px"} "정상 입력 3건") (h "span" {:style "padding:5px 8px;border-radius:6px;background:#fff7ed;color:#c2410c;font-size:11px"} "잘못된 입력 5건 차단") (h "span" {:style "padding:5px 8px;border-radius:6px;background:#f1f5f9;color:#64748b;font-size:11px"} "직접 실행")))))))
+
+(island CrewComposer []
+    (let [draft (atom "") sent (atom "")]
+      (h "div" {:style "border:1px solid #e2e8f0;border-radius:16px;background:#fff;box-shadow:0 10px 30px rgba(15,23,42,.08);padding:10px"}
+        (str
+          (if (= @sent "") "" (h "div" {:style "padding:10px 12px;margin-bottom:8px;border-radius:10px;background:#f8fafc;color:#475569;font-size:12px"} (str "보낸 메시지: " @sent)))
+          (h "div" {:style "display:flex;align-items:flex-end;gap:10px"}
+            (h "textarea" {:placeholder "지우에게 작업을 요청하세요…" :value @draft :rows "2" :style "flex:1;resize:none;border:0;outline:none;padding:8px 10px;font:inherit;font-size:14px;line-height:1.6;color:#0f172a;background:transparent" :on-input (fn [e] (reset! draft (.-value (.-target e))))})
+            (h "button" {:style "border:0;border-radius:10px;padding:10px 15px;background:#4f46e5;color:#fff;font-size:12px;font-weight:700;cursor:pointer" :on-click (fn [] (when (not= @draft "") (reset! sent @draft) (reset! draft "")))} "보내기")))
+          (h "div" {:style "display:flex;justify-content:space-between;padding:5px 8px 0;color:#94a3b8;font-size:11px"} (str (h "span" {} "⌘ Enter로 전송 · 파일과 폴더를 함께 참고할 수 있습니다") (h "span" {:style "color:#16a34a"} "● 지우 온라인"))))))
+
+(defn sidebar []
+  (h "aside" {:style "width:220px;flex:none;padding:22px 14px;border-right:1px solid #e2e8f0;background:#fff"}
+    (str
+      (h "div" {:style "display:flex;align-items:center;gap:9px;padding:0 10px 24px"} (h "div" {:style "width:30px;height:30px;border-radius:9px;background:#0f172a;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800"} "A") (h "strong" {:style "font-size:15px;color:#0f172a"} "ARGO") (h "span" {:style "font-size:10px;color:#94a3b8;margin-left:auto"} "v0.1"))
+      (h "div" {:style "padding:0 8px 8px;font-size:10px;font-weight:700;color:#94a3b8;letter-spacing:.08em"} "WORKSPACE")
+      (nav-item "▦" "회사" false) (nav-item "⌂" "데크" false) (nav-item "▣" "회의실" false) (nav-item "◇" "경쟁 시안" false) (nav-item "◈" "기억" false) (nav-item "↻" "루틴" false) (nav-item "◷" "활동" false)
+      (h "div" {:style "height:1px;background:#f1f5f9;margin:18px 8px"} "")
+      (nav-item "✉" "쪽지함" false) (nav-item "✦" "스킬·도구" false) (nav-item "＋" "에이전트 영입" false) (nav-item "⚙" "설정" false)
+      (h "div" {:style "margin-top:28px;padding:12px;border-radius:12px;background:#f8fafc"} (str (h "div" {:style "font-size:11px;font-weight:700;color:#475569;margin-bottom:5px"} "오늘의 작업") (h "div" {:style "font-size:11px;line-height:1.6;color:#94a3b8"} "지우와 함께 3개의 작업을 검토했습니다."))))))
+
+(defn sessions []
+  (h "aside" {:style "width:230px;flex:none;padding:22px 14px;background:#f8fafc;border-right:1px solid #e2e8f0"}
+    (str
+      (h "div" {:style "display:flex;align-items:center;justify-content:space-between;padding:0 8px 18px"} (h "strong" {:style "font-size:13px;color:#334155"} "대화 세션") (h "button" {:style "border:1px solid #e2e8f0;border-radius:7px;background:#fff;color:#64748b;cursor:pointer;padding:4px 8px"} "+"))
+      (h "div" {:style "padding:12px 14px;border-radius:10px;background:#f1f5f9;border:1px solid #e2e8f0"} (str (h "div" {:style "font-size:12px;font-weight:700;color:#0f172a"} "현재 대화") (h "div" {:style "font-size:11px;color:#94a3b8;margin-top:4px"} "메시지 6 · 방금 전")))
+      (h "div" {:style "padding:18px 10px 7px;font-size:10px;color:#94a3b8;font-weight:700"} "이전 대화")
+      (h "div" {:style "padding:10px;color:#cbd5e1;font-size:11px;line-height:1.6"} "이전 대화가 없습니다.")
+      (h "div" {:style "margin-top:150px;padding:11px;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:11px"} "대화명 편집  ·  보관함"))))
+
+(defn context-panel []
+  (h "aside" {:style "width:270px;flex:none;padding:22px 18px;border-left:1px solid #e2e8f0;background:#fff"}
+    (str
+      (h "div" {:style "display:flex;justify-content:space-between;align-items:center;margin-bottom:18px"} (h "strong" {:style "font-size:13px;color:#334155"} "에이전트 카드") (h "span" {:style "font-size:11px;color:#94a3b8"} "패널"))
+      (h "div" {:style "padding:16px;border:1px solid #e2e8f0;border-radius:14px;background:linear-gradient(145deg,#fafaff,#fff)"}
+        (str
+          (h "div" {:style "display:flex;align-items:center;gap:11px"} (h "div" {:style "width:42px;height:42px;border-radius:13px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;font-weight:800"} "지") (h "div" {} (str (h "strong" {:style "display:block;font-size:14px;color:#0f172a"} "지우") (h "span" {:style "font-size:11px;color:#64748b"} "소프트웨어 개발자"))))
+          (h "div" {:style "margin-top:13px;font-size:11px;color:#16a34a"} "● 온라인 · 작업 가능")
+          (h "div" {:style "display:flex;gap:5px;flex-wrap:wrap;margin-top:14px"} (h "span" {:style "padding:5px 7px;background:#eef2ff;color:#4f46e5;border-radius:6px;font-size:10px"} "웹 개발") (h "span" {:style "padding:5px 7px;background:#f1f5f9;color:#64748b;border-radius:6px;font-size:10px"} "버그 수정") (h "span" {:style "padding:5px 7px;background:#f1f5f9;color:#64748b;border-radius:6px;font-size:10px"} "검증"))))
+      (h "div" {:style "margin-top:22px"} (str (h "div" {:style "font-size:11px;font-weight:700;color:#475569;margin-bottom:10px"} "작업 컨텍스트") (h "div" {:style "padding:12px;border-radius:10px;background:#f8fafc;margin-bottom:8px"} (str (h "div" {:style "font-size:10px;color:#94a3b8;margin-bottom:4px"} "작업 폴더") (h "div" {:style "font-size:11px;color:#334155;word-break:break-all"} "/home/kim/.argo-selfhost/data/workspaces/bigwash-7lm4/vault"))) (h "div" {:style "padding:12px;border-radius:10px;background:#f8fafc"} (str (h "div" {:style "font-size:10px;color:#94a3b8;margin-bottom:5px"} "권한") (h "div" {:style "font-size:11px;color:#334155"} "보호 영역 제외 · 서버 검색 가능")))))
+      (h "div" {:style "margin-top:24px;padding-top:16px;border-top:1px solid #f1f5f9"} (str (h "div" {:style "display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"} (h "span" {:style "font-size:11px;color:#64748b"} "위임 제한") (h "span" {:style "width:31px;height:18px;border-radius:99px;background:#4f46e5;position:relative;display:block"} (h "span" {:style "position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:50%;background:#fff"} ""))) (h "div" {:style "font-size:10px;color:#94a3b8;line-height:1.6"} "에이전트 위임은 2회 · 2단계로 제한되어 있습니다.")))
+      (h "div" {:style "margin-top:26px;font-size:10px;color:#94a3b8"} "ENGINE  ·  FreeLang Front"))))
+
+(defn main-chat []
+  (h "main" {:style "min-width:0;flex:1;display:flex;flex-direction:column;background:#fff"}
+    (str
+      (h "header" {:style "height:72px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid #e2e8f0"}
+        (str (h "div" {:style "display:flex;align-items:center;gap:12px"} (h "div" {:style "width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800"} "지") (h "div" {} (str (h "div" {:style "font-size:15px;font-weight:800;color:#0f172a"} "지우") (h "div" {:style "font-size:11px;color:#64748b;margin-top:3px"} "bigwash · 소프트웨어 개발자")))) (h "div" {:style "display:flex;gap:7px"} (h "button" {:style "padding:8px 11px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:11px;cursor:pointer"} "새 세션") (h "button" {:style "padding:8px 11px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#64748b;font-size:11px;cursor:pointer"} "카드") (h "button" {:style "padding:8px 11px;border:0;border-radius:8px;background:#eef2ff;color:#4f46e5;font-size:11px;font-weight:700;cursor:pointer"} "새 대화"))))
+      (h "div" {:style "flex:1;overflow:auto;padding:28px 34px"} (h "div" {:style "max-width:820px;margin:0 auto"} (str (h "div" {:style "text-align:center;margin:0 0 30px"} (str (h "div" {:style "font-size:11px;color:#94a3b8;margin-bottom:6px"} "오늘  ·  현재 대화 메시지 6") (h "h1" {:style "font-size:17px;color:#334155;margin:0"} "지우와의 작업 대화"))) (user-message "(영입 시운전) 첫 인사와 샘플 산출물을 보여주세요.") (agent-message "소프트웨어 개발자 지우입니다. 웹·서버 개발과 버그 수정을 맡으며, 기존 코드를 살펴 필요한 범위만 구현하고 직접 검증합니다.") (artifact) (user-message "서버내 폴더 확인가능?") (agent-message "네, 현재 연결된 서버의 폴더와 파일을 확인할 수 있습니다. 방금 아래 경로를 직접 확인했습니다.") (h "div" {:style "margin:10px 0 10px 46px;padding:10px 13px;border-left:3px solid #c7d2fe;background:#f8fafc;color:#64748b;font-family:monospace;font-size:11px"} "/home/kim/.argo-selfhost/data/workspaces/bigwash-7lm4/vault") (user-message "서버 전체 검색은 되니?") (agent-message "전체 경로 검색도 권한 범위에서 가능합니다. 보호 영역은 제외하고, 검색 결과와 확인한 근거를 함께 남깁니다.") (h "div" {:style "margin:28px 0 8px 46px;font-size:11px;color:#94a3b8"} "지우에게 새 작업 요청") "ISLAND_PLACEHOLDER"))))))
+
+(defn render [req]
+  (layout-html "지우 · Crew"
+    (str (h "div" {:style "min-height:calc(100vh - 120px);display:flex;position:relative;margin:-24px;background:#fff;color:#0f172a;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"} (str (sidebar) (sessions) (main-chat) (context-panel))) "ISLAND_SCRIPTS")
+    req))
