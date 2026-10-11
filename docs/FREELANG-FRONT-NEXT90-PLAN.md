@@ -44,8 +44,8 @@ FreeLang Front의 정체성은 유지한다.
 | 6 | HMR/Fast Refresh 상용화 | L1 reload, L2 CSS, L3 soft refresh + build-error gate | 상태·폼 보존, CSS 무재시작, 오류 source:line:column 표시, 실패 시 full reload fallback | **기본 계약 PASS** |
 | 7 | 타입·DX·AI 작업 흐름 | typecheck/lint/diagnostic/fix 명령 | AI가 오류 위치·원인·수정 후보를 한 번에 얻음 | **진행 중** |
 | 8 | 패키지·문서·예제 생태계 | scaffold, templates, examples, migration guide | 새 프로젝트를 문서·CLI만으로 생성·실행 | **예정** |
-| 9 | 테스트·배포·운영 신뢰성 | release gate, clean clone, artifact, metrics, rollback | targeted → regression → release gate 전부 PASS | **진행 중** |
-| 10 | Next90 인증·독립 릴리즈 | Next90 scorecard, benchmark report, v1 release | 90점 이상, critical BLOCKED 없음, 운영 리허설 PASS | **예정** |
+| 9 | 테스트·배포·운영 신뢰성 | release gate, clean clone, artifact, metrics, rollback | targeted → regression → release gate 전부 PASS | **내부 배포 PASS** |
+| 10 | Next90 인증·독립 릴리즈 | Next90 scorecard, benchmark report, v1 release | 90점 이상, critical BLOCKED 없음, 운영 리허설 PASS | **진행 중** |
 
 ## 작업 규칙
 
@@ -81,8 +81,8 @@ provider로 언어 계약 자체는 계속 검증한다.
 
 ## 현재 증거와 기준점
 
-기준 커밋은 `bbb0734`이며, 현재 작업 트리에는 다음 AI 진단 기능의 미커밋
-구현이 있다.
+기준 커밋은 `1c6d796`이며, AI 진단 기능과 실시간 진단 계약이 커밋·push된
+상태다.
 
 - `npm run front:context`: `.flx` 원본 위치·주변 코드·빌드 커밋·hash 반환
 - `/~ai/source?format=json`: 브라우저 오류 위치의 구조화 문맥 반환
@@ -97,16 +97,16 @@ provider로 언어 계약 자체는 계속 검증한다.
 - 내부 HTTP·SSE·SPA 검증: PASS
 - 정적 게이트의 HTTP 항목: `BASE_URL`이 없으면 BLOCKED
 - `clean-worktree`: 계획된 미커밋 변경이 있으므로 BLOCKED
+- 내부 배포: `1c6d796` PM2 반영·smoke·SSE·SPA·artifact hash PASS
 
 ## 현재 다음 작업
 
-1. **실시간 진단 마무리** — 브라우저 입력 중 진단과 타입 오류 표시를 추가하고 현재 계약과 통합
-2. **HMR 상태 보존** — CSS·페이지·Island 변경별 refresh 범위와 폼/상태 보존 검증
-3. **컴포넌트·상태 표준화** — props/event/atom/store의 단일 작성 규칙 확정
-4. **provider·API 오류 계약** — 실제 DB·HTTP 경계와 오류 보존 방식 고정
-5. **패키지·예제·scaffold** — AI가 새 프로젝트를 계약만으로 생성하도록 정리
-6. **clean clone·artifact·rollback** — 내부 배포 복구 리허설
-7. **Next90 점수표 재평가** — critical BLOCKED가 없을 때만 10단계 완료 판정
+1. **HMR 상태 보존 정교화** — CSS·페이지·Island 변경별 refresh 범위와 폼/상태 보존 검증
+2. **컴포넌트·상태 표준화** — props/event/atom/store의 단일 작성 규칙 확정
+3. **provider·API 오류 계약** — 실제 DB·HTTP 경계와 오류 보존 방식 고정
+4. **패키지·예제·scaffold** — AI가 새 프로젝트를 계약만으로 생성하도록 정리
+5. **clean clone·artifact·rollback 운영 리허설** — 실제 rollback 적용은 별도 승인 후 실행
+6. **Next90 점수표 재평가** — critical BLOCKED가 없을 때만 10단계 완료 판정
 
 이 문서는 상용 완성 선언이 아니다. 단계 10의 실제 증거가 모일 때까지 목표는
 활성 상태로 유지한다.
