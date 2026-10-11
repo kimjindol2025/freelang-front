@@ -34,7 +34,7 @@ stage_scores = [10, 10, 10, 9, 10, 10, 10, 10, 8, 9]
 NEXT90_SCORE = 96 / 100
 NEXT90 = PASS (기능 gate)
 판정: 90점 이상이며 핵심 영역 6점 미만 없음
-기준 HEAD: 31e0715 (기능 gate; clean-worktree는 사용자 변경 보존으로 BLOCKED)
+기준 HEAD: 2f10515 (기능 gate; clean-worktree는 생성 상태 파일 원복 후 clean)
 ```
 
 점수는 상용 운영 준비도가 아니라 이 문서의 Next-90 범위(SSR·API·Island·AI
@@ -140,6 +140,6 @@ AFJ-DB 연동은 실제 정본의 역할별 Bearer 계약을 확인한 뒤 `_afl
 컨트롤이 실제로 나타나는지 확인했다. CSP의 `unsafe-eval`을 사용하지 않고,
 응답에 포함된 Island 스크립트만 인라인 실행한다.
 
-다음 개선 후보는 실제 clean worktree에서 내부 배포·rollback 적용 리허설을
-수행하는 것이다. SSE는 구현·실행·회귀 증거를 확보했으므로 이번 점수에
-반영했다.
+내부 배포는 `1c6d796`에서 실제 PM2·smoke·SSE·SPA·artifact hash까지 PASS했다.
+rollback 스크립트는 검증된 target과 명시적 apply 승인을 요구하므로, 운영자의
+별도 승인 전에는 계획 단계로만 남긴다. SSE는 구현·실행·회귀 증거를 확보했다.

@@ -45,7 +45,7 @@ FreeLang Front의 정체성은 유지한다.
 | 7 | 타입·DX·AI 작업 흐름 | typecheck/lint/diagnostic/fix 명령 | AI가 오류 위치·원인·수정 후보를 한 번에 얻음 | **기본 계약 PASS** |
 | 8 | 패키지·문서·예제 생태계 | scaffold, templates, examples, migration guide | 새 프로젝트를 문서·CLI만으로 생성·실행 | **scaffold 계약 PASS** |
 | 9 | 테스트·배포·운영 신뢰성 | release gate, clean clone, artifact, metrics, rollback | targeted → regression → release gate 전부 PASS | **내부 배포 PASS** |
-| 10 | Next90 인증·독립 릴리즈 | Next90 scorecard, benchmark report, v1 release | 90점 이상, critical BLOCKED 없음, 운영 리허설 PASS | **진행 중** |
+| 10 | Next90 인증·독립 릴리즈 | Next90 scorecard, benchmark report, v1 release | 90점 이상, critical BLOCKED 없음, 운영 리허설 PASS | **내부 Next90 PASS (96/100)** |
 
 ## 작업 규칙
 
@@ -81,8 +81,8 @@ provider로 언어 계약 자체는 계속 검증한다.
 
 ## 현재 증거와 기준점
 
-기준 커밋은 `1c6d796`이며, AI 진단 기능과 실시간 진단 계약이 커밋·push된
-상태다.
+기준 커밋은 `2f10515`이며, AI 진단·실시간 진단·scaffold 계약과 내부 배포
+증거 문서가 커밋·push된 상태다.
 
 - `npm run front:context`: `.flx` 원본 위치·주변 코드·빌드 커밋·hash 반환
 - `/~ai/source?format=json`: 브라우저 오류 위치의 구조화 문맥 반환
@@ -97,17 +97,29 @@ provider로 언어 계약 자체는 계속 검증한다.
 - Front build, 언어 conformance, typecheck, AI contract, HMR, 회귀: PASS
 - 내부 HTTP·SSE·SPA 검증: PASS
 - 정적 게이트의 HTTP 항목: `BASE_URL`이 없으면 BLOCKED
-- `clean-worktree`: 계획된 미커밋 변경이 있으므로 BLOCKED
+- `clean-worktree`: gate 실행 중 생성 파일은 원복했고 최종 작업 트리는 clean
 - 내부 배포: `1c6d796` PM2 반영·smoke·SSE·SPA·artifact hash PASS
+- Next90 앱 매트릭스: 대표 4페이지·3 API·404 PASS
+- 브라우저 계약: People → Market → 폼 상호작용, console/network 0 errors PASS
+- 최종 내부 release gate: 언어·타입·상태·HMR·AI·scaffold·HTTP·SSE·SPA PASS
+
+## 내부 목표 완료 판정
+
+10단계 내부 AI 개발 목표는 `NEXT90_SCORE=96/100`으로 완료 판정한다.
+이는 FreeLang Front를 이 서버에서 반복 개발하기 위한 내부 릴리스 판정이며,
+외부 공개 상용 릴리스나 공용 포트 개방을 의미하지 않는다.
+
+비차단 후속 작업:
+
+- 운영자가 승인한 별도 대상 커밋으로 실제 rollback 적용 리허설
+- 타입 메타데이터 경고를 점진적으로 줄이는 DX 개선
+- EventSource 미지원 환경의 polling fallback 유지·관찰
 
 ## 현재 다음 작업
 
-1. **HMR 상태 보존 정교화** — CSS·페이지·Island 변경별 refresh 범위와 폼/상태 보존 검증
-2. **컴포넌트·상태 표준화** — props/event/atom/store의 단일 작성 규칙 확정
-3. **provider·API 오류 계약** — 실제 DB·HTTP 경계와 오류 보존 방식 고정
-4. **패키지·예제·scaffold** — AI가 새 프로젝트를 계약만으로 생성하도록 정리
-5. **clean clone·artifact·rollback 운영 리허설** — 실제 rollback 적용은 별도 승인 후 실행
-6. **Next90 점수표 재평가** — critical BLOCKED가 없을 때만 10단계 완료 판정
+1. **운영 유지보수** — 내부 배포 후 metrics·SSE·PM2 상태 관찰
+2. **승인 기반 rollback 리허설** — 검증된 이전 커밋을 선택한 뒤 별도 적용
+3. **DX 품질 개선** — 타입 메타데이터 경고와 문서 예제 보강
 
 이 문서는 상용 완성 선언이 아니다. 단계 10의 실제 증거가 모일 때까지 목표는
 활성 상태로 유지한다.
