@@ -56,6 +56,17 @@ AI 도구는 원본 진단을 바로 수정하거나, `_app.fl`에서 발생한 
 `source_location`과 `generated_location`을 추가해 원본 `.flx` 위치를 제공한다.
 이 변환은 `npm run contracts:browser-errors`와 release gate에서 고정 검수한다.
 
+AI가 화면을 해석하지 않고 바로 수정할 수 있도록 같은 endpoint에
+`format=json`을 붙일 수 있다. 출력 스키마는 `fl-front-source-context/1`이며
+원본 위치, 생성 위치, 주변 소스 줄, 빌드 커밋·재현 명령·파일 hash를 포함한다.
+같은 계약은 `npm run front:context -- --file pages/index.flx --line 1`로도
+조회할 수 있으며, 이 CLI가 AI 작업의 정본 입력이다.
+
+개발 서버의 `GET /~ai/diagnostics`는 `fl-front-realtime-diagnostics/1` 계약으로
+현재 빌드 이슈, HMR 상태, 마지막 정상 빌드의 커밋·라우트 수를 함께 반환한다.
+문법 오류가 생겨도 마지막 정상 빌드 정보는 보존되므로 AI가 깨진 생성물을
+정상 상태로 오인하지 않고 수정 전후를 비교할 수 있다.
+
 `route-shadow`는 동적 경로가 정적 경로와 겹친다는 사실만으로 경고하지 않는다.
 생성된 실제 등록 순서에서 동적 경로가 정적 경로보다 먼저 나올 때만 경고한다.
 현재 builder는 정적 경로를 먼저 등록하므로, 겹침이 있어도 안전한 순서는

@@ -136,9 +136,15 @@ async function main() {
   copyWorkspace();
   const layout = fs.readFileSync(path.join(temp, 'pages/_layout.flx'), 'utf8');
   const server = fs.readFileSync(path.join(temp, 'server.fl'), 'utf8');
+  const devServer = fs.readFileSync(path.join(temp, 'dev-server.js'), 'utf8');
   if (!layout.includes("type==='css-reload'") || !layout.includes("type==='soft-reload'")
-    || !layout.includes('location.reload()') || !server.includes('(fl-env-get "FL_DEV")')) {
-    throw new Error('HMR L1/L2/L3 or FL_DEV guard is missing');
+    || !layout.includes('location.reload()')
+    || !layout.includes('isExpectedTransitionCancel')
+    || !layout.includes('function primaryLocation')
+    || !devServer.includes('fl-front-realtime-diagnostics/1')
+    || !devServer.includes('setTimeout(() => rebuild(full), 250)')
+    || !server.includes('(fl-env-get "FL_DEV")')) {
+    throw new Error('HMR/diagnostics contract or FL_DEV guard is missing');
   }
 
   child = spawn(process.execPath, ['dev-server.js'], {
@@ -186,6 +192,16 @@ async function main() {
   if (sourceView.status !== 200 || !sourceView.body.includes(buildState.sourceMapLines[String(generatedLine)].file)) {
     throw new Error(`source viewer mapping failed: ${sourceView.status} ${sourceView.body.slice(0, 240)}`);
   }
+  const sourceJson = await get(`/~ai/source?file=_app.fl&line=${generatedLine}&col=7&format=json`, HMR_PORT);
+  const sourceContext = JSON.parse(sourceJson.body);
+  if (sourceJson.status !== 200
+    || sourceContext.schema !== 'fl-front-source-context/1'
+    || sourceContext.source?.file !== buildState.sourceMapLines[String(generatedLine)].file
+    || sourceContext.generated?.line !== generatedLine
+    || !sourceContext.context?.some((item) => item.focus === true)
+    || sourceContext.evidence?.command !== 'node fl-front-build.js --json') {
+    throw new Error(`AI source context failed: ${sourceJson.status} ${sourceJson.body.slice(0, 400)}`);
+  }
   const sourceTraversal = await get('/~ai/source?file=pages/../server.fl&line=1', HMR_PORT);
   const sourceMissing = await get('/~ai/source?file=pages/does-not-exist.flx&line=1', HMR_PORT);
   if (sourceTraversal.status !== 400 || sourceMissing.status !== 404) {
@@ -230,6 +246,16 @@ async function main() {
   const { state: errorState } = await waitForState(30000, 3);
   if (errorState.type !== 'build-error' || !errorState.message) {
     throw new Error(`same-origin HMR state did not report build-error: ${JSON.stringify(errorState)}`);
+  }
+  const diagnosticsResponse = await get('/~ai/diagnostics', HMR_PORT);
+  const diagnostics = JSON.parse(diagnosticsResponse.body);
+  if (diagnosticsResponse.status !== 200
+    || diagnostics.schema !== 'fl-front-realtime-diagnostics/1'
+    || diagnostics.last_good_build?.ok !== true
+    || diagnostics.last_good_build?.routes < 1
+    || diagnostics.hmr?.type !== 'build-error'
+    || diagnostics.hmr?.source !== 'pages/index.flx') {
+    throw new Error(`realtime diagnostics failed: ${diagnosticsResponse.status} ${diagnosticsResponse.body.slice(0, 500)}`);
   }
   console.log(JSON.stringify({
     schema: 'fl-front-hmr-contract/1',

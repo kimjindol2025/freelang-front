@@ -45,10 +45,13 @@ let lastBuildState = {
   sourceMapLines: {},
   warnings: [],
 };
+let lastGoodBuildState = lastBuildState;
 
 function loadBuildState() {
   try {
-    lastBuildState = JSON.parse(fs.readFileSync(BUILD_STATE_FILE, 'utf8'));
+    const next = JSON.parse(fs.readFileSync(BUILD_STATE_FILE, 'utf8'));
+    lastBuildState = next;
+    if (next.ok !== false) lastGoodBuildState = next;
   } catch {}
 }
 
@@ -205,6 +208,7 @@ const hmrServer = http.createServer((req, res) => {
           '/~ai/fns':    'GET — defn 시그니처 목록',
           '/~ai/store':  'GET — store 키 + 초기값',
           '/~ai/issues': 'GET — 빌드 이슈 목록 (errors+warns)',
+          '/~ai/diagnostics': 'GET — 실시간 진단과 마지막 정상 빌드',
           '/~ai/errors': 'GET — 브라우저 런타임 에러',
           '/~ai/contracts': 'GET — AI contract 목록 + readiness',
           '/~ai/browser': 'GET — 브라우저 탭 감시 상태',
@@ -258,6 +262,26 @@ const hmrServer = http.createServer((req, res) => {
         ok: issues.filter(i=>i.level==='error').length === 0,
         errors: issues.filter(i=>i.level==='error'),
         warns:  issues.filter(i=>i.level==='warn'),
+      });
+      return;
+    }
+
+    // GET /~ai/diagnostics — AI 실시간 진단 계약
+    if (u === '/~ai/diagnostics') {
+      json({
+        schema: 'fl-front-realtime-diagnostics/1',
+        build: {
+          ok: lastBuildState.ok !== false,
+          time: lastBuildState.time || null,
+          issues: lastBuildState.issues || [],
+        },
+        last_good_build: {
+          ok: lastGoodBuildState.ok !== false,
+          time: lastGoodBuildState.time || null,
+          repo_commit: lastGoodBuildState.repoCommit || '',
+          routes: (lastGoodBuildState.routes || []).length,
+        },
+        hmr: { version: hmrVersion, type: hmrType, ...hmrMeta },
       });
       return;
     }
@@ -320,6 +344,37 @@ const hmrServer = http.createServer((req, res) => {
       const center = Math.max(1, line || 1);
       const from = Math.max(1, center - 5);
       const to = Math.min(sourceLines.length, center + 5);
+      const sourceContext = [];
+      for (let n = from; n <= to; n += 1) {
+        sourceContext.push({ line: n, text: sourceLines[n - 1] || '', focus: n === center });
+      }
+      if (qs.get('format') === 'json') {
+        const requestedLocation = {
+          file: requested,
+          line: requestedLine,
+          column: Number(qs.get('col') || 0),
+        };
+        const sourceLocation = { file, line: center, column: requestedLocation.column };
+        const generatedLocation = requested === '_app.fl' && requestedLine > 0
+          ? { file: '_app.fl', line: requestedLine, column: requestedLocation.column }
+          : null;
+        res.writeHead(200, { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({
+          schema: 'fl-front-source-context/1',
+          ok: true,
+          requested: requestedLocation,
+          source: sourceLocation,
+          generated: generatedLocation,
+          context: sourceContext,
+          evidence: {
+            repo_commit: lastBuildState.repoCommit || '',
+            build_time: lastBuildState.time || null,
+            command: 'node fl-front-build.js --json',
+            sha256: crypto.createHash('sha256').update(fs.readFileSync(fullPath)).digest('hex'),
+          },
+        }));
+        return;
+      }
       const rows = [];
       for (let n = from; n <= to; n += 1) {
         const active = n === center ? ' style="background:#3f2d12;color:#fef3c7"' : '';

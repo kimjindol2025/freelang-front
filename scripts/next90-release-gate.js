@@ -110,6 +110,12 @@ checks.push(browserErrorMap.exit === 0 && browserErrorMapJson?.pass === true
   ? pass('browser-error-map', 'generated _app.fl location resolves to original .flx')
   : fail('browser-error-map', `exit=${browserErrorMap.exit}`));
 
+const sourceContext = run(process.execPath, ['scripts/front-source-context.js', '--file', 'pages/index.flx', '--line', '1']);
+const sourceContextJson = lastJson(sourceContext.output);
+checks.push(sourceContext.exit === 0 && sourceContextJson?.schema === 'fl-front-source-context/1' && sourceContextJson?.ok === true
+  ? pass('front-source-context', `source=${sourceContextJson.source.file}:${sourceContextJson.source.line}`)
+  : fail('front-source-context', `exit=${sourceContext.exit}`));
+
 const ui = run(process.execPath, ['scripts/ui-contract-gate.js']);
 const uiJson = lastJson(ui.output);
 checks.push(ui.exit === 0 && uiJson?.pass === true
@@ -168,7 +174,7 @@ const result = {
   head: run('git', ['rev-parse', '--short', 'HEAD']).output.trim(),
   pass: failures.length === 0 && blockedChecks.length === 0,
   checks,
-  known_limitations: ['dashboard keeps polling fallback when EventSource is unavailable', 'browser console may report cancelled ViewTransition during rapid navigation'],
+  known_limitations: ['dashboard keeps polling fallback when EventSource is unavailable'],
 };
 
 console.log(JSON.stringify(result));

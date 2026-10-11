@@ -419,6 +419,14 @@ function shortUrl(u){
   return j>=0 ? s.slice(j) : s;
 }
 
+function primaryLocation(e){
+  var loc=e&&e.source_location||{};
+  var file=loc.file||e&&e.source||'';
+  var line=Number(loc.line||e&&e.line||0);
+  var col=Number(loc.column||e&&e.col||0);
+  return {file:String(file||''),line:line>0?line:0,col:col>0?col:0};
+}
+
 function ensureDom(){
   if(root) return;
   root=document.createElement('div');
@@ -451,6 +459,7 @@ function paint(){
   if(!open){ root.style.display='none'; return; }
 
   var e=errors[idx];
+  var primary=primaryLocation(e);
   var frames=parseFrames(e.stack);
   var shown=frames.filter(function(f){return !f.ignored;});
   var hidden=frames.length-shown.length;
@@ -483,7 +492,9 @@ function paint(){
         +'<div style="color:#fb7185;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">'+esc(e.type||'error')+'</div>'
         +'<div style="color:#fafafa;font-size:18px;font-weight:650;line-height:1.35;white-space:pre-wrap;word-break:break-word">'+esc(e.message)+'</div>'
         +'<div style="margin-top:10px;color:#a1a1aa;font-size:12px">'
-          +esc(e.source||'(unknown)')+(e.line?':'+e.line:'')+(e.col?':'+e.col:'')
+          +(primary.file&&primary.line
+            ? '<button type="button" data-eo-file="'+esc(primary.file)+'" data-eo-line="'+esc(primary.line)+'" data-eo-col="'+esc(primary.col)+'" style="all:unset;color:#fbbf24;cursor:pointer;text-decoration:underline dotted" title="소스 열기">'+esc(primary.file)+':'+esc(primary.line)+(primary.col?':'+esc(primary.col):'')+'</button>'
+            : esc(e.source||'(unknown)')+(e.line?':'+e.line:'')+(e.col?':'+e.col:''))
           +' · '+esc(shortUrl(e.url||location.href))
         +'</div>'
       +'</div>'
@@ -809,6 +820,11 @@ function doNav(href,token){
       location.href=href;
     });
 }
+function isExpectedTransitionCancel(err){
+  var name=String(err&&err.name||'');
+  var msg=String(err&&err.message||err||'');
+  return name==='AbortError'||/abort|cancel|transition.*finish/i.test(name+' '+msg);
+}
 function spa(href){
   var token=++navigationToken;
   cancelActiveTransition();
@@ -818,7 +834,7 @@ function spa(href){
       transition=document.startViewTransition(function(){return doNav(href,token);});
       activeTransition=transition;
       transition.finished.catch(function(err){
-        if(err&&err.name!=='AbortError')console.warn('[spa] view transition failed',err);
+        if(!isExpectedTransitionCancel(err))console.warn('[spa] view transition failed',err);
       }).finally(function(){if(activeTransition===transition)activeTransition=null;});
     }catch(err){
       activeTransition=null;
