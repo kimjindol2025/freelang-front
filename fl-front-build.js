@@ -32,10 +32,18 @@ if (CODES_MODE) {
 const SKL_UTILS_PATH = [path.join(__dirname, "skl-utils.css"), path.join(__dirname, "utils.css")].find(p => fs.existsSync(p));
 const SKL_UTILS_CSS  = SKL_UTILS_PATH ? fs.readFileSync(SKL_UTILS_PATH, "utf8").replace(/\s+/g, " ").trim() : "";
 
-// {level:'error'|'warn', check:str, file:str, line:int, message:str}
+// {level:'error'|'warn', check:str, file:str, line:int, column:int, message:str}
 
-function issue(level, check, file, line, message) {
-  BUILD_ISSUES.push({ level, check, file: file||'', line: line||0, message });
+function issue(level, check, file, line, message, column = 0, extra = {}) {
+  BUILD_ISSUES.push({
+    level,
+    check,
+    file: file || '',
+    line: line || 0,
+    column: column || 0,
+    message,
+    ...extra,
+  });
 }
 // JSON_MODE 에서 텍스트 출력 억제
 const _log = console.log.bind(console);
@@ -1182,6 +1190,7 @@ a{color:#6366f1;text-decoration:none;font-weight:600}</style></head>
 function generate(routes, bindings = [], helpers = [], appCss = '') {
   const lines = [];
   const sourceMap = {}; // "startLine-endLine" → "pages/X.flx"
+  const sourceMapLines = {}; // generated line → { file, line, column }
   lines.push('; _app.fl — 자동 생성. 직접 수정 금지.');
   lines.push(`; 생성: ${new Date().toISOString()}`);
   lines.push('');
@@ -1444,6 +1453,7 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
     src = src.replace(/\(defstore\s+:?[\w-]+\s+[^)]+\)\n?/g, '').trim();
     // 2) (island ...) 블록 컴파일
     const islands = islandCompiler.extractIslands(src);
+    const islandSource = src;
     // 2a) 최상위 island 블록 완전 제거 (FL 런타임에서 실행 불가)
     for (const { block } of [...islands].reverse()) {
       src = src.replace(block, '');
@@ -1452,7 +1462,8 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
     // 2b) HTML placeholder 교체 (ISLAND_PLACEHOLDER → <div> 마운트 포인트)
     if (islands.length > 0) {
       const { scripts } = islandCompiler.compileFileIslands(
-        islands.map(i => i.block).join('\n')
+        islandSource,
+        { sourceFile: r.file }
       );
       const divs = islands.map((_, idx) => {
         const ast = islandCompiler.extractIslands(islands[idx].block);
@@ -1460,7 +1471,8 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       }).join('');
       // island id는 compileFileIslands가 생성한 것 사용
       const { scripts: compiledScripts } = islandCompiler.compileFileIslands(
-        islands.map(i => i.block).join('\n')
+        islandSource,
+        { sourceFile: r.file }
       );
       // CSS 바인딩 변수를 Island 스크립트 스코프에 주입 (snake_case만 — 하이픈은 JS 변수명 불가)
       const cssVarsJs = (bindings || []).map(({name, cls}) => {
@@ -1519,7 +1531,15 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
       /^\(defn render_post \[\$?req\]/m,
       `(defn ${r.fnName}_post__inner [req]`
     );
-    lines.push(renamed);
+    const renamedLines = renamed.split('\n');
+    lines.push(...renamedLines);
+    renamedLines.forEach((_, index) => {
+      sourceMapLines[String(smStart + index)] = {
+        file: r.file,
+        line: index + 1,
+        column: 1,
+      };
+    });
     // 에러 래핑 핸들러 생성
     lines.push(`(defn ${r.fnName} [req]`);
     lines.push(`  (try (${r.fnName}__inner req)`);
@@ -1574,7 +1594,7 @@ dialog[open]{opacity:1;transform:scale(1) translateY(0)}
   });
   if (curFile) accurateMap[`${curStart}-${contentLines.length}`] = curFile;
 
-  return { content, sourceMap: accurateMap };
+  return { content, sourceMap: accurateMap, sourceMapLines };
 }
 
 const BUILD_START = Date.now();
@@ -2068,7 +2088,7 @@ detectDangerousPatterns(routes, helpers);
 validateIslandJs(routes);
 validateIslandBoundary(routes);
 
-const { content: appContent, sourceMap } = generate(routes, bindings, helpers, appCssContent);
+const { content: appContent, sourceMap, sourceMapLines } = generate(routes, bindings, helpers, appCssContent);
 fs.writeFileSync(OUT_FILE, appContent, 'utf8');
 
 // A. 빌드 시 미정의 함수 감지 (원본 .flx 파일 기준)
@@ -2975,6 +2995,7 @@ for (const h of helpers) newCache[h] = fileHash(h);
 newCache['fl-front-build.js'] = fileHash(path.join(__dirname, 'fl-front-build.js'));
 newCache['style-compiler.js'] = fileHash(path.join(__dirname, 'style-compiler.js'));
 newCache.sourceMap = sourceMap;
+newCache.sourceMapLines = sourceMapLines;
 saveCache(newCache);
 
 // 빌드 상태 저장 → /~ai 엔드포인트용
@@ -2989,12 +3010,19 @@ const DIAG_HINTS = diagHints();
 function toDiagnostics(issues) {
   return issues.map(i => {
     const meta = DIAGNOSTIC_CODES.find(c => c.code === (i.check || '')) || null;
+    const source = {
+      file: i.file || '',
+      line: i.line || 0,
+      column: i.column || 0,
+    };
     return {
       code: i.check || 'unknown',
       severity: i.level === 'error' ? 'error' : 'warning',
       file: i.file || '',
       line: i.line || 0,
-      column: 0,
+      column: i.column || 0,
+      source,
+      generated: i.generated || null,
       message: i.message || '',
       hint: (meta && meta.hint) || DIAG_HINTS[i.check] || '',
       fixable: meta ? !!meta.fixable : false,
@@ -3041,6 +3069,7 @@ const buildState = {
   contracts: contractReadiness.rows,
   contractSummary: contractReadiness.summary,
   sourceMap,
+  sourceMapLines,
 };
 try {
   fs.writeFileSync(path.join(__dirname, '.build-state.json'), JSON.stringify(buildState, null, 2), 'utf8');
@@ -3049,7 +3078,9 @@ try {
 if (JSON_MODE) {
   // AI 파이프용: 순수 JSON만 stdout (console.log 억제됨 — process.stdout 직접)
   process.stdout.write(JSON.stringify(buildState, null, 2) + '\n');
-  if (errors.length > 0) process.exit(1);
+  // 큰 진단/sourceMap JSON을 쓰는 중 process.exit(1)을 호출하면 stdout 버퍼가
+  // 잘릴 수 있다. 종료 코드는 유지하되 Node가 flush한 뒤 종료하도록 한다.
+  if (errors.length > 0) process.exitCode = 1;
 } else {
   _log(`✅ _app.fl 생성 완료 (${routes.length}개 라우트, 헬퍼 ${helpers.length}개) [${elapsed}ms]`);
   _log(`✅ AGENTS.md 갱신 완료`);

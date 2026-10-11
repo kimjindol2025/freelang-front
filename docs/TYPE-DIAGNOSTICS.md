@@ -40,8 +40,21 @@ npm run language:diagnostics
 된다.
 
 문법 오류는 `fl-diagnostics/1`의 `syntax` 진단으로 파일·라인·힌트를 포함해
-반환한다. `npm run language:diagnostics`는 임시 build tree의 잘못된 `.flx`
-fixture로 이 계약과 exit code 1을 재현한다.
+반환한다. 진단은 기존 `file/line/column` 필드를 유지하면서 같은 위치를
+`source: {file, line, column}`으로도 제공한다. 생성 산출물과 연결되지 않은
+진단은 `generated: null`이다.
+
+빌드 상태에는 `sourceMapLines`가 함께 기록된다. 키는 생성된 `_app.fl`의
+1-based 줄 번호이고 값은 원본 `.flx`의 `{file, line, column}`이다. 따라서
+AI 도구는 원본 진단을 바로 수정하거나, `_app.fl`에서 발생한 위치를 원본으로
+역추적할 수 있다. `npm run language:diagnostics`는 임시 build tree의 잘못된
+`.flx` fixture, 구조화 진단 필드, 줄별 source map, exit code 1을 함께
+재현한다.
+
+개발 서버가 받는 브라우저 오류도 같은 맵을 사용한다. `_app.fl:줄:열`이
+스택에 포함되면 `/~errors`와 `/~ai/errors` 결과에
+`source_location`과 `generated_location`을 추가해 원본 `.flx` 위치를 제공한다.
+이 변환은 `npm run contracts:browser-errors`와 release gate에서 고정 검수한다.
 
 `route-shadow`는 동적 경로가 정적 경로와 겹친다는 사실만으로 경고하지 않는다.
 생성된 실제 등록 순서에서 동적 경로가 정적 경로보다 먼저 나올 때만 경고한다.

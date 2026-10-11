@@ -85,7 +85,7 @@ FreeLang Front의 목표는 다음 여섯 가지를 동시에 만족하는 것�
 핵심 작업:
 
 - HMR 정리
-- source map / line mapping 정리
+- source map / line mapping 정리 (`sourceMapLines`, 구조화 `source`/`generated`)
 - 브라우저 콘솔 대응 체계 정리
 - build / watch / serve 명령 표준화
 - 테스트 헬퍼 정리

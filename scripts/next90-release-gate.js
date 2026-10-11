@@ -104,6 +104,12 @@ checks.push(hmrContract.exit === 0 && hmrJson?.pass === true
   ? pass('hmr-contract', `events=${hmrJson.events.join(',')}`)
   : fail('hmr-contract', `exit=${hmrContract.exit}`));
 
+const browserErrorMap = run(process.execPath, ['scripts/browser-error-map-contract.js']);
+const browserErrorMapJson = lastJson(browserErrorMap.output);
+checks.push(browserErrorMap.exit === 0 && browserErrorMapJson?.pass === true
+  ? pass('browser-error-map', 'generated _app.fl location resolves to original .flx')
+  : fail('browser-error-map', `exit=${browserErrorMap.exit}`));
+
 const ui = run(process.execPath, ['scripts/ui-contract-gate.js']);
 const uiJson = lastJson(ui.output);
 checks.push(ui.exit === 0 && uiJson?.pass === true

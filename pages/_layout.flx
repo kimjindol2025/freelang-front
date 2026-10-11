@@ -458,7 +458,7 @@ function paint(){
   var stackHtml=use.length===0
     ? '<div style="color:#71717a;padding:8px 0">스택 없음</div>'
     : use.map(function(f){
-        return '<div style="padding:8px 0;border-bottom:1px solid #27272a">'
+        return '<div data-eo-file="'+esc(f.file)+'" data-eo-line="'+esc(f.line)+'" data-eo-col="'+esc(f.col)+'" style="padding:8px 0;border-bottom:1px solid #27272a;cursor:pointer" title="소스 열기">'
           +'<div style="color:#fafafa;font-size:13px">'+esc(f.fn)+'</div>'
           +'<div style="color:#a1a1aa;font-size:12px;margin-top:2px">'
           +esc(f.file)+(f.line?':'+esc(f.line)+':'+esc(f.col):'')
@@ -499,6 +499,15 @@ function paint(){
   root.onclick=function(ev){
     var t=ev.target;
     if(!t||!t.getAttribute) return;
+    var frame=t;
+    while(frame&&frame!==root&&!frame.getAttribute('data-eo-file')) frame=frame.parentNode;
+    if(frame&&frame!==root&&frame.getAttribute('data-eo-file')){
+      var sf=frame.getAttribute('data-eo-file');
+      var sl=frame.getAttribute('data-eo-line')||'0';
+      var sc=frame.getAttribute('data-eo-col')||'0';
+      window.open('/~ai/source?file='+encodeURIComponent(sf)+'&line='+encodeURIComponent(sl)+'&col='+encodeURIComponent(sc),'_blank','noopener');
+      return;
+    }
     if(t.id==='fl-eo-backdrop'||t.getAttribute('data-eo')==='close'){ open=false; paint(); return; }
     if(t.getAttribute('data-eo')==='prev'){ idx=(idx-1+errors.length)%errors.length; paint(); return; }
     if(t.getAttribute('data-eo')==='next'){ idx=(idx+1)%errors.length; paint(); return; }
@@ -508,7 +517,7 @@ function paint(){
       var el=document.getElementById('fl-eo-stack');
       if(!el) return;
       el.innerHTML=all.map(function(f){
-        return '<div style="padding:8px 0;border-bottom:1px solid #27272a;opacity:'+(f.ignored?'.55':'1')+'">'
+        return '<div data-eo-file="'+esc(f.file)+'" data-eo-line="'+esc(f.line)+'" data-eo-col="'+esc(f.col)+'" style="padding:8px 0;border-bottom:1px solid #27272a;opacity:'+(f.ignored?'.55':'1')+';cursor:pointer" title="소스 열기">'
           +'<div style="color:#fafafa;font-size:13px">'+esc(f.fn)+(f.ignored?' <span style="color:#71717a">ignored</span>':'')+'</div>'
           +'<div style="color:#a1a1aa;font-size:12px;margin-top:2px">'
           +esc(f.file)+(f.line?':'+esc(f.line)+':'+esc(f.col):'')

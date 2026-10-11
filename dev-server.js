@@ -10,6 +10,7 @@ const path   = require('path');
 const cp     = require('child_process');
 const http   = require('http');
 const crypto = require('crypto');
+const { normalizeBrowserError } = require('./browser-error-map');
 
 const ROOT           = __dirname;
 const PAGES_DIR      = path.join(ROOT, 'pages');
@@ -35,7 +36,15 @@ const fileHashes  = new Map();   // full file hash
 const logicHashes = new Map();   // (style …) 제거 후 해시 — CSS-only 판별
 
 // 빌드 상태 (fl-front-build.js가 .build-state.json에 저장)
-let lastBuildState = { ok: false, time: null, routes: [], helpers: [], sourceMap: {}, warnings: [] };
+let lastBuildState = {
+  ok: false,
+  time: null,
+  routes: [],
+  helpers: [],
+  sourceMap: {},
+  sourceMapLines: {},
+  warnings: [],
+};
 
 function loadBuildState() {
   try {
@@ -55,6 +64,8 @@ function loadBrowserState() {
 
 // 소스맵 역추적: _app.fl 라인 번호 → { file, line } (pages/*.flx 내 상대 라인)
 function resolveSourceLine(lineNum) {
+  const exact = lastBuildState.sourceMapLines?.[String(lineNum)];
+  if (exact) return { file: exact.file, line: exact.line, column: exact.column || 0 };
   const map = lastBuildState.sourceMap || {};
   for (const [range, file] of Object.entries(map)) {
     const [s, e] = range.split('-').map(Number);
@@ -79,20 +90,21 @@ const errorLog = [];
 const MAX_ERRORS = 50;
 
 function addError(entry) {
-  errorLog.unshift({ ...entry, time: new Date().toISOString() });
+  const normalized = normalizeBrowserError(entry, lastBuildState);
+  errorLog.unshift({ ...normalized, time: new Date().toISOString() });
   if (errorLog.length > MAX_ERRORS) errorLog.pop();
   // 터미널 출력 — Island 에러는 별도 색상
-  if (entry.type === 'island') {
-    console.log(`\x1b[35m[island error]\x1b[0m ${entry.message}`);
-    if (entry.source) console.log(`  phase: ${entry.source}`);
-    if (entry.stack && entry.stack !== 'undefined') {
-      const line = entry.stack.split('\n')[1];
+  if (normalized.type === 'island') {
+    console.log(`\x1b[35m[island error]\x1b[0m ${normalized.message}`);
+    if (normalized.source) console.log(`  phase: ${normalized.source}`);
+    if (normalized.stack && normalized.stack !== 'undefined') {
+      const line = normalized.stack.split('\n')[1];
       if (line) console.log(`  ${line.trim()}`);
     }
   } else {
-    const color = entry.type === 'error' ? '\x1b[31m' : '\x1b[33m';
-    console.log(`${color}[browser ${entry.type}]\x1b[0m ${entry.message}`);
-    if (entry.source) console.log(`  at ${entry.source}:${entry.line}`);
+    const color = normalized.type === 'error' ? '\x1b[31m' : '\x1b[33m';
+    console.log(`${color}[browser ${normalized.type}]\x1b[0m ${normalized.message}`);
+    if (normalized.source) console.log(`  at ${normalized.source}:${normalized.line}`);
   }
 }
 
@@ -270,6 +282,49 @@ const hmrServer = http.createServer((req, res) => {
     // GET /~ai/browser — 브라우저 탭 감시 상태
     if (u === '/~ai/browser') {
       json({ browser_state: loadBrowserState() });
+      return;
+    }
+
+    // GET /~ai/source?file=_app.fl&line=123 — 개발 오류 오버레이용 읽기 전용 뷰어
+    if (u === '/~ai/source') {
+      const qs = new URLSearchParams(req.url.split('?')[1] || '');
+      const requested = qs.get('file') || '';
+      const requestedLine = Number(qs.get('line') || 0);
+      const allowed = requested === '_app.fl'
+        || /^(?:pages|components|src)\/[^\\/]+(?:\/[^\\/]+)*\.(?:flx|fl)$/.test(requested);
+      if (!allowed) {
+        res.writeHead(400, { ...cors, 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('허용된 FreeLang 소스 파일만 열 수 있습니다');
+        return;
+      }
+      let file = requested;
+      let line = requestedLine;
+      if (requested === '_app.fl' && requestedLine > 0) {
+        const mapped = resolveSourceLine(requestedLine);
+        if (mapped) { file = mapped.file; line = mapped.line; }
+      }
+      const fullPath = path.resolve(ROOT, file);
+      const relative = path.relative(ROOT, fullPath);
+      const inside = relative && !relative.startsWith('..') && !path.isAbsolute(relative);
+      if (!inside || !fs.existsSync(fullPath)) {
+        res.writeHead(404, { ...cors, 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('소스 파일을 찾을 수 없습니다');
+        return;
+      }
+      const escapeHtml = (value) => String(value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      const sourceLines = fs.readFileSync(fullPath, 'utf8').split(/\r?\n/);
+      const center = Math.max(1, line || 1);
+      const from = Math.max(1, center - 5);
+      const to = Math.min(sourceLines.length, center + 5);
+      const rows = [];
+      for (let n = from; n <= to; n += 1) {
+        const active = n === center ? ' style="background:#3f2d12;color:#fef3c7"' : '';
+        rows.push(`<tr${active}><td style="padding:0 14px;color:#71717a;text-align:right;user-select:none">${n}</td><td style="padding:0 14px;white-space:pre">${escapeHtml(sourceLines[n - 1] || '')}</td></tr>`);
+      }
+      res.writeHead(200, { ...cors, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(`<!doctype html><meta charset="utf-8"><title>${escapeHtml(file)}:${center}</title><style>body{margin:0;background:#09090b;color:#e4e4e7;font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}header{padding:16px 20px;border-bottom:1px solid #27272a;color:#fbbf24;position:sticky;top:0;background:#18181b}table{border-collapse:collapse;width:100%}td{vertical-align:top}</style><header>${escapeHtml(file)}:${center}</header><table>${rows.join('')}</table>`);
       return;
     }
 

@@ -155,6 +155,37 @@ async function main() {
   child.stderr.on('data', (chunk) => { childLogs += chunk.toString(); });
 
   await waitForHttp('/', APP_PORT);
+  const buildState = JSON.parse(fs.readFileSync(path.join(temp, '.build-state.json'), 'utf8'));
+  const generatedLine = Number(Object.keys(buildState.sourceMapLines || {})[0]);
+  const browserError = await post('/~errors', HMR_PORT, JSON.stringify({
+    type: 'error',
+    message: 'source-map contract probe',
+    source: '_app.fl',
+    line: generatedLine,
+    col: 7,
+    stack: `Error: source-map contract probe\n    at _app.fl:${generatedLine}:7`,
+  }), {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(JSON.stringify({
+      type: 'error',
+      message: 'source-map contract probe',
+      source: '_app.fl',
+      line: generatedLine,
+      col: 7,
+      stack: `Error: source-map contract probe\n    at _app.fl:${generatedLine}:7`,
+    })),
+  });
+  const browserErrors = await get('/~errors', HMR_PORT);
+  const latestBrowserError = JSON.parse(browserErrors.body)[0];
+  if (browserError.status !== 200
+    || latestBrowserError?.source_location?.file !== buildState.sourceMapLines[String(generatedLine)].file
+    || latestBrowserError?.generated_location?.line !== generatedLine) {
+    throw new Error(`browser error source map failed: ${browserError.status} ${browserErrors.body}`);
+  }
+  const sourceView = await get(`/~ai/source?file=_app.fl&line=${generatedLine}`, HMR_PORT);
+  if (sourceView.status !== 200 || !sourceView.body.includes(buildState.sourceMapLines[String(generatedLine)].file)) {
+    throw new Error(`source viewer mapping failed: ${sourceView.status} ${sourceView.body.slice(0, 240)}`);
+  }
   const traversal = await get('/~ai/test?file=../../etc/passwd', HMR_PORT);
   if (traversal.status !== 200 || !traversal.body.includes('pages 내부의 .flx')) {
     throw new Error(`AI test path boundary failed: ${traversal.status} ${traversal.body}`);

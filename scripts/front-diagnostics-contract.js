@@ -33,10 +33,36 @@ try {
   } catch (_) {}
   const diagnostics = report?.diagnostics || [];
   const syntax = diagnostics.find((item) => item.code === 'syntax');
-  const requiredFields = ['code', 'severity', 'file', 'line', 'column', 'message', 'hint', 'fixable', 'applicability'];
+  const requiredFields = [
+    'code', 'severity', 'file', 'line', 'column', 'source', 'generated',
+    'message', 'hint', 'fixable', 'applicability',
+  ];
   const schemaComplete = diagnostics.length > 0 && diagnostics.every((item) =>
     requiredFields.every((field) => Object.prototype.hasOwnProperty.call(item, field))
+    && item.source
+    && typeof item.source.file === 'string'
+    && Number.isInteger(item.source.line)
+    && Number.isInteger(item.source.column)
+    && (item.generated === null || (
+      typeof item.generated === 'object'
+      && typeof item.generated.file === 'string'
+      && Number.isInteger(item.generated.line)
+      && Number.isInteger(item.generated.column)
+    ))
   );
+  const sourceMapLines = report?.sourceMapLines || {};
+  const sourceMapKeys = Object.keys(sourceMapLines);
+  const sourceMapComplete = sourceMapKeys.length > 0 && sourceMapKeys.every((key) => {
+    const item = sourceMapLines[key];
+    return /^\d+$/.test(key)
+      && item
+      && typeof item.file === 'string'
+      && item.file.startsWith('pages/')
+      && Number.isInteger(item.line)
+      && item.line >= 1
+      && Number.isInteger(item.column)
+      && item.column >= 1;
+  });
   const pass = run.status !== 0
     && report?.schema === 'fl-diagnostics/1'
     && report?.ok === false
@@ -45,7 +71,8 @@ try {
     && syntax?.line === 1
     && typeof syntax?.hint === 'string'
     && syntax.hint.length > 0
-    && schemaComplete;
+    && schemaComplete
+    && sourceMapComplete;
   const output = {
     schema: 'fl-front-diagnostics-contract/1',
     pass,
@@ -53,6 +80,8 @@ try {
     build_schema: report?.schema || null,
     diagnostic: syntax || null,
     schema_complete: schemaComplete,
+    source_map_lines: sourceMapKeys.length,
+    source_map_complete: sourceMapComplete,
     stdout_tail: (run.stdout || '').trim().split(/\r?\n/).slice(-8),
     stderr: (run.stderr || '').trim().split(/\r?\n/).slice(-8),
   };

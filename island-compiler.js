@@ -545,7 +545,7 @@ function extractIslands(content) {
 
 // ── 파일 내 island 컴파일 ────────────────────────────────────
 // 반환: { html: 수정된 HTML 스니펫, scripts: [JS 코드], hasIslands }
-function compileFileIslands(flxContent) {
+function compileFileIslands(flxContent, options = {}) {
   const found = extractIslands(flxContent);
   if (!found.length) return { flxContent, scripts: [], hasIslands: false };
 
@@ -569,7 +569,9 @@ function compileFileIslands(flxContent) {
     const mountCall = watchKeys.length
       ? `_fl.mount_reactive(${JSON.stringify(id)}, ${renderFn}, ${JSON.stringify(watchKeys)});`
       : `_fl.mount(${JSON.stringify(id)}, ${renderFn});`;
-    const js = `${mountCall}\n//# sourceURL=island-${name.toLowerCase()}.flx`;
+    const sourceFile = options.sourceFile || `island-${name.toLowerCase()}.flx`;
+    const sourceURL = `${sourceFile}:${startLine}:1`;
+    const js = `${mountCall}\n//# sourceURL=${sourceURL}`;
     scripts.push(js);
     // island 블록 → <div id="..."></div> 플레이스홀더로 교체
     const placeholder = `"<div id='${id}'></div>"`;
