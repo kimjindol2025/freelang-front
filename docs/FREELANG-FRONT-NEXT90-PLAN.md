@@ -39,11 +39,11 @@ FreeLang Front의 정체성은 유지한다.
 | 1 | 언어 정본·경계 고정 | `front-language.contract.json`, adapter contract | `.flx` 정본, JS 경계, adapter inventory PASS | **완료** |
 | 2 | 컴파일러·진단 안정화 | `fl-diagnostics/1`, syntax/type 진단, source line mapping | 같은 입력의 결정적 결과와 파일·라인·힌트 재현 | **완료** |
 | 3 | SSR·파일 라우팅 표준화 | layout/page/API/동적 라우트 계약 | 149 routes build, SSR·SEO·404·POST route PASS | **기본 완료** |
-| 4 | API·데이터 provider 표준화 | `front-db-*`, `front-http-*`, `front-collection-*` | SQLite·AFJ-DB95·memory provider 계약, 오류 보존 | **진행 중** |
-| 5 | 컴포넌트·Island·상태 표준화 | props/event/atom/store/fetch 표준 | headless + 실제 HTTP에서 재렌더·상태 보존 PASS | **진행 중** |
+| 4 | API·데이터 provider 표준화 | `front-db-*`, `front-http-*`, `front-collection-*` | SQLite·AFJ-DB95·memory provider 계약, 오류 보존 | **기본 계약 PASS** |
+| 5 | 컴포넌트·Island·상태 표준화 | props/event/atom/store/fetch 표준 | headless + 실제 HTTP에서 재렌더·상태 보존 PASS | **기본 계약 PASS** |
 | 6 | HMR/Fast Refresh 상용화 | L1 reload, L2 CSS, L3 soft refresh + build-error gate | 상태·폼 보존, CSS 무재시작, 오류 source:line:column 표시, 실패 시 full reload fallback | **기본 계약 PASS** |
-| 7 | 타입·DX·AI 작업 흐름 | typecheck/lint/diagnostic/fix 명령 | AI가 오류 위치·원인·수정 후보를 한 번에 얻음 | **진행 중** |
-| 8 | 패키지·문서·예제 생태계 | scaffold, templates, examples, migration guide | 새 프로젝트를 문서·CLI만으로 생성·실행 | **예정** |
+| 7 | 타입·DX·AI 작업 흐름 | typecheck/lint/diagnostic/fix 명령 | AI가 오류 위치·원인·수정 후보를 한 번에 얻음 | **기본 계약 PASS** |
+| 8 | 패키지·문서·예제 생태계 | scaffold, templates, examples, migration guide | 새 프로젝트를 문서·CLI만으로 생성·실행 | **scaffold 계약 PASS** |
 | 9 | 테스트·배포·운영 신뢰성 | release gate, clean clone, artifact, metrics, rollback | targeted → regression → release gate 전부 PASS | **내부 배포 PASS** |
 | 10 | Next90 인증·독립 릴리즈 | Next90 scorecard, benchmark report, v1 release | 90점 이상, critical BLOCKED 없음, 운영 리허설 PASS | **진행 중** |
 
@@ -88,6 +88,7 @@ provider로 언어 계약 자체는 계속 검증한다.
 - `/~ai/source?format=json`: 브라우저 오류 위치의 구조화 문맥 반환
 - 오류 오버레이 대표 파일·줄과 call stack 클릭 → `/~ai/source` 원본 뷰어 이동
 - `/~ai/diagnostics`: 실시간 build-error/HMR 상태와 마지막 정상 빌드 보존
+- `npm run scaffold:contract`: dry-run 생성 계획·금지 필드·경로 경계 PASS
 - HMR 계약과 전체 release gate에 source-context 검사 연결
 - `docs/TYPE-DIAGNOSTICS.md`에 AI 입력 계약 기록
 

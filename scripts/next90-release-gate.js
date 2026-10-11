@@ -116,6 +116,12 @@ checks.push(sourceContext.exit === 0 && sourceContextJson?.schema === 'fl-front-
   ? pass('front-source-context', `source=${sourceContextJson.source.file}:${sourceContextJson.source.line}`)
   : fail('front-source-context', `exit=${sourceContext.exit}`));
 
+const scaffold = run(process.execPath, ['scripts/scaffold-contract.js']);
+const scaffoldJson = lastJson(scaffold.output);
+checks.push(scaffold.exit === 0 && scaffoldJson?.pass === true
+  ? pass('scaffold-contract', 'dry plan + input boundaries')
+  : fail('scaffold-contract', `exit=${scaffold.exit}`));
+
 const ui = run(process.execPath, ['scripts/ui-contract-gate.js']);
 const uiJson = lastJson(ui.output);
 checks.push(ui.exit === 0 && uiJson?.pass === true
