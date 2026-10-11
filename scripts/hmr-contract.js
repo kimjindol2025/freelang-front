@@ -186,6 +186,11 @@ async function main() {
   if (sourceView.status !== 200 || !sourceView.body.includes(buildState.sourceMapLines[String(generatedLine)].file)) {
     throw new Error(`source viewer mapping failed: ${sourceView.status} ${sourceView.body.slice(0, 240)}`);
   }
+  const sourceTraversal = await get('/~ai/source?file=pages/../server.fl&line=1', HMR_PORT);
+  const sourceMissing = await get('/~ai/source?file=pages/does-not-exist.flx&line=1', HMR_PORT);
+  if (sourceTraversal.status !== 400 || sourceMissing.status !== 404) {
+    throw new Error(`source viewer boundary failed: traversal=${sourceTraversal.status} missing=${sourceMissing.status}`);
+  }
   const traversal = await get('/~ai/test?file=../../etc/passwd', HMR_PORT);
   if (traversal.status !== 200 || !traversal.body.includes('pages 내부의 .flx')) {
     throw new Error(`AI test path boundary failed: ${traversal.status} ${traversal.body}`);

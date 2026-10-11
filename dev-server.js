@@ -289,9 +289,11 @@ const hmrServer = http.createServer((req, res) => {
     if (u === '/~ai/source') {
       const qs = new URLSearchParams(req.url.split('?')[1] || '');
       const requested = qs.get('file') || '';
+      const pathSegments = requested.split('/');
+      const safeSegments = pathSegments.every((segment) => segment && segment !== '.' && segment !== '..');
       const requestedLine = Number(qs.get('line') || 0);
-      const allowed = requested === '_app.fl'
-        || /^(?:pages|components|src)\/[^\\/]+(?:\/[^\\/]+)*\.(?:flx|fl)$/.test(requested);
+      const allowed = safeSegments && (requested === '_app.fl'
+        || /^(?:pages|components|src)\/[^\\/]+(?:\/[^\\/]+)*\.(?:flx|fl)$/.test(requested));
       if (!allowed) {
         res.writeHead(400, { ...cors, 'Content-Type': 'text/plain; charset=utf-8' });
         res.end('허용된 FreeLang 소스 파일만 열 수 있습니다');
