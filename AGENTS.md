@@ -252,6 +252,9 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/contacts` | pages/contacts/index.flx |
 | `/contacts/remind` | pages/contacts/remind.flx |
 | `/counter` | pages/counter.flx |
+| `/crew/api` | pages/crew/api.flx |
+| `/crew/chat` | pages/crew/chat.flx |
+| `/crew/jiwoo` | pages/crew/jiwoo.flx |
 | `/dashboard/alerts` | pages/dashboard/alerts.flx |
 | `/dashboard/charts` | pages/dashboard/charts.flx |
 | `/dashboard/custom-metrics` | pages/dashboard/custom-metrics.flx |
@@ -298,6 +301,9 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `/examples/32-afldb-batch-write` | pages/examples/32-afldb-batch-write.flx |
 | `/examples/33-ui-components` | pages/examples/33-ui-components.flx |
 | `/examples/34-state-contract` | pages/examples/34-state-contract.flx |
+| `/examples/35-date-contract` | pages/examples/35-date-contract.flx |
+| `/examples/36-copy-contract` | pages/examples/36-copy-contract.flx |
+| `/examples/37-event-stream-contract` | pages/examples/37-event-stream-contract.flx |
 | `/examples` | pages/examples/index.flx |
 | `/feed/api` | pages/feed/api.flx |
 | `/feed` | pages/feed/index.flx |
@@ -401,8 +407,17 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 
 | 함수 | 파라미터 | 설명 |
 |------|----------|------|
+| `front-db-query` | `[$db $sql $params]` | 실제 SQLite provider 호출은 _db 어댑터 경계에만 남긴다. |
+| `front-db-exec` | `[$db $sql $params]` |  |
 | `db-migrate` | `[]` | 마이그레이션 — 서버 시작 시 자동 실행 |
 | `db-fetch-stats` | `[]` | DB에서 대시보드 통계 조회 |
+
+### `_http.flx`
+
+| 함수 | 파라미터 | 설명 |
+|------|----------|------|
+| `front-http-get` | `[$url]` | 페이지는 front-http-get만 사용하고, FX의 네이티브 HTTP 호출은 이 경계에 둔다. |
+| `front-http-post-bearer` | `[$url $body $token]` | 외부 provider POST는 Front 표면으로 감싸고, bearer 자격증명은 서버에서만 붙인다. |
 
 ### `_afldb.flx`
 
@@ -436,6 +451,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 
 | 함수 | 파라미터 | 설명 |
 |------|----------|------|
+| `front-collection-memory-items` | `[ns]` |  |
+| `front-collection-memory-save` | `[ns items]` |  |
 | `afldb-coll-index-key` | `[ns]` |  |
 | `afldb-coll-item-key` | `[ns id]` |  |
 | `afldb-coll-ids` | `[ns]` |  |
@@ -447,6 +464,15 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | `afldb-coll-delete` | `[ns id]` |  |
 | `afldb-coll-history` | `[ns id]` |  |
 | `afldb-coll-known` | `[]` | Events / 점검용 — 등록된 ns 목록의 index·item 키 |
+| `front-collection-index-key` | `[ns]` | 실제 AFJ-DB95 collection 호출은 이 adapter 구현 파일에 격리한다. |
+| `front-collection-item-key` | `[ns id]` |  |
+| `front-collection-all` | `[ns]` |  |
+| `front-collection-get` | `[ns id]` |  |
+| `front-collection-create` | `[ns item]` |  |
+| `front-collection-update` | `[ns id patch]` |  |
+| `front-collection-delete` | `[ns id]` |  |
+| `front-collection-history` | `[ns id]` |  |
+| `front-collection-known` | `[]` |  |
 
 ### `_auth.flx`
 
@@ -470,8 +496,8 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 
 | 함수 | 파라미터 | 설명 |
 |------|----------|------|
-| `chart-bar` | `[data w h]` | 막대 차트 |
-| `chart-line` | `[data w h]` | 선 차트 |
+| `chart-bar` | `[data width height]` | 막대 차트 |
+| `chart-line` | `[data width height]` | 선 차트 |
 
 ### `_email.flx`
 

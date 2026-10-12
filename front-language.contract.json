@@ -22,11 +22,11 @@
   "adapter_contract": {
     "policy": "Source may call only adapter tokens declared here; changing an adapter requires preserving the token contract or adding a migration.",
     "tokens": [
-      {"adapter": "front-core", "patterns": ["^front-db-query$", "^front-db-exec$", "^front-http-get$", "^front-collection-"]},
+      {"adapter": "front-core", "patterns": ["^front-db-query$", "^front-db-exec$", "^front-http-get$", "^front-http-post-bearer$", "^front-collection-"]},
       {"adapter": "v11-afj", "patterns": ["^server-", "^db-"]},
       {"adapter": "afj-db95", "patterns": ["^afldb-", "^http_request$"]},
       {"adapter": "fx", "patterns": ["^http-get$", "^shell$"]},
-      {"adapter": "browser-bridge", "patterns": ["^copy!$", "^date-add-days$", "^every!$", "^fetch!$", "^fetch-post!$", "^prop$"]}
+      {"adapter": "browser-bridge", "patterns": ["^copy!$", "^date-add-days$", "^every!$", "^event-stream!$", "^fetch!$", "^fetch-post!$", "^prop$"]}
     ],
     "raw_runtime_boundaries": [
       {"adapter": "v11-afj", "tokens": ["^db-query$", "^db-exec$"], "file_suffixes": ["/_db.flx"]}
@@ -39,7 +39,7 @@
       {"id": "memory-test", "kind": "test", "adapter": "front-core", "selection": "FL_FRONT_COLLECTION_ADAPTER=memory"}
     ]
   },
-  "primitives": ["copy!", "date-add-days", "every!", "fetch!", "fetch-post!", "prop"],
+  "primitives": ["copy!", "date-add-days", "every!", "event-stream!", "fetch!", "fetch-post!", "prop"],
   "browser_boundaries": [
     {"file": "pages/_layout.flx", "kind": "shared-runtime", "reason": "DOM error reporting, HMR, SPA navigation, metrics bridge"},
     {"file": "pages/fx2-wasm/index.html.flx", "kind": "experimental-runtime", "reason": "FX2/WASM browser adapter"}

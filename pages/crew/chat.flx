@@ -1,0 +1,76 @@
+; /crew/chat — Crew 실제 AI 대화 어댑터
+; provider key와 외부 전송은 FreeLang 서버에서만 수행한다.
+
+(defn crew-ai-text [response]
+  (let [output (or (get response "output") [])
+        message (if (> (length output) 0) (nth output 0) nil)
+        content (if (not (= message nil)) (or (get message "content") []) [])
+        item (if (> (length content) 0) (nth content 0) nil)]
+    (if (= item nil) nil (get item "text"))))
+
+(defn crew-runtime [session-id trace model]
+  {"runner" "openai-responses"
+   "model" model
+   "session_id" session-id
+   "trace_id" trace})
+
+(defn crew-evidence [request-status provider-status trace]
+  {"kind" "provider-call"
+   "request" request-status
+   "provider_status" provider-status
+   "trace_id" trace
+   "tool_calls" []})
+
+(defn crew-ai-call [body]
+  (let [api-key (env_get "OPENAI_API_KEY")
+        base (or (env_get "OPENAI_BASE_URL") "https://api.openai.com/v1/responses")
+        model (or (env_get "OPENAI_MODEL") "gpt-5")
+        message (str-trim (str (or (get body "message") "")))
+        history (or (get body "history") [])
+        session-id (or (get body "session_id") "crew-default")
+        trace (uuid)]
+    (if (= message "")
+      {"ok" false "status" 400 "error" "message가 필요합니다"
+       "runtime" (crew-runtime session-id trace model)
+       "evidence" (crew-evidence "not-sent" "not-sent" trace)
+       "provider" {"model" model "client_request_id" trace}}
+      (if (or (= api-key nil) (= api-key ""))
+        {"ok" false "status" 503 "error" "OPENAI_API_KEY is not configured"
+         "runtime" (crew-runtime session-id trace model)
+         "evidence" (crew-evidence "not-sent" "not-configured" trace)
+         "provider" {"model" model "client_request_id" trace}}
+        (let [request-body {"model" model
+                            "store" false
+                            "instructions" "You are Jiwoo, a careful software development agent. Answer in Korean when the user writes Korean. Be concise, state uncertainty, and never claim a tool was used unless evidence is provided."
+                            "input" (str "대화 기록:\n" (json-stringify history) "\n\n사용자 메시지:\n" message)}
+              response (front-http-post-bearer base (json-stringify request-body) api-key)
+              status (or (get response "status") 0)
+              raw (get response "body")]
+          (if (or (< status 200) (>= status 300))
+            {"ok" false "status" (if (> status 0) status 502)
+             "error" (str "AI provider returned HTTP " status)
+             "runtime" (crew-runtime session-id trace model)
+             "evidence" (crew-evidence "sent" (str status) trace)
+             "provider" {"model" model "client_request_id" trace}}
+            (let [decoded (try (json_parse raw) (catch e nil))
+                  text (if (not (= decoded nil)) (crew-ai-text decoded) nil)]
+              (if (= text nil)
+                {"ok" false "status" 502 "error" "AI provider returned no text"
+                 "runtime" (crew-runtime session-id trace model)
+                 "evidence" (crew-evidence "sent" "invalid-response" trace)
+                 "provider" {"model" model "client_request_id" trace}}
+                {"ok" true "message" text
+                 "runtime" (crew-runtime session-id trace model)
+                 "evidence" (crew-evidence "sent" "ok" trace)
+                 "provider" {"id" (get decoded "id") "model" model
+                             "client_request_id" trace "status" (get decoded "status")}}))))))))
+
+(defn render [req]
+  (server-json {"ok" false "error" "POST 메서드를 사용하세요"} 405))
+
+(defn render_post [req]
+  (let [result (crew-ai-call (or (get req "body") {}))]
+    ; Island fetch-post!은 비-2xx 응답에서 콜백을 실행하지 않는다.
+    ; UI가 provider 오류를 사용자에게 보여줄 수 있도록 HTTP는 200으로 유지하고,
+    ; 실제 provider 상태는 JSON의 status/ok 필드로 전달한다.
+    (server-json result 200)))

@@ -174,6 +174,7 @@ function emitList(node, ctx) {
   // fetch! / fetch-post! — Island 내부 비동기 API 호출
   if (head?.sym === 'fetch!')        return `_fl.fetch(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'fetch-post!')   return `_fl.fetch_post(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2],ctx)})`;
+  if (head?.sym === 'event-stream!') return `_fl.event_stream(${emit(args[0],ctx)}, ${emit(args[1],ctx)}, ${emit(args[2] ?? null,ctx)})`;
   if (head?.sym === 'fetch-delete!') return `_fl.fetch_delete(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
   if (head?.sym === 'copy!')          return `_fl.copy(${emit(args[0],ctx)})`;
   if (head?.sym === 'every!')        return `_fl.every(${emit(args[0],ctx)}, ${emit(args[1],ctx)})`;
@@ -405,6 +406,29 @@ const _fl={
       .then(r=>r.ok?r.json():Promise.reject(r.status))
       .then(data=>{ try{ cb(data); }catch(e){ _fl._err('fetch-post!',e,'callback'); } })
       .catch(err=>{ _fl._err('fetch-post!',new Error('POST '+url+' → '+err),'request'); });
+  },
+  // event-stream! — EventSource generic message + reconnect state.
+  // 사용: (event-stream! "/stream" on-message on-state)
+  event_stream:(url,onMessage,onState)=>{
+    let source;
+    const notify=(status,event)=>{
+      try{if(typeof onState==='function')onState({status,event:event||null});}
+      catch(e){_fl._err('event-stream!',e,'state');}
+    };
+    try{source=new EventSource(url);}catch(e){
+      _fl._err('event-stream!',e,'open');
+      notify('error',null);
+      return ()=>{};
+    }
+    source.onopen=event=>notify('open',event);
+    source.onmessage=event=>{
+      try{if(typeof onMessage==='function')onMessage(event);}
+      catch(e){_fl._err('event-stream!',e,'message');}
+    };
+    source.onerror=event=>{
+      notify(source.readyState===EventSource.CONNECTING?'reconnecting':'error',event);
+    };
+    return ()=>{try{source.close();}catch(e){_fl._err('event-stream!',e,'close');}};
   },
   read_file_dataurl:(file,cb)=>{
     if(!file){cb(null);return;}

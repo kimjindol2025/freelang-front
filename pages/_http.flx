@@ -2,3 +2,7 @@
 ; 페이지는 front-http-get만 사용하고, FX의 네이티브 HTTP 호출은 이 경계에 둔다.
 (defn front-http-get [$url]
   (http-get $url))
+
+; 외부 provider POST는 Front 표면으로 감싸고, bearer 자격증명은 서버에서만 붙인다.
+(defn front-http-post-bearer [$url $body $token]
+  (http_post_bearer $url $body $token))

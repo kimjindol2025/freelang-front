@@ -7,7 +7,7 @@ const path = require('path');
 const file = path.join(__dirname, '..', 'front-language.contract.json');
 const contract = JSON.parse(fs.readFileSync(file, 'utf8'));
 const required = ['schema', 'name', 'source', 'layers', 'adapters', 'adapter_contract', 'primitives', 'browser_boundaries', 'browser_bridge', 'invariants', 'independence'];
-const requiredPrimitives = ['copy!', 'date-add-days', 'every!', 'fetch!', 'fetch-post!', 'prop'];
+const requiredPrimitives = ['copy!', 'date-add-days', 'every!', 'event-stream!', 'fetch!', 'fetch-post!', 'prop'];
 const missing = required.filter((key) => !(key in contract));
 if (contract.schema !== 'fl-front-language/1' || missing.length || contract.source.extension !== '.flx') {
   console.error(JSON.stringify({ ok: false, missing, schema: contract.schema }, null, 2));

@@ -68,7 +68,11 @@
                              (= lv "error") log-msg-e :else log-msg-d)]
                 (h "div" {:class log-line}
                   (h "span" {:class log-time} (get log "time"))
-                  (h "span" {:class bc} (str-to-upper lv))
+                  (h "span" {:class bc}
+                    (cond (= lv "info") "INFO"
+                          (= lv "warn") "WARN"
+                          (= lv "error") "ERROR"
+                          true "DEBUG"))
                   (h "span" {:class mc} (get log "msg")))))
               visible)))))))
 

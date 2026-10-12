@@ -213,6 +213,84 @@
   },
   "auto_errors": [
     {
+      "time": "2026-10-12T13:59:11.623Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-12T12:43:24.471Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-12T12:40:28.326Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-12T12:38:35.918Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-11T16:22:29.805Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-11T16:21:17.124Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-11T16:20:46.460Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T13:59:19.304Z"
+    },
+    {
+      "time": "2026-10-11T14:38:47.746Z",
+      "message": "여는 짝 없는 ')' (line 245)",
+      "status": "resolved",
+      "resolved_at": "2026-10-11T14:39:03.734Z"
+    },
+    {
+      "time": "2026-10-11T14:33:18.202Z",
+      "message": "여는 짝 없는 ')' (line 196)",
+      "status": "resolved",
+      "resolved_at": "2026-10-11T14:33:46.804Z"
+    },
+    {
+      "time": "2026-10-11T14:32:13.013Z",
+      "message": "\u001b[31m✗\u001b[0m pages/crew/jiwoo.flx:124 — 미닫힘 '(' (line 124, 총 1개)",
+      "status": "resolved",
+      "resolved_at": "2026-10-11T14:32:42.614Z"
+    },
+    {
+      "time": "2026-10-11T14:32:13.013Z",
+      "message": "미닫힘 '(' (line 124, 총 1개)",
+      "status": "resolved",
+      "resolved_at": "2026-10-11T14:32:42.614Z"
+    },
+    {
+      "time": "2026-10-11T14:18:38.775Z",
+      "message": "\u001b[31m✗\u001b[0m pages/crew/jiwoo.flx:59 — 미닫힘 '(' (line 59, 총 2개)",
+      "status": "resolved",
+      "resolved_at": "2026-10-11T14:19:27.216Z"
+    },
+    {
+      "time": "2026-10-11T14:18:38.775Z",
+      "message": "미닫힘 '(' (line 59, 총 2개)",
+      "status": "resolved",
+      "resolved_at": "2026-10-11T14:19:27.216Z"
+    },
+    {
       "time": "2026-07-25T10:04:12.894Z",
       "message": "'js-keys' 정의 없음",
       "status": "open"
@@ -249,11 +327,6 @@
       "message": "'get-custom-metric-data' 정의 없음",
       "status": "resolved",
       "note": "performance-monitor.fl에 구현. (load ...) 정상."
-    },
-    {
-      "time": "2026-06-02T10:12:29.195Z",
-      "message": "'record-custom-metric' 정의 없음",
-      "status": "resolved"
     }
   ]
 }

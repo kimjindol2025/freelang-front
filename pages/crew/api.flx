@@ -1,0 +1,62 @@
+; /crew/api — Crew 화면 상태 저장 API
+; 이 앱의 프로젝트 저장 경계: data/crew.db (SQLite)
+
+(define crew_db {:type "sqlite" :path "data/crew.db"})
+
+(front-db-exec crew_db
+  "CREATE TABLE IF NOT EXISTS crew_state (
+     id INTEGER PRIMARY KEY CHECK (id = 1),
+     session_label TEXT NOT NULL DEFAULT '현재 대화',
+     notice TEXT NOT NULL DEFAULT '',
+     card_open INTEGER NOT NULL DEFAULT 1,
+     messages TEXT NOT NULL DEFAULT '[]'
+   )" [])
+
+(defn crew-default-state []
+  {"session_label" "현재 대화" "notice" "" "card_open" true "messages" []})
+
+(defn crew-state []
+  (let [rows (front-db-query crew_db "SELECT session_label, notice, card_open, messages FROM crew_state WHERE id=1" [])]
+    (if (= (length rows) 0)
+      (crew-default-state)
+      (let [row (first rows)]
+        {"session_label" (or (get row "session_label") "현재 대화")
+         "notice" (or (get row "notice") "")
+         "card_open" (= (str (or (get row "card_open") 1)) "1")
+         "messages" (or (json_parse (or (get row "messages") "[]")) [])}))))
+
+(defn crew-save [state]
+  (front-db-exec crew_db
+    "INSERT OR REPLACE INTO crew_state (id, session_label, notice, card_open, messages) VALUES (1, ?, ?, ?, ?)"
+    [(or (get state "session_label") "현재 대화")
+     (or (get state "notice") "")
+     (if (= (get state "card_open") true) 1 0)
+     (json-stringify (or (get state "messages") []))]))
+
+(defn render [req]
+  (server-json {"ok" true "state" (crew-state) "backend" "sqlite"}))
+
+(defn render_post [req]
+  (let [body (get req "body") action (str (or (get body "action") "")) current (crew-state)]
+    (cond
+      (= action "save")
+      (let [next {"session_label" (or (get body "session_label") (get current "session_label"))
+                  "notice" (or (get body "notice") (get current "notice"))
+                  "card_open" (if (= (get body "card_open") nil) (get current "card_open") (get body "card_open"))
+                  "messages" (if (= (get body "messages") nil) (get current "messages") (get body "messages"))}]
+        (crew-save next) (server-json {"ok" true "state" next}))
+
+      (= action "append")
+      (let [body-text (str-trim (str (or (get body "body") "")))
+            role (or (get body "role") "user")]
+        (if (= body-text "")
+          (server-json {"ok" false "error" "메시지 내용 필요"} 400)
+          (let [next-messages (push (or (get current "messages") [])
+                                    {"role" role "body" body-text
+                                     "runtime" (or (get body "runtime") {})
+                                     "evidence" (or (get body "evidence") {})})
+                next {"session_label" (get current "session_label") "notice" (get current "notice")
+                      "card_open" (get current "card_open") "messages" next-messages}]
+            (crew-save next) (server-json {"ok" true "state" next}))))
+
+      true (server-json {"ok" false "error" "unknown action — save|append"} 400))))

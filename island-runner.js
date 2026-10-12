@@ -146,6 +146,20 @@ function makeContext(vdoc, initialProps = {}) {
       events.push({ type:'fetch-delete', url });
       setTimeout(() => cb({ ok:true }), 0);
     },
+    event_stream: (url, onMessage, onState) => {
+      events.push({ type:'event-stream', url });
+      setTimeout(() => {
+        try { if (typeof onState === 'function') onState({ status:'open', event:null }); } catch (error) {
+          events.push({ type:'error', phase:'event-stream-state', message:String(error?.message||error) });
+        }
+        try {
+          if (typeof onMessage === 'function') onMessage({ data: JSON.stringify({ type:'ready', source:'headless' }) });
+        } catch (error) {
+          events.push({ type:'error', phase:'event-stream-message', message:String(error?.message||error) });
+        }
+      }, 0);
+      return () => events.push({ type:'event-stream-close', url });
+    },
     copy: (value) => {
       events.push({ type:'copy', value:String(value ?? '') });
       return Promise.resolve();

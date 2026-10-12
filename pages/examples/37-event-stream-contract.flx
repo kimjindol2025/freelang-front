@@ -1,0 +1,27 @@
+; 예제 37 — 실시간 스트림도 페이지 JavaScript가 아닌 Front primitive로 선언한다.
+
+(island EventStreamContract []
+  (let [status (atom "connecting")
+        last (atom "")
+        on-message (fn [event]
+                     (reset! last (.-data event)))
+        on-state (fn [state]
+                   (reset! status (get state "status")))]
+    (event-stream! "/api/metrics/stream" on-message on-state)
+    (h "div" {:data-test "event-stream-contract"}
+      (str
+        (h "strong" {} (str "상태: " @status))
+        (h "span" {:data-last-event @last} " 스트림 연결 계약")))))
+
+(defn render [req]
+  (layout-html "37 · Event Stream 계약"
+    (str
+      (h "main" {:style "max-width:520px;margin:0 auto;padding:32px 16px"}
+        (str
+          (h "h1" {} "37 · Event Stream 계약")
+          (h "p" {} "연결·재접속 상태와 이벤트 콜백을 (event-stream! ...)로 작성합니다.")
+          "ISLAND_PLACEHOLDER"
+          (h "p" {:style "margin-top:16px;font-size:.85rem;color:#6b7280"}
+            "실제 EventSource와 재접속은 browser bridge가 담당합니다.")))
+      "ISLAND_SCRIPTS")
+    req))

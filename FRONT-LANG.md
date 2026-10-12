@@ -114,6 +114,21 @@ reload-all (fn []
 
 **실증**: Flow `/flow` — 클라이언트 join (`source_type` / `source_id`)
 
+## 실시간 스트림
+
+Island에서 브라우저 `EventSource`를 직접 구독할 때는 `event-stream!`을 사용한다.
+브라우저의 자동 재접속을 유지하면서 메시지와 연결 상태를 FreeLang 콜백으로
+받는다. 종료 함수는 atom cleanup이 필요한 경우 보관한다.
+
+```lisp
+(event-stream! "/api/stream"
+  (fn [event] (reset! last-event (json-parse (.-data event))))
+  (fn [state] (reset! connection-state (get state "status"))))
+```
+
+상태 값은 `open`, `reconnecting`, `error`이며, 서버가 SSE `id:`를 보내면
+브라우저가 다음 연결에 `Last-Event-ID`를 자동으로 포함한다.
+
 ## 표준 앱 폴더
 
 ```

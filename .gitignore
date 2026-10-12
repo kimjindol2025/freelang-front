@@ -6,3 +6,8 @@ _app.fl.out.js
 
 .browser-state.json
 .browser-profile/
+.hmr-event.json
+.freelang/evidence/
+.freelang/handoff.json
+.freelang/handoff.md
+.freelang/last-result.json

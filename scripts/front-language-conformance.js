@@ -232,6 +232,21 @@ check('date-primitive-runtime', dateRunner.status === 0 && dateResult?.ok === tr
   && dateResult?.results?.[0]?.events?.some((event) => event.type === 'date-add-days'),
   'FreeLang date-add-days handles leap-year boundary in headless runtime');
 
+const eventStreamRunner = spawnSync(process.execPath, [
+  path.join(ROOT, 'island-runner.js'),
+  path.join(ROOT, 'pages/examples/37-event-stream-contract.flx'),
+  '--island=EventStreamContract',
+], { cwd: ROOT, encoding: 'utf8' });
+let eventStreamResult = null;
+try { eventStreamResult = JSON.parse(eventStreamRunner.stdout); } catch (_) {}
+const eventStreamEvents = eventStreamResult?.results?.[0]?.events || [];
+check('event-stream-primitive-runtime', eventStreamRunner.status === 0
+  && eventStreamResult?.ok === true
+  && eventStreamEvents.some((event) => event.type === 'event-stream'
+    && event.url === '/api/metrics/stream')
+  && eventStreamEvents.some((event) => event.type === 'render'),
+  'FreeLang event-stream! opens the browser bridge and delivers the headless callback');
+
 const propsRunner = spawnSync(process.execPath, [
   path.join(ROOT, 'island-runner.js'),
   path.join(ROOT, 'pages/shop/products/[id].flx'),
