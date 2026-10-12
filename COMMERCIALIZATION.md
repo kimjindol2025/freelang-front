@@ -32,6 +32,8 @@ JS는 컴파일러가 생성하는 브라우저 bridge와 개발 도구 경계�
 - language contract: PASS.
 - conformance: PASS.
 - Next90 internal gate: 정적·HTTP·SSE·SPA 항목 PASS.
+- 브라우저 계약: Chrome에서 People → Market → 등록 폼 상호작용 PASS.
+- 서버 포트: `PORT` 환경변수로 격리 실행 가능하며 기본값은 40860이다.
 
 ## 현재 BLOCKED와 처리 원칙
 

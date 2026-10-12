@@ -143,7 +143,8 @@ async function main() {
     || !layout.includes('function primaryLocation')
     || !devServer.includes('fl-front-realtime-diagnostics/1')
     || !devServer.includes('setTimeout(() => rebuild(full), 250)')
-    || !server.includes('(fl-env-get "FL_DEV")')) {
+    || !server.includes('(fl-env-get "FL_DEV")')
+    || !server.includes('(fl-env-get "PORT")')) {
     throw new Error('HMR/diagnostics contract or FL_DEV guard is missing');
   }
 

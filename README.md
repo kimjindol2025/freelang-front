@@ -92,8 +92,8 @@ freelang-front/
 ## 실행
 
 ```bash
-# 프로덕션 (포트 40860)
-node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js run server.fl
+# 프로덕션 (기본 포트 40860, `PORT`로 변경 가능)
+PORT=40860 node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js run server.fl
 
 # 개발 (파일 감시 + HMR, 포트 40851)
 node dev-server.js

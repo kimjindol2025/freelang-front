@@ -1,7 +1,7 @@
 ; FL-Front 메인 서버
 ; 실행 전 빌드 필수: node fl-front-build.js
 
-(define PORT 40860)
+(define PORT (str-to-num (or (fl-env-get "PORT") "40860")))
 
 ; subs.skl.kr → subscriptions.skl.kr 리다이렉트
 (defn subdomain-redirect [req]

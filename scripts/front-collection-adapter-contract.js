@@ -43,7 +43,12 @@ async function main() {
 
   child = spawn(process.execPath, [path.join(ROOT, 'runtime', 'bootstrap.js'), 'run', 'server.fl'], {
     cwd: temp,
-    env: { ...process.env, FL_FRONT_COLLECTION_ADAPTER: 'memory', FL_HTTP_ALLOW: '127.0.0.1,localhost' },
+    env: {
+      ...process.env,
+      PORT: String(PORT),
+      FL_FRONT_COLLECTION_ADAPTER: 'memory',
+      FL_HTTP_ALLOW: '127.0.0.1,localhost',
+    },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   let logs = '';
