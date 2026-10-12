@@ -1,0 +1,17 @@
+; flx-test — AI가 읽기 쉬운 FreeLang Front 테스트 결과 표면
+; 제품 코드가 아니라 .flx 테스트/계약에서 load해 사용한다.
+
+(defn flx-test-pass [$name]
+  {:name $name :pass true :message ""})
+
+(defn flx-test-fail [$name $message]
+  {:name $name :pass false :message $message})
+
+(defn flx-test-eq [$name $expected $actual]
+  (if (= $expected $actual)
+    (flx-test-pass $name)
+    (flx-test-fail $name (str "expected=" $expected " actual=" $actual))))
+
+(defn flx-test-all [$results]
+  {:pass (every (fn [$result] (= (get $result :pass) true)) $results)
+   :results $results})

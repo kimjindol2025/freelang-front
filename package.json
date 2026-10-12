@@ -35,6 +35,7 @@
     "hmr:contract": "node scripts/hmr-contract.js",
     "multi:contract": "node scripts/multi-instance-contract.js",
     "perf:contract": "node scripts/performance-contract.js",
+    "libraries:contract": "node scripts/library-catalog-contract.js",
     "codes": "node fl-front-build.js --codes",
     "fix": "node fl-front-fix.js",
     "fix:dry": "node fl-front-fix.js --dry",

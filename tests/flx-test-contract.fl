@@ -1,0 +1,2 @@
+(load "../stdlib/flx-test.flx")
+(println (get (flx-test-all [(flx-test-eq "same" 1 1) (flx-test-pass "ok")]) :pass))
