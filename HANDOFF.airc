@@ -213,58 +213,64 @@
   },
   "auto_errors": [
     {
+      "time": "2026-10-12T14:16:29.286Z",
+      "message": "'totally-undefined-hs-test' 정의 없음",
+      "status": "resolved",
+      "resolved_at": "2026-10-12T14:16:32.647Z"
+    },
+    {
       "time": "2026-10-12T14:08:44.854Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-12T14:06:38.171Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-12T13:59:11.623Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-12T12:43:24.471Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-12T12:40:28.326Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-12T12:38:35.918Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-11T16:22:29.805Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-11T16:21:17.124Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-11T16:20:46.460Z",
       "message": "'totally-undefined-hs-test' 정의 없음",
       "status": "resolved",
-      "resolved_at": "2026-10-12T14:08:49.716Z"
+      "resolved_at": "2026-10-12T14:16:32.647Z"
     },
     {
       "time": "2026-10-11T14:38:47.746Z",
@@ -323,11 +329,6 @@
       "message": "'handle-delete-errors' 정의 없음",
       "status": "resolved",
       "note": "error-api.fl에 구현. (load ...) 로 정상 로드. build --json issues:0 확인."
-    },
-    {
-      "time": "2026-06-02T10:12:29.195Z",
-      "message": "'handle-get-errors' 정의 없음",
-      "status": "resolved"
     }
   ]
 }

@@ -34,6 +34,11 @@ JS는 컴파일러가 생성하는 브라우저 bridge와 개발 도구 경계�
 - Next90 internal gate: 정적·HTTP·SSE·SPA 항목 PASS.
 - 브라우저 계약: Chrome에서 People → Market → 등록 폼 상호작용 PASS.
 - 서버 포트: `PORT` 환경변수로 격리 실행 가능하며 기본값은 40860이다.
+- 다중 인스턴스: 두 개의 실제 FreeLang 런타임에서 API·SSR·Island·event-stream
+  예제 라우트를 동시에 HTTP 검증한다.
+
+`npm run multi:contract`는 하네스가 만든 자식 프로세스만 종료하며, 기존 서버는
+건드리지 않는다.
 
 ## 현재 BLOCKED와 처리 원칙
 

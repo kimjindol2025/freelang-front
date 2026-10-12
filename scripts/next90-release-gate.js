@@ -98,6 +98,12 @@ checks.push(collectionAdapter.exit === 0 && collectionAdapterJson?.pass === true
   ? pass('collection-adapter', `profile=${collectionAdapterJson.profile} operations=${collectionAdapterJson.operations.join(',')}`)
   : fail('collection-adapter', `exit=${collectionAdapter.exit}`));
 
+const multiInstance = run(process.execPath, ['scripts/multi-instance-contract.js']);
+const multiInstanceJson = lastJson(multiInstance.output);
+checks.push(multiInstance.exit === 0 && multiInstanceJson?.pass === true
+  ? pass('multi-instance', `ports=${multiInstanceJson.ports.join(',')}`)
+  : fail('multi-instance', `exit=${multiInstance.exit}`));
+
 const hmrContract = run(process.execPath, ['scripts/hmr-contract.js']);
 const hmrJson = lastJson(hmrContract.output);
 checks.push(hmrContract.exit === 0 && hmrJson?.pass === true

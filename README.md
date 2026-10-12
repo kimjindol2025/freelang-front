@@ -147,6 +147,16 @@ GET http://localhost:40851/~ai/test     # Island headless HTTP 테스트
 **범위 밖**: 3D·게임·전체 화면을 client-first로 운영하는 대형 SPA.
 SSR + Island 기반의 일반적인 SPA 이동과 인터랙션은 지원한다.
 
+### 다중 인스턴스 검증
+
+제품 서버는 `PORT` 환경변수로 격리할 수 있다. 릴리즈 게이트는 같은 `.flx`
+제품을 두 개의 임시 포트에서 동시에 실행하고 API·SSR·Island·event-stream
+예제 라우트를 각각 확인한다.
+
+```bash
+npm run multi:contract
+```
+
 ---
 
 ## 내장 앱 (pages/)
