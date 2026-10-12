@@ -21,8 +21,8 @@
 | pages/ | 파일 31개 + 디렉토리 17개 |
 | 코드량 | 2,000줄+ |
 | 포트 | 앱 **40860** / 개발서버 HMR **40851** |
-| 메모리 | 안정 (< 100MB) |
-| 응답시간 | < 200ms |
+| 메모리 기준 | 내부 gate RSS < 512MB |
+| 응답시간 기준 | API p95 < 50ms · SSR p95 < 120ms |
 
 ---
 
@@ -155,6 +155,13 @@ SSR + Island 기반의 일반적인 SPA 이동과 인터랙션은 지원한다.
 
 ```bash
 npm run multi:contract
+```
+
+성능 계약은 임시 실제 런타임에서 API·SSR·Island와 20개 동시 요청을 측정하고,
+기준 미달이면 release gate를 실패시킨다.
+
+```bash
+npm run perf:contract
 ```
 
 ---

@@ -104,6 +104,12 @@ checks.push(multiInstance.exit === 0 && multiInstanceJson?.pass === true
   ? pass('multi-instance', `ports=${multiInstanceJson.ports.join(',')}`)
   : fail('multi-instance', `exit=${multiInstance.exit}`));
 
+const performanceContract = run(process.execPath, ['scripts/performance-contract.js']);
+const performanceJson = lastJson(performanceContract.output);
+checks.push(performanceContract.exit === 0 && performanceJson?.pass === true
+  ? pass('performance-contract', `rss_kb=${performanceJson.process_rss_kb} api_p95=${performanceJson.routes['/api/hello'].p95}ms`)
+  : fail('performance-contract', `exit=${performanceContract.exit}`));
+
 const hmrContract = run(process.execPath, ['scripts/hmr-contract.js']);
 const hmrJson = lastJson(hmrContract.output);
 checks.push(hmrContract.exit === 0 && hmrJson?.pass === true

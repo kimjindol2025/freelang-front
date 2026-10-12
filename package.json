@@ -34,6 +34,7 @@
     "adapter:collection": "node scripts/front-collection-adapter-contract.js",
     "hmr:contract": "node scripts/hmr-contract.js",
     "multi:contract": "node scripts/multi-instance-contract.js",
+    "perf:contract": "node scripts/performance-contract.js",
     "codes": "node fl-front-build.js --codes",
     "fix": "node fl-front-fix.js",
     "fix:dry": "node fl-front-fix.js --dry",
