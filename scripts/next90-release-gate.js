@@ -116,6 +116,12 @@ checks.push(libraryCatalog.exit === 0 && libraryCatalogJson?.pass === true
   ? pass('library-catalog', `required=${libraryCatalogJson.required_now.join(',')}`)
   : fail('library-catalog', `exit=${libraryCatalog.exit}`));
 
+const aiCapabilities = run(process.execPath, ['scripts/ai-capability-contract.js']);
+const aiCapabilitiesJson = lastJson(aiCapabilities.output);
+checks.push(aiCapabilities.exit === 0 && aiCapabilitiesJson?.pass === true
+  ? pass('ai-capabilities', `count=${aiCapabilitiesJson.capability_count}`)
+  : fail('ai-capabilities', `exit=${aiCapabilities.exit}`));
+
 const hmrContract = run(process.execPath, ['scripts/hmr-contract.js']);
 const hmrJson = lastJson(hmrContract.output);
 checks.push(hmrContract.exit === 0 && hmrJson?.pass === true

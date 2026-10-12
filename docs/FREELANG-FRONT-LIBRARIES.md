@@ -1,7 +1,8 @@
 # FreeLang Front 표준 라이브러리 기준
 
 FreeLang Front 생태계는 패키지 숫자보다 AI가 반복해서 쓰는 기능의 계약 안정성을
-우선한다. 정본 목록은 [`stdlib/libraries.json`](../stdlib/libraries.json)이다.
+우선한다. AI가 기능을 고르는 정본은 [`ai-capabilities.json`](../ai-capabilities.json),
+라이브러리 파일 목록은 [`stdlib/libraries.json`](../stdlib/libraries.json)이다.
 
 ## 지금 제공하는 것
 
@@ -32,3 +33,9 @@ npm run libraries:contract
 
 이 검사는 필수 정본 파일 존재, `flx-test` 실제 FreeLang 실행, 보류 목록을
 구조화 JSON으로 확인한다.
+
+AI capability 선택 계약은 다음 명령으로 검증한다.
+
+```bash
+npm run ai:capabilities
+```

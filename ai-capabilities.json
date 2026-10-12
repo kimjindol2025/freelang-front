@@ -1,0 +1,57 @@
+{
+  "schema": "fl-front-ai-capabilities/1",
+  "audience": "AI",
+  "selection_rule": "task_intent와 risk를 먼저 맞춘 뒤 capability 하나를 선택하고 verification 명령을 실행한다.",
+  "capabilities": [
+    {
+      "id": "ui",
+      "when": ["화면", "폼", "버튼", "테이블", "대시보드", "모달"],
+      "source": "pages/_ui.flx",
+      "operations": ["render", "form", "feedback", "data-display"],
+      "input": {"content":"FreeLang HTML expression", "style":"declared style or inline style"},
+      "output": {"type":"SSR HTML", "failure":"build diagnostic"},
+      "permissions": [],
+      "risk": "low",
+      "verification": ["npm run contracts:verify", "npm run libraries:contract"]
+    },
+    {
+      "id": "data",
+      "when": ["CRUD", "저장", "목록", "검색", "DB", "AFJ-DB95", "provider"],
+      "source": "pages/_db.flx + pages/_afldb.flx + pages/_afldb_coll.flx",
+      "operations": ["query", "exec", "collection-list", "collection-create", "collection-update", "collection-delete"],
+      "input": {"query":"provider contract", "params":"explicit array"},
+      "output": {"type":"rows or structured provider result", "failure":"preserve status and error"},
+      "permissions": ["database-read", "database-write"],
+      "risk": "medium",
+      "verification": ["npm run adapter:collection", "npm run libraries:contract"]
+    },
+    {
+      "id": "auth",
+      "when": ["로그인", "세션", "권한", "보호 라우트", "로그아웃"],
+      "source": "pages/_auth.flx",
+      "operations": ["session-read", "login", "logout", "route-guard"],
+      "input": {"request":"FreeLang request", "credential":"server-side only"},
+      "output": {"type":"user or redirect", "failure":"unauthorized redirect"},
+      "permissions": ["session-read", "session-write"],
+      "risk": "high",
+      "guardrails": ["demo credentials are forbidden in production", "secure cookie and secret review required"],
+      "verification": ["npm run next90:auth-contract", "npm run libraries:contract"]
+    },
+    {
+      "id": "test",
+      "when": ["검수", "테스트", "회귀", "assert", "재현", "오류 확인"],
+      "source": "stdlib/flx-test.flx",
+      "operations": ["assert-equal", "pass", "fail", "aggregate"],
+      "input": {"name":"stable test id", "expected":"value", "actual":"value"},
+      "output": {"type":"{pass, results}", "failure":"machine-readable result"},
+      "permissions": [],
+      "risk": "low",
+      "verification": ["npm run libraries:contract", "npm run verify:internal"]
+    }
+  ],
+  "deferred": [
+    {"id":"email", "reason":"현재 provider·사용 사례 근거 부족"},
+    {"id":"payment", "reason":"고위험 영역; 보안·provider 계약 선행 필요"},
+    {"id":"i18n", "reason":"현재 제품 요구와 실행 fixture 부족"}
+  ]
+}
