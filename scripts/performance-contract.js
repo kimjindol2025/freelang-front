@@ -13,6 +13,7 @@ const ROOT = path.resolve(__dirname, '..');
 const RUNNER = process.env.FREELANG_AFJ_RUNNER || path.join(ROOT, 'runtime', 'bootstrap.js');
 const PORT = Number(process.env.FL_PERF_PORT || 47800 + Math.floor(Math.random() * 150));
 const N = Number(process.env.FL_PERF_N || 20);
+const STRESS_N = Number(process.env.FL_PERF_STRESS_N || 200);
 const WARM = Number(process.env.FL_PERF_WARM || 3);
 const TIMEOUT_MS = Number(process.env.FL_PERF_TIMEOUT_MS || 15000);
 const children = [];
@@ -58,6 +59,7 @@ async function waitReady() {
 }
 
 function stats(values) {
+  if (values.length === 0) return { n: 0, p50: null, p95: null, max: null };
   const sorted = [...values].sort((a, b) => a - b);
   const q = p => sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
   return { n: sorted.length, p50: +q(0.50).toFixed(2), p95: +q(0.95).toFixed(2), max: +q(1).toFixed(2) };
@@ -98,19 +100,27 @@ async function main() {
       const responses = await Promise.all(Array.from({ length: 20 }, () => request('/api/hello')));
       concurrent.push({ elapsed_ms: performance.now() - started, all_200: responses.every(r => r.status === 200) });
     }
+    const stress = [];
+    for (let i = 0; i < STRESS_N; i++) {
+      try { stress.push(await request('/api/hello')); } catch (error) { stress.push({ status: 0, error: error.message }); }
+    }
+    const stressErrors = stress.filter(item => item.status !== 200).length;
+    const stressLatency = stress.filter(item => item.status === 200).map(item => item.ms);
     const rss = rssKb();
     const checks = {
       api_p95_under_50ms: routeResults['/api/hello'].p95 <= 50,
       ssr_p95_under_120ms: ['/about', '/people', '/dashboard'].every(route => routeResults[route].p95 <= 120),
       parallel_20_all_200: concurrent.every(batch => batch.all_200),
       parallel_20_p95_under_400ms: stats(concurrent.map(batch => batch.elapsed_ms)).p95 <= 400,
+      stress_200_all_200: stressErrors === 0,
       rss_under_512mb: rss !== null && rss <= 512 * 1024,
     };
     const pass = Object.values(checks).every(Boolean);
     console.log(JSON.stringify({
-      schema: 'fl-front-performance/1', pass, port: PORT, n: N, warm: WARM,
+      schema: 'fl-front-performance/1', pass, port: PORT, n: N, stress_n: STRESS_N, warm: WARM,
       routes: routeResults,
       concurrency: { parallel: 20, batches: concurrent.length, elapsed: stats(concurrent.map(batch => batch.elapsed_ms)), all_200: concurrent.every(batch => batch.all_200) },
+      stress: { n: STRESS_N, errors: stressErrors, latency: stats(stressLatency) },
       process_rss_kb: rss,
       thresholds: { api_p95_ms: 50, ssr_p95_ms: 120, parallel_20_p95_ms: 400, rss_kb: 512 * 1024 },
       checks,
