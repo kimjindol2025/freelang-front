@@ -1,14 +1,18 @@
-# freelang-front
+# FreeLang Front
 
-> FreeLang v11 `.flx` 기반 풀스택 프론트엔드 프레임워크  
-> **npm install 0개** — Next.js + Tailwind + Zustand + TanStack 스택 전체 대체
+> AI가 안전하게 화면·데이터·권한·검수를 만들도록 설계한 FreeLang v11 `.flx` 기반 프론트 언어.
+
+사람 개발자용 범용 생태계를 복제하는 프로젝트가 아닙니다. AI가 작업 의도를
+capability로 선택하고, 계약을 확인하고, 실제 실행 검수까지 반복하는 내부 개발
+플랫폼입니다.
 
 ---
 
 ## 한 줄 요약
 
-`.flx` 파일 하나로 라우트·SSR·CSS DSL·상태관리·실시간 통신을 처리하는 FreeLang 전용 프론트엔드 런타임.  
-외부 의존성 없이 다수의 내장 앱, SSE 실시간 알림, 성능 모니터링까지 프로덕션 검증 완료.
+`.flx` 하나로 라우팅·SSR·API·Island UI·상태·실시간 통신을 작성하고, JS는
+선언된 브라우저 bridge 경계에만 둡니다. 목표는 AI가 추측하지 않고 계약과 실행
+증거로 개발하는 것입니다.
 
 ---
 
@@ -16,13 +20,16 @@
 
 | 항목 | 값 |
 |------|-----|
-| 버전 | **1.0.0** (2026-06-02 프로덕션 릴리즈) |
+| 상태 | 내부 운영 기준 검증 중 |
 | 운영 기간 | 10일+ 연속 안정 운영 |
 | pages/ | 파일 31개 + 디렉토리 17개 |
 | 코드량 | 2,000줄+ |
 | 포트 | 앱 **40860** / 개발서버 HMR **40851** |
 | 메모리 기준 | 운영 Node 힙 256MB 상한 · 내부 gate RSS < 512MB |
 | 응답시간 기준 | API p95 < 50ms · SSR p95 < 120ms |
+
+현재 기준 커밋은 Git history와 release gate 결과를 기준으로 판단합니다. README의
+설명만으로 상용·외부 공개 완료를 주장하지 않습니다.
 
 ---
 
@@ -51,7 +58,32 @@ pages/api/hello.flx    → GET /api/hello
 `page-load`, `api-call`, `route-transition`, `long-task`, `memory` 5가지 메트릭 자동 수집.  
 SLO/SLA 자동 추적 및 준수율 실시간 계산.
 
-### 6. 내장 유틸리티 (`_*.flx`)
+### 6. AI capability와 표준 라이브러리
+
+AI가 먼저 `ai-capabilities.json`을 조회해 작업을 분류합니다.
+
+| capability | 역할 | 상태 |
+|---|---|---|
+| `ui` | 화면·폼·테이블·피드백 | stable |
+| `data` | SQLite·AFJ-DB95·CRUD | stable |
+| `auth` | 세션·로그인·보호 라우트 | guarded |
+| `test` | assertion·회귀 결과 | stable |
+| `schema` | 필수 입력·payload 계약 | stable |
+| `fixture` | 결정적 seed/reset/snapshot | stable |
+
+AI 흐름:
+
+```text
+작업 의도 → capability 선택 → 입력/출력/권한 확인
+→ .flx 생성 → targeted test → 전체 release gate
+```
+
+```bash
+npm run ai:capabilities
+npm run libraries:contract
+```
+
+### 7. 내부 헬퍼 (`pages/_*.flx`)
 | 파일 | 역할 |
 |------|------|
 | `_layout.flx` | 공통 레이아웃 |
@@ -59,10 +91,12 @@ SLO/SLA 자동 추적 및 준수율 실시간 계산.
 | `_auth.flx` | 인증 |
 | `_db.flx` | DB 접근 |
 | `_oauth.flx` | OAuth |
-| `_payment.flx` | 결제 |
 | `_storage.flx` | 파일 스토리지 |
 | `_email.flx` | 이메일 |
 | `_charts.flx` | 차트 |
+
+`payment`, `email`, `i18n`은 AI가 안전하게 선택할 provider·실행 fixture가
+부족해 보류 상태입니다. 사용 근거 없이 라이브러리 수를 늘리지 않습니다.
 
 ---
 
@@ -75,7 +109,8 @@ freelang-front/
 │   ├── [id].flx        → GET /:id
 │   ├── api/            → API 엔드포인트
 │   └── _*.flx          → 전역 유틸리티
-├── stdlib/             ← 내장 표준 라이브러리
+├── stdlib/             ← AI 표준 라이브러리 (schema/fixture/test)
+├── ai-capabilities.json← AI capability 선택 계약
 ├── runtime/            ← 런타임 코어
 ├── public/             ← 정적 파일
 ├── server.fl           ← 메인 서버 진입점
@@ -93,7 +128,8 @@ freelang-front/
 
 ```bash
 # 프로덕션 (기본 포트 40860, `PORT`로 변경 가능)
-PORT=40860 node /home/kim/바탕화면/kim/freelang-v11/bootstrap.js run server.fl
+PORT=40860 NODE_OPTIONS=--max-old-space-size=256 \
+  node runtime/bootstrap.js run server.fl
 
 # 개발 (파일 감시 + HMR, 포트 40851)
 node dev-server.js
@@ -103,6 +139,10 @@ node dev-server.js
 ```bash
 node fl-front-build.js         # 일반 빌드
 node fl-front-build.js --json  # JSON 출력 (AI 파이프라인용)
+npm run ai:capabilities       # AI capability 계약
+npm run libraries:contract    # 표준 라이브러리 실제 실행 계약
+npm run perf:contract         # 성능·동시성·200회 안정성 계약
+npm run verify:internal       # 전체 내부 release gate
 ```
 
 **AI 컨텍스트 엔드포인트** (dev-server 실행 중):
@@ -113,7 +153,7 @@ GET http://localhost:40851/~ai/test     # Island headless HTTP 테스트
 
 ---
 
-## 빠른 시작
+## AI 작성 예시
 
 ```flx
 ; pages/hello.flx
@@ -122,19 +162,25 @@ GET http://localhost:40851/~ai/test     # Island headless HTTP 테스트
   (p "FreeLang Front 첫 페이지"))
 ```
 
-저장하면 `GET /hello` 라우트 자동 등록.
+AI는 먼저 capability 계약을 확인한 뒤 `.flx`를 작성합니다. 저장하면
+`GET /hello` 라우트가 등록됩니다.
 
 ---
 
-## Phase 로드맵
+## 검증된 범위
 
 | Phase | 내용 | 난이도 | 상태 |
 |-------|------|--------|------|
-| P1 | 파일 라우터 + SSR + dev-server | ★★☆ | ✅ 완료 |
-| P2 | CSS DSL + 빌드 파이프라인 | ★★☆ | ✅ 완료 |
-| P3 | 아일랜드 컴파일러 | ★★★★★ | ✅ 완료 |
-| P4 | query / form / atom 내장 | ★★★☆ | ✅ 완료 |
-| P5 | SVG 차트 + HMR | ★★★☆ | ✅ 완료 |
+| 영역 | 검증 |
+|---|---|
+| build/diagnostics | 153 routes, 0 errors |
+| AI capability | 6개 capability 선택 계약 PASS |
+| library contract | schema/fixture 실제 FreeLang 실행 PASS |
+| runtime | API·SSR·Island·SSE·다중 인스턴스 PASS |
+| performance | 256MB heap, API 200회 오류 0건 |
+
+전체 검수 명령은 실패 항목을 숨기지 않습니다. 외부 `freelang-tools` 환경이나
+사용자 dirty 변경으로 막힌 항목은 `BLOCKED`로 남깁니다.
 
 ---
 
@@ -198,6 +244,8 @@ npm run perf:contract
 | `SYNTAX.airc` | `.flx` 문법 레퍼런스 |
 | `HELPERS.airc` | 헬퍼 API + v11 신규 함수 |
 | `HANDOFF.airc` | AI 인계 문서 (경로·포트·완료 작업 목록) |
+| `ai-capabilities.json` | AI capability 선택·권한·실패·검증 계약 |
+| `docs/FREELANG-FRONT-LIBRARIES.md` | 표준 라이브러리와 보류 기준 |
 | `CHANGELOG.md` | 버전별 변경 이력 |
 
 ---
