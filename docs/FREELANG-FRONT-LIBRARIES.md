@@ -12,6 +12,8 @@ FreeLang Front 생태계는 패키지 숫자보다 AI가 반복해서 쓰는 기
 | `flx-auth` | `pages/_auth.flx` | stable-internal | 세션·로그인·라우트 가드 |
 | `flx-data` | `_db/_afldb/_afldb_coll` | stable | SQLite·AFJ-DB95·provider 경계 |
 | `flx-test` | `stdlib/flx-test.flx` | stable | AI가 읽는 테스트 결과 계약 |
+| `flx-schema` | `stdlib/flx-schema.flx` | stable | 필수 입력·payload 계약 |
+| `flx-fixture` | `stdlib/flx-fixture.flx` | stable | 결정적 in-memory 재현 데이터 |
 
 `flx-http`와 `flx-chart`는 이미 내부 헬퍼로 사용 중이며, 별도 중복 패키지는
 만들지 않고 현재 정본을 유지한다.

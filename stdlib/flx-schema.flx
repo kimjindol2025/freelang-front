@@ -1,0 +1,17 @@
+; flx-schema — AI가 생성한 입력 계약의 최소 실행 표면
+; 타입 추측보다 명시적인 required 필드 검증을 우선한다.
+
+(defn flx-schema-check-required [$data $fields]
+  (let [missing
+          (filter
+            (fn [$field]
+              (let [$value (get $data $field)]
+                (if (= $value nil)
+                  true
+                  (= (str-trim (str $value)) ""))))
+            $fields)]
+    {:valid (= (length missing) 0)
+     :missing missing}))
+
+(defn flx-schema-valid? [$result]
+  (= (get $result :valid) true))

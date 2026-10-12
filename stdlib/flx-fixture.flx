@@ -1,0 +1,17 @@
+; flx-fixture — AI 회귀 검증을 위한 결정적 in-memory fixture 표면
+; 네트워크·실DB·현재시간을 사용하지 않는다.
+
+(defn flx-fixture-make [$name $data]
+  {:name $name :data $data})
+
+(defn flx-fixture-data [$fixture]
+  (get $fixture :data))
+
+(defn flx-fixture-seed [$store $fixture]
+  (push $store $fixture))
+
+(defn flx-fixture-reset []
+  [])
+
+(defn flx-fixture-snapshot [$store]
+  $store)

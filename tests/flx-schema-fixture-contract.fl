@@ -1,0 +1,7 @@
+(load "../stdlib/flx-schema.flx")
+(load "../stdlib/flx-fixture.flx")
+
+(define fixture (flx-fixture-make "person" {"name" "지우" "role" "agent"}))
+(define seeded (flx-fixture-seed (flx-fixture-reset) fixture))
+(define valid (flx-schema-check-required (flx-fixture-data fixture) ["name" "role"]))
+(println (and (flx-schema-valid? valid) (= (length seeded) 1)))

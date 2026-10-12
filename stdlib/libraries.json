@@ -7,12 +7,14 @@
     {"id":"flx-data","status":"stable","source":"pages/_db.flx + pages/_afldb.flx + pages/_afldb_coll.flx","purpose":"SQLite/AFJ-DB95/provider boundary"},
     {"id":"flx-http","status":"stable-internal","source":"pages/_http.flx","purpose":"server HTTP provider boundary"},
     {"id":"flx-test","status":"stable","source":"stdlib/flx-test.flx","purpose":"AI-readable assertion result contract"},
+    {"id":"flx-schema","status":"stable","source":"stdlib/flx-schema.flx","purpose":"explicit required-field input contract"},
+    {"id":"flx-fixture","status":"stable","source":"stdlib/flx-fixture.flx","purpose":"deterministic in-memory regression fixture"},
     {"id":"flx-chart","status":"stable-internal","source":"pages/_charts.flx","purpose":"dashboard chart primitives"},
     {"id":"flx-storage","status":"deferred","source":"pages/_storage.flx","purpose":"S3-compatible storage; presign implementation needs hardening"},
     {"id":"flx-email","status":"deferred","source":"pages/_email.flx","purpose":"low current usage; provider contract not fixed"},
     {"id":"flx-payment","status":"deferred","source":"pages/_payment.flx","purpose":"high-risk domain; provider and security contract not fixed"},
     {"id":"flx-i18n","status":"deferred","source":null,"purpose":"no current product requirement"}
   ],
-  "required_now": ["flx-ui","flx-auth","flx-data","flx-test"],
+  "required_now": ["flx-ui","flx-auth","flx-data","flx-test","flx-schema","flx-fixture"],
   "deferred_by_policy": ["flx-email","flx-payment","flx-i18n"]
 }

@@ -16,6 +16,7 @@ const results = catalog.libraries.map(library => {
 const missing = results.filter(item => required.has(item.id) && !item.source_ok);
 const testSource = path.join(ROOT, 'stdlib', 'flx-test.flx');
 const testFixture = path.join(ROOT, 'tests', 'flx-test-contract.fl');
+const schemaFixture = path.join(ROOT, 'tests', 'flx-schema-fixture-contract.fl');
 const runtime = process.env.FREELANG_AFJ_RUNNER || path.join(ROOT, 'runtime', 'bootstrap.js');
 const execution = spawnSync(process.execPath, [runtime, 'run', 'tests/flx-test-contract.fl'], {
   cwd: ROOT,
@@ -29,6 +30,14 @@ const pass = catalog.schema === 'fl-front-libraries/1'
   && missing.length === 0
   && fs.existsSync(testSource)
   && fs.existsSync(testFixture)
+  && fs.existsSync(schemaFixture)
   && runtimePass;
-console.log(JSON.stringify({ schema: 'fl-front-library-contract/1', pass, required_now: [...required], libraries: results, missing, runtime_test: runtimePass }));
-process.exit(pass ? 0 : 2);
+const schemaExecution = spawnSync(process.execPath, [runtime, 'run', 'tests/flx-schema-fixture-contract.fl'], {
+  cwd: ROOT,
+  encoding: 'utf8',
+  env: { ...process.env, FL_HTTP_ALLOW: '127.0.0.1,localhost' },
+});
+const schemaRuntimePass = schemaExecution.status === 0;
+const finalPass = pass && schemaRuntimePass;
+console.log(JSON.stringify({ schema: 'fl-front-library-contract/1', pass: finalPass, required_now: [...required], libraries: results, missing, runtime_test: runtimePass, schema_fixture_test: schemaRuntimePass }));
+process.exit(finalPass ? 0 : 2);

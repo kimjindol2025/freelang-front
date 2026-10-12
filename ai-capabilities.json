@@ -47,6 +47,28 @@
       "permissions": [],
       "risk": "low",
       "verification": ["npm run libraries:contract", "npm run verify:internal"]
+    },
+    {
+      "id": "schema",
+      "when": ["입력 검증", "필수값", "데이터 계약", "payload", "validation"],
+      "source": "stdlib/flx-schema.flx",
+      "operations": ["required-check", "valid-check"],
+      "input": {"data":"map with explicit keys", "fields":"array of required field names"},
+      "output": {"type":"{valid, missing}", "failure":"missing fields, no implicit coercion"},
+      "permissions": [],
+      "risk": "low",
+      "verification": ["npm run libraries:contract", "npm run ai:capabilities"]
+    },
+    {
+      "id": "fixture",
+      "when": ["재현 데이터", "seed", "fixture", "초기화", "snapshot"],
+      "source": "stdlib/flx-fixture.flx",
+      "operations": ["make", "seed", "reset", "snapshot"],
+      "input": {"name":"stable fixture name", "data":"deterministic map/array"},
+      "output": {"type":"in-memory fixture store", "failure":"no network or production DB access"},
+      "permissions": [],
+      "risk": "low",
+      "verification": ["npm run libraries:contract", "npm run verify:internal"]
     }
   ],
   "deferred": [

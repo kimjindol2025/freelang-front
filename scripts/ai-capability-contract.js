@@ -24,14 +24,18 @@ const samples = [
   ['DB에 목록을 저장하고 검색', 'data'],
   ['폼과 테이블 화면 만들기', 'ui'],
   ['오류를 재현하고 회귀 검수', 'test'],
+  ['입력 필수값을 검증', 'schema'],
+  ['재현 데이터를 seed하고 초기화', 'fixture'],
 ];
 const selected = samples.map(([task, expected]) => {
-  const match = capabilities.find(capability => capability.when.some(word => task.includes(word)));
+  const match = capabilities
+    .map(capability => ({ capability, score: Math.max(0, ...capability.when.filter(word => task.includes(word)).map(word => word.length)) }))
+    .sort((a, b) => b.score - a.score)[0]?.capability;
   return { task, expected, selected: match?.id || null, pass: match?.id === expected };
 });
 const result = {
   schema: 'fl-front-ai-capability-contract/1',
-  pass: errors.length === 0 && capabilities.length === 4 && selected.every(item => item.pass),
+  pass: errors.length === 0 && capabilities.length === 6 && selected.every(item => item.pass),
   capability_count: capabilities.length,
   errors,
   selected,
