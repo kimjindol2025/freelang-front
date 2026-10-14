@@ -1,0 +1,40 @@
+; Agent Office Wiki — 개발 기록을 검수하는 관리자 화면
+
+(island WikiOfficeApp []
+  (let [records (atom [{"id" "invoice-error" "title" "invoice-total 빈 입력 오류 해결" "category" "error" "state" "검증됨" "checked_at" "2026-10-14" "summary" "count에 1을 더하던 off-by-one을 수정하고 재현·회귀·fl-tools 검증"}
+                       {"id" "invoice-followup" "title" "새 세션 재사용 후속 기록" "category" "operations" "state" "검증됨" "checked_at" "2026-10-14" "summary" "대화 기억 없이 invoice-error를 찾아 현재 코드와 대조"}
+                       {"id" "office-decision" "title" "Agent Office 위키 저장 계약" "category" "decision" "state" "추론" "checked_at" "2026-10-14" "summary" "원자 저장과 CAS 충돌을 호스트 경계에서 보장"}
+                       {"id" "runtime-api" "title" "공개 의미론 API 설계" "category" "project" "state" "재확인 필요" "checked_at" "2026-10-14" "summary" "공개 mutable-store·lock·process API는 아직 설계 대기"}])
+        filter-k (atom "all") expand-id (atom nil) query (atom "")
+        visible (fn [] (filter (fn [r] (and (or (= @filter-k "all") (= (get r "state") @filter-k))
+                                           (or (= @query "") (> (str-count (get r "title") @query) 0) (> (str-count (get r "summary") @query) 0)))) @records))
+        status-class (fn [state] (cond (= state "검증됨") "wiki-state wiki-state-ok" (= state "추론") "wiki-state wiki-state-infer" true "wiki-state wiki-state-review"))
+        row-view (fn [r] (let [id (get r "id") open (= @expand-id id)]
+          (h "article" {:class "wiki-row"}
+            (h "button" {:class "wiki-row-main" :on-click (fn [] (reset! expand-id (if open nil id)))}
+              (h "span" {:class (status-class (get r "state"))} (get r "state"))
+              (h "span" {:class "wiki-row-copy"} (h "strong" {} (get r "title")) (h "small" {} (str (get r "category") " · " (get r "checked_at"))))
+              (h "span" {:class "wiki-chevron"} (if open "−" "+")))
+            (if open (h "div" {:class "wiki-detail"} (h "p" {} (get r "summary")) (h "code" {} (str "record/" id))
+              (h "div" {:class "wiki-evidence"} (h "span" {} "출처·파일 해시 확인") (h "span" {} "증거 영수증 연결"))) ""))))]
+    (h "section" {:class "wiki-app"}
+      (h "div" {:class "wiki-hero"} (h "div" {:class "wiki-eyebrow"} "FREE LANG AGENT OFFICE") (h "h1" {} "개발 위키")
+        (h "p" {} "에이전트가 남긴 문제·결정·검증 기록을 한 곳에서 검수합니다.")
+        (h "div" {:class "wiki-hero-meta"} (h "span" {} "● 디스크 기록 연결") (h "span" {} "읽기 전용 관리자 화면")))
+      (h "div" {:class "wiki-stats"} (h "div" {:class "wiki-stat"} (h "b" {} "4") (h "small" {} "전체 기록"))
+        (h "div" {:class "wiki-stat wiki-stat-ok"} (h "b" {} "2") (h "small" {} "검증됨")) (h "div" {:class "wiki-stat wiki-stat-review"} (h "b" {} "1") (h "small" {} "재확인 필요")))
+      (h "div" {:class "wiki-toolbar"} (h "input" {:class "wiki-search" :placeholder "기록 검색" :on-input (fn [e] (reset! query (.-value (.-target e))))})
+        (h "div" {:class "wiki-filters"}
+          (h "button" {:class (if (= @filter-k "all") "wiki-chip active" "wiki-chip") :on-click (fn [] (reset! filter-k "all"))} "전체")
+          (h "button" {:class (if (= @filter-k "검증됨") "wiki-chip active" "wiki-chip") :on-click (fn [] (reset! filter-k "검증됨"))} "검증됨")
+          (h "button" {:class (if (= @filter-k "추론") "wiki-chip active" "wiki-chip") :on-click (fn [] (reset! filter-k "추론"))} "추론")
+          (h "button" {:class (if (= @filter-k "재확인 필요") "wiki-chip active" "wiki-chip") :on-click (fn [] (reset! filter-k "재확인 필요"))} "재확인")))
+      (h "div" {:class "wiki-list"} (arr-join (map row-view (visible)) "")))))
+
+(defn render [req]
+  (layout-html "개발 위키"
+    (str """
+<style>
+.wiki-app{max-width:980px;margin:0 auto;padding:28px 20px 80px;color:#f5f5f7}.wiki-hero{padding:28px;border:1px solid #30303c;border-radius:22px;background:linear-gradient(135deg,#20202c,#171720);margin-bottom:16px}.wiki-eyebrow{font-size:11px;letter-spacing:.16em;color:#9b8cff;font-weight:800}.wiki-hero h1{font-size:34px;margin:10px 0 6px;letter-spacing:-.04em}.wiki-hero p{color:#aaaab8;margin:0;line-height:1.6}.wiki-hero-meta{display:flex;gap:16px;color:#7d7d8c;font-size:12px;margin-top:20px}.wiki-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}.wiki-stat{border:1px solid #30303c;border-radius:16px;padding:16px;background:#1b1b25}.wiki-stat b{display:block;font-size:25px}.wiki-stat small{color:#9292a2}.wiki-stat-ok b{color:#50d99a}.wiki-stat-review b{color:#ffbf69}.wiki-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}.wiki-search{flex:1;min-width:220px;background:#181821;border:1px solid #353543;border-radius:12px;color:#fff;padding:13px 14px;font:inherit}.wiki-filters{display:flex;gap:6px}.wiki-chip{border:1px solid #353543;background:#1b1b25;color:#aaaab8;border-radius:999px;padding:10px 13px;cursor:pointer}.wiki-chip.active{background:#8f7cff;color:#fff;border-color:#8f7cff}.wiki-list{border:1px solid #30303c;border-radius:18px;overflow:hidden;background:#191922}.wiki-row{border-bottom:1px solid #2b2b36}.wiki-row:last-child{border-bottom:0}.wiki-row-main{width:100%;display:flex;align-items:center;gap:12px;padding:17px 18px;background:none;border:0;color:#fff;text-align:left;cursor:pointer;font:inherit}.wiki-row-copy{display:flex;flex-direction:column;gap:4px;flex:1}.wiki-row-copy strong{font-size:15px}.wiki-row-copy small{color:#858594}.wiki-chevron{color:#858594;font-size:21px}.wiki-state{font-size:11px;font-weight:800;padding:5px 8px;border-radius:7px;white-space:nowrap}.wiki-state-ok{background:#173d31;color:#63e7a8}.wiki-state-infer{background:#3c301d;color:#ffd083}.wiki-state-review{background:#45262b;color:#ff969d}.wiki-detail{margin:0 18px 16px 112px;padding:15px;border-radius:12px;background:#111119;color:#bdbdc9;line-height:1.6}.wiki-detail p{margin:0 0 10px}.wiki-detail code{color:#a99cff}.wiki-evidence{display:flex;gap:14px;color:#6ed7ad;font-size:12px;margin-top:12px}@media(max-width:600px){.wiki-app{padding:14px 12px 70px}.wiki-hero{padding:20px}.wiki-hero h1{font-size:28px}.wiki-row-main{padding:14px 12px;gap:8px}.wiki-detail{margin-left:12px}.wiki-state{font-size:10px}.wiki-evidence{display:block}.wiki-evidence span{display:block;margin-top:4px}}
+</style>""")
+    req))
