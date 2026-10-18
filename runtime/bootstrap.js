@@ -26520,7 +26520,86 @@ function nodeHttpGetBounded(url2, maxBytes = 65536, timeoutMs = 3e3) {
     return { status: 0, body: "", headers: {}, error: error.message };
   }
 }
+function nodeHttpRequestBytes(url2, method, headers, body, timeoutMs = 6e4, maxResponseBytes = 67108864) {
+  const blocked = flSsrfBlockReason(url2);
+  if (blocked) return { status: 0, bodyBase64: "", error: blocked };
+  if (!Buffer.isBuffer(body)) return { status: 0, bodyBase64: "", error: "HTTP binary request body must be a Buffer" };
+  const timeout = Number(timeoutMs);
+  if (!Number.isSafeInteger(timeout) || timeout < 1 || timeout > 12e4 ||
+      !Number.isSafeInteger(maxResponseBytes) || maxResponseBytes < 1 || maxResponseBytes > 67108864) {
+    return { status: 0, bodyBase64: "", error: "invalid HTTP binary request bounds" };
+  }
+  try {
+    const headersObj = {};
+    if (headers && typeof headers === "object") {
+      const entries = headers instanceof Map ? Array.from(headers.entries()) : Object.entries(headers);
+      for (const [key, value] of entries) headersObj[String(key)] = String(value);
+    }
+    if (!Object.keys(headersObj).some((key) => key.toLowerCase() === "content-length")) {
+      headersObj["Content-Length"] = String(body.length);
+    }
+    const input = JSON.stringify({
+      url: String(url2), method: String(method || "GET").toUpperCase(), headers: headersObj,
+      body: body.toString("base64"), maxResponseBytes
+    });
+    const script = `let raw="";process.stdin.setEncoding("utf8");process.stdin.on("data",c=>raw+=c);process.stdin.on("end",()=>{let input;try{input=JSON.parse(raw);const u=new URL(input.url);if(!["http:","https:"].includes(u.protocol))throw Error("unsupported URL scheme");const mod=u.protocol==="https:"?require("https"):require("http");let done=false;const finish=value=>{if(done)return;done=true;process.stdout.write(JSON.stringify(value))};const req=mod.request(u,{method:input.method,headers:input.headers},res=>{const chunks=[];let size=0;res.on("data",chunk=>{size+=chunk.length;if(size>input.maxResponseBytes){req.destroy(Error("HTTP response exceeds byte limit"));return}chunks.push(chunk)});res.on("end",()=>finish({s:res.statusCode||0,b:Buffer.concat(chunks,size).toString("base64")}))});const fail=e=>finish({s:0,b:"",e:e.message||String(e)});req.on("error",fail);req.setTimeout(${timeout},()=>req.destroy(Error("HTTP request timed out")));req.end(Buffer.from(input.body,"base64"))}catch(e){process.stdout.write(JSON.stringify({s:0,b:"",e:e.message||String(e)}))}});`;
+    const result = (0, import_child_process.spawnSync)(process.execPath, ["-e", script], {
+      input, encoding: "utf8", timeout: timeout + 2e3, maxBuffer: Math.ceil(maxResponseBytes * 4 / 3) + 8192
+    });
+    if (result.error) return { status: 0, bodyBase64: "", error: result.error.message };
+    const parsed = JSON.parse(result.stdout || "{}");
+    return { status: parsed.s || 0, bodyBase64: parsed.b || "", ...parsed.e && { error: parsed.e } };
+  } catch (error) {
+    return { status: 0, bodyBase64: "", error: error.message };
+  }
+}
+function openaiMultipartRequest(method, url2, headers, fields, fileField, filename, mimeType, fileBase64) {
+  if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
+    throw new TypeError("http-request-multipart: fields must be a map");
+  }
+  const safeHeaderValue = (value, name) => {
+    const text = String(value ?? "");
+    if (/[\r\n]/.test(text)) throw new TypeError(`http-request-multipart: invalid ${name}`);
+    return text.replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+  };
+  const boundary = `----------------freelang${require("crypto").randomBytes(18).toString("hex")}`;
+  const chunks = [];
+  const entries = fields instanceof Map ? Array.from(fields.entries()) : Object.entries(fields);
+  for (const [key, value] of entries) {
+    const fieldName = safeHeaderValue(key, "field name");
+    const fieldValue = typeof value === "string" ? value : JSON.stringify(value);
+    chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${fieldName}"\r\n\r\n${fieldValue ?? "null"}\r\n`, "utf8"));
+  }
+  const safeFileField = safeHeaderValue(fileField, "file field");
+  const safeFilename = safeHeaderValue(filename, "filename");
+  const safeMimeType = safeHeaderValue(mimeType || "application/octet-stream", "MIME type");
+  chunks.push(Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="${safeFileField}"; filename="${safeFilename}"\r\nContent-Type: ${safeMimeType}\r\n\r\n`, "utf8"));
+  if (typeof fileBase64 !== "string" || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(fileBase64)) {
+    throw new TypeError("http-request-multipart: file must be canonical base64");
+  }
+  const fileBytes = Buffer.from(fileBase64, "base64");
+  if (fileBytes.toString("base64") !== fileBase64) throw new TypeError("http-request-multipart: file must be canonical base64");
+  chunks.push(fileBytes);
+  chunks.push(Buffer.from(`\r\n--${boundary}--\r\n`, "utf8"));
+  const requestHeaders = {};
+  if (headers && typeof headers === "object") {
+    const entries = headers instanceof Map ? Array.from(headers.entries()) : Object.entries(headers);
+    for (const [key, value] of entries) {
+      if (String(key).toLowerCase() !== "content-type") requestHeaders[String(key)] = value;
+    }
+  }
+  requestHeaders["Content-Type"] = `multipart/form-data; boundary=${boundary}`;
+  const result = nodeHttpRequestBytes(url2, method, requestHeaders, Buffer.concat(chunks));
+  return { status: result.status, body: result.bodyBase64 ? Buffer.from(result.bodyBase64, "base64").toString("utf8") : "", ...result.error && { error: result.error } };
+}
+function openaiBinaryRequest(method, url2, headers, body) {
+  const requestBody = Buffer.from(String(body ?? ""), "utf8");
+  const result = nodeHttpRequestBytes(url2, method, headers, requestBody);
+  return { status: result.status, body_base64: result.bodyBase64, ...result.error && { error: result.error } };
+}
 function createHttpModule() {
+  const httpRequestMultipart = (...args) => openaiMultipartRequest(...args);
+  const httpRequestBase64 = (...args) => openaiBinaryRequest(...args);
   return {
     // http_get_bounded url max-bytes timeout-ms -> {:status :body :headers :error?}
     "http_get_bounded": (url2, maxBytes, timeoutMs) => nodeHttpGetBounded(url2, maxBytes, timeoutMs),
@@ -26768,6 +26847,10 @@ function createHttpModule() {
         ...result.error && { error: result.error }
       };
     },
+    "http_request_multipart": httpRequestMultipart,
+    "http-request-multipart": httpRequestMultipart,
+    "http_request_base64": httpRequestBase64,
+    "http-request-base64": httpRequestBase64,
     // http_request_timeout method url headers body timeout_ms -> {:status 200 :body "..." :error nil}
     // timeout_ms: 최대 대기 시간 (ms). 초과 시 status:0, error:"timeout" 반환
     "http_request_timeout": (method, url2, headers, body, timeoutMs) => {
