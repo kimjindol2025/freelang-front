@@ -1,0 +1,195 @@
+(island PosApp []
+  (let [data (atom nil) loaded (atom false) err (atom "") cart (atom [])
+        pay (atom "card") customer (atom "") customer-mode (atom "normal") delivery (atom false) address (atom "") phone (atom "") delivery-client (atom "") legacy (atom "") tab (atom "sell")
+        item-name (atom "") unit (atom "개") price (atom "") stock (atom "")
+        cust-name (atom "") cust-phone (atom "") cust-address (atom "") stock-qty (atom "") stock-cost (atom "") stock-item (atom "")
+        sup-name (atom "") sup-phone (atom "") sup-address (atom "") sup-id (atom "") pur-item (atom "") pur-qty (atom "") pur-cost (atom "") pur-credit (atom false) pur-adjust (atom false) pur-date (atom "") margin (atom "20") price-supplier (atom "all") customer-sales-filter (atom "all")
+        reload (fn [res] (if (= (get res "ok") false) (reset! err (or (get res "error") "요청을 처리하지 못했습니다")) (do (reset! data res) (reset! err ""))))
+        post (fn [body] (fetch-post! "/pos/api" body reload))
+        load (fn [] (fetch! "/pos/api?business=fruit" (fn [res] (do (reset! data res) (if (or (= @stock-item "") (= @stock-item nil)) (reset! stock-item (str (get (first (get res "items")) "id"))) nil)))))
+        submit-item (fn [] (let [name (str-trim @item-name) price-v (Number @price) stock-v (if (= (str-trim @stock) "") 0 (Number @stock))]
+          (if (or (= name "") (= @price "") (not (Number.isFinite price-v)) (< price-v 0) (not (Number.isInteger price-v)) (not (Number.isFinite stock-v)) (< stock-v 0) (> stock-v 1000000))
+            (reset! err "품목명, 0원 이상의 정수 판매가와 0 이상의 초기 재고를 확인해 주세요.")
+            (do (reset! err "") (post {"action" "add-item" "business" "fruit" "name" name "unit" @unit "price" @price "stock" stock-v})))))
+        add-customer (fn [] (post {"action" "add-customer" "business" "fruit" "name" @cust-name "phone" @cust-phone "address" @cust-address}))
+        fill-delivery (fn [id] (let [c (first (filter (fn [x] (= (str (get x "id")) id)) (get @data "customers")))] (reset! delivery-client id) (if (= c nil) nil (do (reset! address (get c "address")) (reset! phone (get c "phone"))))))
+        import-data (fn [] (post {"action" "import-legacy" "state_json" @legacy}))
+        input (fn [label type value setter]
+                (h "label" {:class "field"} (str label (h "input" {:type type :aria-label label :value value :on-input (fn [e] (setter (.-value (.-target e))))}))))
+        fruit-icon (fn [name] (or (get {"포도" "🍇" "청포도" "🍇" "거봉" "🍇" "캠벨얼리" "🍇" "샤인머스캣" "🍇" "사과" "🍎" "홍로" "🍎" "부사" "🍎" "배" "🍐" "신고배" "🍐" "귤" "🍊" "감귤" "🍊" "청귤" "🍊" "한라봉" "🍊" "천혜향" "🍊" "오렌지" "🍊" "딸기" "🍓" "수박" "🍉" "참외" "🍈" "멜론" "🍈" "바나나" "🍌" "복숭아" "🍑" "자두" "🍑" "키위" "🥝" "체리" "🍒" "블루베리" "🫐" "파인애플" "🍍" "레몬" "🍋" "망고" "🥭" "토마토" "🍅"} name) "🧺"))
+        item-button (fn [it]
+          (h "button" {:class "item" :on-click (fn [] (swap! cart (fn [xs]
+            (if (> (length (filter (fn [x] (= (get x "id") (get it "id"))) xs)) 0)
+              (map (fn [x] (if (= (get x "id") (get it "id")) (assoc x "qty" (+ (get x "qty") 1)) x)) xs)
+              (concat xs [{"id" (get it "id") "qty" 1}])))))}
+            (str (h "span" {:class "item-icon" :aria-hidden "true"} (fruit-icon (get it "name")))
+                 (h "span" {:class "item-name"} (str (get it "name") (if (= (get it "variant") "") "" (str " · " (get it "variant")))))
+                 (h "small" {} (str (get it "price") "원 / " (get it "unit"))))))
+        cart-row (fn [line]
+          (let [it (first (filter (fn [x] (= (get x "id") (get line "id"))) (get @data "items")))
+                nm (if (= it nil) "품목" (get it "name")) price-v (if (= it nil) 0 (get it "price"))]
+            (h "tr" {} (str (h "td" {} nm)
+              (h "td" {} (h "input" {:type "number" :step "any" :min "0.01" :value (get line "qty") :aria-label "수량" :on-change (fn [e] (let [q (str-to-num (.-value (.-target e)))] (if (or (= q nil) (<= q 0)) nil (swap! cart (fn [xs] (map (fn [x] (if (= (get x "id") (get line "id")) (assoc x "qty" q) x)) xs))))))}))
+              (h "td" {} (str (* price-v (get line "qty")) "원"))
+              (h "td" {} (h "button" {:class "small" :on-click (fn [] (swap! cart (fn [xs] (if (<= (get line "qty") 1) (filter (fn [x] (not (= (get x "id") (get line "id")))) xs) (map (fn [x] (if (= (get x "id") (get line "id")) (assoc x "qty" (- (get x "qty") 1)) x)) xs)))))} "−")
+              (h "button" {:class "small" :on-click (fn [] (swap! cart (fn [xs] (map (fn [x] (if (= (get x "id") (get line "id")) (assoc x "qty" (+ (get x "qty") 1)) x)) xs))))} "+"))))))
+        item-row (fn [it]
+          (h "tr" {} (str
+            (h "td" {} (h "input" {:value (get it "name") :aria-label "품목명" :on-change (fn [e] (post {"action" "edit-item" "business" "fruit" "id" (get it "id") "name" (.-value (.-target e))}))}))
+            (h "td" {} (h "input" {:value (get it "unit") :aria-label "판매 단위" :on-change (fn [e] (post {"action" "edit-item" "business" "fruit" "id" (get it "id") "unit" (.-value (.-target e))}))}))
+            (h "td" {} (str (get it "stock") " " (get it "unit")))
+            (h "td" {} (h "input" {:type "number" :value (get it "price") :aria-label "판매가" :on-change (fn [e] (post {"action" "edit-item" "business" "fruit" "id" (get it "id") "price" (.-value (.-target e))}))}))
+            (h "td" {} (h "button" {:class "small danger" :on-click (fn [] (post {"action" "delete-item" "business" "fruit" "id" (get it "id")}))} "삭제")))))
+        customer-row (fn [c]
+          (h "article" {:class "customer"} (str (h "input" {:value (get c "name") :aria-label "고객명" :on-change (fn [e] (post {"action" "edit-customer" "business" "fruit" "id" (get c "id") "name" (.-value (.-target e))}))})
+            (h "input" {:value (get c "phone") :aria-label "고객 전화" :on-change (fn [e] (post {"action" "edit-customer" "business" "fruit" "id" (get c "id") "phone" (.-value (.-target e))}))})
+            (h "input" {:value (get c "address") :aria-label "고객 주소" :on-change (fn [e] (post {"action" "edit-customer" "business" "fruit" "id" (get c "id") "address" (.-value (.-target e))}))})
+            (h "span" {} (str "미수 " (get c "credit") "원"))
+            (h "button" {:class "small" :on-click (fn [] (post {"action" "customer-payment" "business" "fruit" "id" (get c "id") "amount" (get c "credit")}))} "미수 전액 입금"))))
+        payment-name (fn [name] (or (get {"card" "카드" "cash" "현금" "credit" "외상"} name) name))
+        sale-row (fn [s] (h "tr" {} (str (h "td" {} (get s "created_at")) (h "td" {} (get s "customer_name")) (h "td" {} (or (get s "item_summary") "-")) (h "td" {} (str (get s "total") "원")) (h "td" {} (payment-name (get s "payment_type"))))))
+        price-row (fn [it] (h "tr" {} (str (h "td" {} (str (get it "name") (if (= (get it "variant") "") "" (str " · " (get it "variant"))))) (h "td" {} (if (> (get it "cost") 0) (str (get it "cost") "원") "-")) (h "td" {} (h "input" {:type "number" :value (get it "margin") :aria-label "판매 마진 비율" :on-change (fn [e] (post {"action" "set-item-margin" "business" "fruit" "id" (get it "id") "margin" (.-value (.-target e))}))})) (h "td" {} (h "input" {:type "number" :value (get it "price") :aria-label "판매가" :on-change (fn [e] (post {"action" "set-price" "business" "fruit" "id" (get it "id") "price" (.-value (.-target e))}))})) (h "td" {} (if (> (get it "cost") 0) (str (- (get it "price") (get it "cost")) "원") "-")))))
+        inventory-row (fn [it] (h "tr" {} (str (h "td" {} (get it "name")) (h "td" {} (str (get it "stock") " " (get it "unit"))) (h "td" {} (str (get it "price") "원")))))
+        summary-row (fn [row] (h "tr" {} (str (h "td" {} (payment-name (get row "label"))) (h "td" {} (str (get row "total") "원")))))
+        pay-row (fn [p] (h "tr" {} (str (h "td" {} (get p "created_at")) (h "td" {} (get p "customer_name")) (h "td" {} (str (get p "amount") "원")))))
+        supplier-row (fn [s] (h "article" {:class "customer"} (str (h "input" {:value (get s "name") :aria-label "매입 거래처명" :on-change (fn [e] (post {"action" "edit-supplier" "business" "fruit" "id" (get s "id") "name" (.-value (.-target e))}))}) (h "input" {:value (get s "phone") :aria-label "거래처 전화" :on-change (fn [e] (post {"action" "edit-supplier" "business" "fruit" "id" (get s "id") "phone" (.-value (.-target e))}))}) (h "input" {:value (get s "address") :aria-label "거래처 주소" :on-change (fn [e] (post {"action" "edit-supplier" "business" "fruit" "id" (get s "id") "address" (.-value (.-target e))}))}) (h "span" {} (str "미지급 " (get s "payable") "원")) (h "button" {:class "small" :on-click (fn [] (post {"action" "supplier-payment" "business" "fruit" "id" (get s "id") "amount" (get s "payable")}))} "전액 지급"))))
+        purchase-row (fn [p] (h "tr" {} (str (h "td" {} (get p "purchase_date")) (h "td" {} (get p "supplier_name")) (h "td" {} (get p "item_name")) (h "td" {} (str (get p "qty") " " (get p "unit"))) (h "td" {} (str (get p "total") "원")))))
+        delivery-row (fn [s] (if (= (get s "delivery_address") "") "" (h "article" {:class "customer"} (str (h "span" {} (str (get s "customer_name") " · " (get s "delivery_address") " · " (get s "delivery_phone"))) (if (= (get s "delivery_done") 1) (h "b" {} "완료") (h "button" {:class "small" :on-click (fn [] (post {"action" "delivery-done" "business" "fruit" "id" (get s "id")}))} "완료")))))) ]
+    (when (not @loaded) (do (reset! loaded true) (load)))
+    (if (= @data nil) (h "p" {} "POS 데이터를 불러오는 중…")
+      (h "main" {:class (str "pos tab-" @tab)}
+        (str
+          (h "header" {} (str (h "h1" {} "과일가게 장부 (시험판)")
+            (h "nav" {:class "bottom-tabs" :aria-label "POS 메뉴"} (str
+              (h "button" {:class (if (= @tab "dashboard") "active" "") :on-click (fn [] (reset! tab "dashboard"))} "📊 현황")
+              (h "button" {:class (if (= @tab "sell") "active" "") :on-click (fn [] (reset! tab "sell"))} "🧮 계산")
+              (h "button" {:class (if (= @tab "purchase") "active" "") :on-click (fn [] (reset! tab "purchase"))} "🚚 입고")
+              (h "button" {:class (if (= @tab "pricing") "active" "") :on-click (fn [] (reset! tab "pricing"))} "🏷️ 가격")
+              (h "button" {:class (if (= @tab "manage") "active" "") :on-click (fn [] (reset! tab "manage"))} "📒 관리")))))
+          (if (= @err "") "" (h "p" {:class "error" :role "alert"} @err))
+          (h "p" {:class "summary"} (str "오늘 판매 " (get (first (get @data "today_sales")) "count") "건 · " (get (first (get @data "today_sales")) "total") "원"))
+          (h "section" {:class "panel dashboard-panel" :aria-labelledby "dashboard-title"} (str
+            (h "h2" {:id "dashboard-title"} "오늘 장사 현황")
+            (h "div" {:class "dashboard-metrics"} (str
+              (h "article" {:class "metric"} (str (h "span" {} "오늘 매출") (h "strong" {} (str (get (first (get @data "today_sales")) "total") "원"))))
+              (h "article" {:class "metric"} (str (h "span" {} "판매 건수") (h "strong" {} (str (get (first (get @data "today_sales")) "count") "건"))))
+              (h "article" {:class "metric"} (str (h "span" {} "등록 품목") (h "strong" {} (str (length (get @data "items")) "개"))))))
+            (h "div" {:class "dashboard-grid"} (str
+              (h "section" {:class "dashboard-card"} (str (h "h3" {} "오늘 결제")
+                (if (= (length (get @data "today_payments")) 0) (h "p" {:class "muted"} "아직 매출이 없습니다.")
+                  (h "table" {} (h "tbody" {} (map summary-row (get @data "today_payments")))))))
+              (h "section" {:class "dashboard-card"} (str (h "h3" {} "일반·거래처 매출")
+                (if (= (length (get @data "today_customers")) 0) (h "p" {:class "muted"} "아직 매출이 없습니다.")
+                  (h "table" {} (h "tbody" {} (map summary-row (get @data "today_customers")))))))
+              (h "section" {:class "dashboard-card"} (str (h "h3" {} "재고 현황")
+                (if (= (length (get @data "items")) 0) (h "p" {:class "muted"} "등록된 과일 품목이 없습니다.")
+                  (h "div" {:class "scroll"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "품목") (h "th" {} "재고") (h "th" {} "판매가")))) (h "tbody" {} (map inventory-row (get @data "items")))))))))
+              (h "section" {:class "dashboard-card"} (str (h "h3" {} "최근 판매")
+                (if (= (length (get @data "recent_sales")) 0) (h "p" {:class "muted"} "최근 판매가 없습니다.")
+                  (h "div" {:class "scroll"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "시간") (h "th" {} "고객") (h "th" {} "품목") (h "th" {} "합계") (h "th" {} "결제")))) (h "tbody" {} (map sale-row (get @data "recent_sales")))))))))))))
+          (h "div" {:class "columns"} (str
+            (h "section" {:class "panel sell-panel" :aria-labelledby "sell-title"} (str
+              (h "h2" {:id "sell-title"} "과일 품목 누르기")
+              (h "p" {:class "note"} "과일가게 예시 품목이야. 관리에서 이름·단위·가격·재고를 바꿀 수 있어.")
+              (if (= (length (get @data "items")) 0) (h "p" {:class "muted empty"} "등록된 품목이 없습니다. 관리 화면에서 품목을 추가하세요.") (h "div" {:class "items"} (map item-button (get @data "items"))))))
+            (h "div" {:class "sale-side"} (str
+              (h "section" {:class "panel cart-panel"} (str
+                (h "h2" {} "담은 물건")
+                (if (= (length @cart) 0) (h "p" {} "아직 없어") (h "table" {} (h "tbody" {} (map cart-row @cart))))
+                (h "p" {:class "total"} (str (reduce (fn [acc line] (+ acc (get line "qty"))) 0 @cart) "개 합계 " (reduce (fn [acc line] (let [it (first (filter (fn [x] (= (get x "id") (get line "id"))) (get @data "items")))] (+ acc (* (get it "price") (get line "qty"))))) 0 @cart) "원"))))
+              (h "section" {:class "panel customer-panel"} (str
+                (h "h2" {} "손님")
+                (h "div" {:class "row"} (str
+                  (h "button" {:class (if (= @customer-mode "normal") "on" "") :on-click (fn [] (reset! customer-mode "normal") (reset! customer "") (if (= @pay "credit") (reset! pay "card") nil))} "일반 손님")
+                  (h "button" {:class (if (= @customer-mode "client") "on" "") :on-click (fn [] (reset! customer-mode "client"))} "매출 거래처")
+                  (if (= @customer-mode "client") (h "label" {:class "field"} (str "거래처" (h "select" {:value @customer :on-change (fn [e] (reset! customer (.-value (.-target e))))} (str (h "option" {:value ""} "거래처 선택") (map (fn [c] (h "option" {:value (str (get c "id"))} (get c "name"))) (get @data "customers")))))) "")))
+                (h "h2" {} "결제 방법")
+                (h "div" {:class "row pay-options"} (str
+                  (h "button" {:class (if (= @pay "card") "on" "") :on-click (fn [] (reset! pay "card"))} "카드")
+                  (h "button" {:class (if (= @pay "cash") "on" "") :on-click (fn [] (reset! pay "cash"))} "현금")
+                  (if (= @customer-mode "client") (h "button" {:class (if (= @pay "credit") "on" "") :on-click (fn [] (reset! pay "credit"))} "외상") "")))
+                (if (= @pay "card") (h "p" {:class "note"} "카드는 결제기에서 먼저 결제하고 아래 완료를 눌러 줘.") "")
+                (h "label" {:class "check"} (str (h "input" {:type "checkbox" :checked @delivery :on-change (fn [e] (reset! delivery (.-checked (.-target e))))}) " 배달 정보 포함"))
+                (if @delivery (str
+                  (h "label" {:class "field"} (str "저장된 단골 불러오기" (h "select" {:value @delivery-client :on-change (fn [e] (fill-delivery (.-value (.-target e))))} (str (h "option" {:value ""} "선택 안 함") (map (fn [c] (h "option" {:value (str (get c "id"))} (get c "name"))) (get @data "customers"))))))
+                  (input "배달 주소" "text" @address (fn [v] (reset! address v))) (input "연락처" "tel" @phone (fn [v] (reset! phone v)))) "")
+                (h "button" {:class "primary" :on-click (fn [] (fetch-post! "/pos/api" {"action" "checkout" "business" "fruit" "customer_id" (if (= @customer-mode "client") @customer "") "payment" @pay "delivery_address" (if @delivery @address "") "delivery_phone" (if @delivery @phone "") "lines" @cart}
+                  (fn [res] (if (= (get res "ok") false) (reset! err (or (get res "error") "결제를 저장하지 못했습니다")) (do (reset! data res) (reset! cart []) (reset! err ""))))))} "결제 완료")))))
+            (h "section" {:class "panel manage-panel" :aria-labelledby "admin-title"} (str (h "h2" {:id "admin-title"} "재고 · 고객 관리")
+              (h "h3" {} "재고 입고")
+              (h "div" {:class "row"} (str (h "label" {} (str "품목" (h "select" {:value @stock-item :on-change (fn [e] (reset! stock-item (.-value (.-target e))))} (map (fn [i] (h "option" {:value (str (get i "id"))} (get i "name"))) (get @data "items")))))
+                (input "수량" "number" @stock-qty (fn [v] (reset! stock-qty v))) (input "매입가" "number" @stock-cost (fn [v] (reset! stock-cost v)))
+                (h "button" {:class "small" :on-click (fn [] (post {"action" "stock-in" "business" "fruit" "id" @stock-item "qty" @stock-qty "cost" @stock-cost}))} "입고 저장")))
+              (h "h3" {} "고객 등록") (h "div" {:class "form-grid"} (str (input "이름" "text" @cust-name (fn [v] (reset! cust-name v))) (input "전화" "tel" @cust-phone (fn [v] (reset! cust-phone v))) (input "주소" "text" @cust-address (fn [v] (reset! cust-address v))) (h "button" {:class "primary" :on-click add-customer} "고객 저장")))
+              (h "h3" {} "고객 및 외상") (map customer-row (get @data "customers"))))))
+          (h "section" {:class "panel manage-panel" :aria-labelledby "product-title"} (str (h "h2" {:id "product-title"} "과일 품목 관리")
+            (h "p" {:class "note"} (str "과일 품목 " (length (get @data "items")) "개 · 과일가게 전용 목록"))
+            (h "div" {:class "form-grid product-form"} (str
+              (input "품목명" "text" @item-name (fn [v] (reset! item-name v)))
+              (h "label" {:class "field"} (str "판매 단위" (h "select" {:value @unit :aria-label "판매 단위" :on-change (fn [e] (reset! unit (.-value (.-target e))))}
+                (str (h "option" {:value "개"} "개") (h "option" {:value "송이"} "송이") (h "option" {:value "박스"} "박스") (h "option" {:value "상자"} "상자") (h "option" {:value "kg"} "kg") (h "option" {:value "g"} "g") (h "option" {:value "봉"} "봉") (h "option" {:value "단"} "단") (h "option" {:value "망"} "망") (h "option" {:value "통"} "통") (h "option" {:value "팩"} "팩")))))
+              (input "판매가" "number" @price (fn [v] (reset! price v)))
+              (input "초기 재고" "number" @stock (fn [v] (reset! stock v)))
+              (h "button" {:class "primary" :on-click submit-item} "품목 등록")))
+            (h "h3" {} "과일 품목 목록")
+            (if (= (length (get @data "items")) 0) (h "p" {:class "muted empty"} "아직 등록된 상품이 없습니다.")
+              (h "div" {:class "scroll"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "품목") (h "th" {} "단위") (h "th" {} "재고") (h "th" {} "판매가") (h "th" {} "작업")))) (h "tbody" {} (map item-row (get @data "items"))))))))))
+          (h "section" {:class "panel purchase-panel"} (str (h "h2" {} "매입 거래처")
+            (h "div" {:class "form-grid"} (str (input "상호/이름" "text" @sup-name (fn [v] (reset! sup-name v))) (input "전화" "tel" @sup-phone (fn [v] (reset! sup-phone v))) (input "주소" "text" @sup-address (fn [v] (reset! sup-address v))) (h "button" {:class "primary" :on-click (fn [] (post {"action" "add-supplier" "business" "fruit" "name" @sup-name "phone" @sup-phone "address" @sup-address}))} "거래처 등록")))
+            (map supplier-row (get @data "suppliers"))))
+          (h "section" {:class "panel purchase-panel"} (str (h "h2" {} "매입·입고 장부")
+            (h "div" {:class "form-grid"} (str
+              (h "label" {:class "field"} (str "매입 거래처" (h "select" {:value @sup-id :on-change (fn [e] (reset! sup-id (.-value (.-target e))))} (str (h "option" {:value ""} "거래처 선택") (map (fn [s] (h "option" {:value (str (get s "id"))} (get s "name"))) (get @data "suppliers"))))))
+              (h "label" {:class "field"} (str "품목" (h "select" {:value @pur-item :on-change (fn [e] (reset! pur-item (.-value (.-target e))))} (map (fn [i] (h "option" {:value (str (get i "id"))} (str (get i "name") " (" (get i "unit") ")"))) (get @data "items")))))
+              (input "입고 날짜" "date" @pur-date (fn [v] (reset! pur-date v))) (input "수량" "number" @pur-qty (fn [v] (reset! pur-qty v))) (input "단위 매입가" "number" @pur-cost (fn [v] (reset! pur-cost v)))
+              (h "label" {:class "check"} (str (h "input" {:type "checkbox" :checked @pur-credit :on-change (fn [e] (reset! pur-credit (.-checked (.-target e))))}) " 외상 매입"))
+              (h "label" {:class "check"} (str (h "input" {:type "checkbox" :checked @pur-adjust :on-change (fn [e] (reset! pur-adjust (.-checked (.-target e))))}) " 매입가 기준 판매가 조정"))
+              (h "button" {:class "primary" :on-click (fn [] (post {"action" "save-purchase" "business" "fruit" "date" @pur-date "supplier_id" @sup-id "credit" @pur-credit "adjust_price" @pur-adjust "lines" [{"item_id" @pur-item "qty" @pur-qty "cost" @pur-cost}]}))} "입고 저장")))
+            (h "div" {:class "scroll"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "날짜") (h "th" {} "거래처") (h "th" {} "품목") (h "th" {} "수량") (h "th" {} "합계")))) (h "tbody" {} (map purchase-row (get @data "purchases"))))))))
+          (h "section" {:class "panel pricing-panel"} (str (h "h2" {} "과일 품목별 가격")
+            (h "div" {:class "row"} (str (input "판매 마진 비율 %" "number" @margin (fn [v] (reset! margin v)))
+              (h "button" {:class "primary" :on-click (fn [] (post {"action" "bulk-margin" "business" "fruit" "margin" @margin "supplier_id" "all"}))} "전체 품목 적용")
+              (h "button" {:on-click (fn [] (post {"action" "set-rounding" "business" "fruit" "rounding" 10}))} "10원 반올림")
+              (h "button" {:on-click (fn [] (post {"action" "set-rounding" "business" "fruit" "rounding" 100}))} "100원 반올림")))
+            (h "div" {:class "scroll"} (h "table" {} (str
+              (h "thead" {} (h "tr" {} (str (h "th" {} "품목") (h "th" {} "매입가") (h "th" {} "비율 %") (h "th" {} "판매가") (h "th" {} "마진"))))
+              (h "tbody" {} (map price-row (get @data "items"))))))))
+          (h "section" {:class "panel manage-panel"} (str (h "h2" {} "배달 목록") (map delivery-row (get @data "sales"))))
+          (h "section" {:class "panel manage-panel"} (str (h "h2" {} "오늘 매출")
+            (h "p" {} (str "전체 " (get (first (get @data "today_sales")) "total") "원 · " (get (first (get @data "today_sales")) "count") "건"))
+            (h "div" {:class "scroll"} (h "table" {} (str
+              (h "thead" {} (h "tr" {} (str (h "th" {} "구분") (h "th" {} "금액"))))
+              (h "tbody" {} (str (map summary-row (get @data "today_customers")) (map summary-row (get @data "today_payments")))))))))
+          (h "section" {:class "panel manage-panel"} (str (h "h2" {} "재고")
+            (h "div" {:class "scroll inventory"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "품목") (h "th" {} "현재고"))))
+              (h "tbody" {} (map (fn [i] (h "tr" {} (str (h "td" {} (get i "name")) (h "td" {} (str (get i "stock") " " (get i "unit")))))) (get @data "items"))))))))
+          (h "section" {:class "panel manage-panel"} (str (h "h2" {} "오늘·최근 판매") (h "div" {:class "scroll"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "일시") (h "th" {} "고객") (h "th" {} "품목") (h "th" {} "합계") (h "th" {} "결제")))) (h "tbody" {} (map sale-row (get @data "sales"))))))))
+          (h "section" {:class "panel manage-panel"} (str (h "h2" {} "고객 입금 기록") (h "div" {:class "scroll"} (h "table" {} (str (h "thead" {} (h "tr" {} (str (h "th" {} "일시") (h "th" {} "고객") (h "th" {} "금액")))) (h "tbody" {} (map pay-row (get @data "payments"))))))))
+          (h "details" {:class "panel manage-panel"} (str (h "summary" {} "기존 백업 가져오기") (h "p" {} "market-pos-backup.json 전체 내용을 붙여 넣으세요. 가져오기는 한번만 되며 기존 localStorage는 변경하지 않습니다.")
+            (h "textarea" {:rows "6" :aria-label "기존 백업 JSON" :value @legacy :on-input (fn [e] (reset! legacy (.-value (.-target e))))})
+            (h "button" {:class "small" :on-click import-data} "SQLite로 가져오기") (if (= (get @data "legacy_imported") true) (h "p" {:class "ok"} "가져오기 완료") "")))
+          (h "p" {:class "muted"} "매입 거래처와 매출 고객은 별도 장부로 관리됩니다.")))))
+
+(defn render [req]
+  (layout-html "매장 POS"
+    (str "<style>
+*{box-sizing:border-box}body:has(main.pos){margin:0;font-family:Arial,'Noto Sans KR',sans-serif;font-size:20px;background:#f4f1ea;color:#222}body nav[aria-label='사이드 메뉴'],footer.layout_foot__5e14{display:none!important}.pos{width:100%;max-width:1440px;margin:0 auto;padding:12px;color:#222}.pos header{background:#2d5a27;color:#fff;padding:10px 14px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 -12px 10px;border-radius:0;box-shadow:none}.pos header h1{font-size:24px;margin:0;flex:1;color:#fff!important;-webkit-text-fill-color:#fff;background:none!important;letter-spacing:0}.pos .biz-label{display:flex;flex-direction:row;align-items:center;gap:7px;min-width:180px;width:200px;white-space:nowrap;color:#fff;font-size:18px}.pos .biz-label select{width:auto;flex:1}.pos h2{margin:0 0 10px;font-size:22px;color:#222;letter-spacing:0;text-align:left}.pos h2:before{display:none}.pos h3{margin:12px 0 8px;font-size:20px;color:#222}.pos .summary{display:inline-flex;margin:0 0 6px;padding:8px 12px;background:#fff;border-radius:8px;color:#222;font-size:17px}.pos .columns{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start}.pos .sale-side{flex:1 1 320px;min-width:0}.pos .sale-side .panel{margin:0 0 12px}.pos .panel{flex:1 1 340px;min-width:0;margin:0 0 12px;padding:12px;border:0;border-radius:12px;background:#fff;box-shadow:0 1px 3px #0002}.pos .items{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}.pos .item{height:100px;min-height:0;padding:6px;border:2px solid #555;border-radius:10px;background:#fffbe6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;text-align:center}.pos .item-icon{font-size:30px;line-height:1.05}.pos .item-name{font-size:19px;line-height:1.1}.pos .item small{font-size:17px;color:#555}.pos button{min-height:52px;padding:12px 16px;border:2px solid #555;border-radius:10px;background:#fff;color:#111;font:inherit;font-weight:400;cursor:pointer}.pos button.on,.pos .bottom-tabs button.active{background:#ffd54f;border-color:#b8860b;font-weight:700}.pos button.primary{background:#2d5a27;color:#fff;border:0;font-size:24px}.pos button.danger{background:#c62828;color:#fff;border:0}.pos button.small{min-height:40px;padding:8px 11px;font-size:17px}.pos input,.pos select,.pos textarea{box-sizing:border-box;width:100%;min-height:50px;padding:10px;border:2px solid #888;border-radius:8px;background:#fff;color:#111;font:inherit}.pos .field{display:flex;min-width:0;flex-direction:column;gap:5px;font-size:17px;font-weight:400;color:#222}.pos .row,.pos .form-grid{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:6px 0}.pos .row>*{flex:1 1 130px;min-width:0}.pos .form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}.pos .check{display:flex;align-items:center;gap:8px;margin:8px 0}.pos .check input{width:24px;min-height:24px;margin:0}.pos table{width:100%;border-collapse:collapse}.pos td,.pos th{text-align:left;padding:8px;border-bottom:1px solid #ddd;vertical-align:middle}.pos .scroll{overflow-x:auto}.pos .customer{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #ddd}.pos .customer span{flex:1}.pos .total{margin:10px 0;padding:0;background:transparent;color:#c62828;font-size:30px;font-weight:bold;text-align:right}.pos .error{padding:10px;background:#fff3cd;color:#c62828}.pos .bottom-tabs{position:static;display:flex;gap:6px;padding:0;background:transparent;box-shadow:none}.pos .bottom-tabs button{min-height:52px;padding:8px 10px;font-size:18px}.pos.tab-sell .manage-panel,.pos.tab-sell>.purchase-panel,.pos.tab-sell>.pricing-panel,.pos.tab-sell>.dashboard-panel{display:none}.pos.tab-purchase .columns,.pos.tab-purchase .manage-panel,.pos.tab-purchase .pricing-panel,.pos.tab-purchase>.dashboard-panel{display:none}.pos.tab-pricing .columns,.pos.tab-pricing .manage-panel,.pos.tab-pricing .purchase-panel,.pos.tab-pricing>.dashboard-panel{display:none}.pos.tab-manage .columns .sell-panel,.pos.tab-manage .sale-side,.pos.tab-manage .purchase-panel,.pos.tab-manage .pricing-panel,.pos.tab-manage>.dashboard-panel{display:none}.pos.tab-dashboard .columns,.pos.tab-dashboard .manage-panel,.pos.tab-dashboard .purchase-panel,.pos.tab-dashboard .pricing-panel,.pos.tab-dashboard .summary{display:none}.pos.tab-manage .summary{display:inline-flex}.pos.tab-sell .summary,.pos.tab-purchase .summary,.pos.tab-pricing .summary,.pos.tab-sell>.muted{display:none}.pos .dashboard-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin:8px 0 14px}.pos .metric,.pos .dashboard-card{padding:12px;border-radius:10px;background:#f6f7f4}.pos .metric{display:flex;flex-direction:column;gap:4px}.pos .metric span{font-size:15px;color:#555}.pos .metric strong{font-size:24px;color:#2d5a27}.pos .dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;min-width:0}.pos .dashboard-card{min-width:0}.pos .dashboard-card .scroll{max-width:100%}.pos .dashboard-card h3{margin:0 0 8px}.pos .dashboard-card table{font-size:16px}.pos .dashboard-card td,.pos .dashboard-card th{padding:7px}.pos .item{transition:none}.pos button:hover{transform:none}.pos .note{padding:8px;border-radius:8px;background:#fff3cd;font-size:17px}
+@media(max-width:900px){.pos .columns{gap:10px}.pos .panel{flex-basis:320px}.pos .items{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}.pos .item{height:92px}}
+@media(max-width:600px){.pos{padding:8px 8px calc(148px + env(safe-area-inset-bottom))}.pos header{gap:8px;padding:8px 10px;margin:0 -8px 8px}.pos header h1{flex:1 1 100%;font-size:20px}.pos .biz-label{font-size:16px}.pos .columns{display:block}.pos .dashboard-grid{grid-template-columns:1fr}.pos .sale-side{width:100%}.pos .panel{padding:10px;margin-bottom:8px}.pos .items{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}.pos .item{height:88px;padding:6px;font-size:20px}.pos .item-icon{font-size:27px}.pos .item-name{font-size:17px}.pos .item small{font-size:13px}.pos .row>*{flex:1 1 130px;min-width:0}.pos .bottom-tabs{position:fixed;z-index:20;left:0;right:0;top:auto;bottom:0;gap:4px;padding:4px 4px calc(4px + env(safe-area-inset-bottom));background:#1f3f1b;box-shadow:0 -2px 8px #0003}.pos .bottom-tabs button{flex:1;min-height:56px;padding:4px;font-size:17px}.pos .cart-panel>.total{position:fixed;z-index:19;left:0;bottom:64px;width:50%;height:64px;margin:0;padding:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;white-space:nowrap;box-shadow:0 -2px 8px #0003}.pos .customer-panel>.primary{position:fixed;z-index:19;right:0;bottom:64px;width:50%;height:64px;margin:0;border-radius:10px}.pos table{min-width:0}.pos .customer input{min-width:100%}.pos .cart-panel>.total,.pos .customer-panel>.primary{font-size:18px}}
+@media(max-width:360px){.pos .items{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}.pos .cart-panel>.total{font-size:20px}.pos .customer-panel>.primary{font-size:17px}}
+
+body:has(main.pos) .layout_main__e5c5,body:has(main.pos) .layout_wrap__359f,body:has(main.pos) #island-posapp-0{min-width:0;width:100%;max-width:100%}
+.pos,.pos .panel,.pos .dashboard-metrics,.pos .dashboard-grid,.pos .dashboard-card{min-width:0;max-width:100%}
+.pos .scroll{max-width:100%;overscroll-behavior-x:contain}
+.pos .dashboard-metrics{align-items:start}
+.pos .dashboard-grid{align-items:start}
+.pos .dashboard-card:last-child table{min-width:500px}
+.pos .product-form{grid-template-columns:repeat(2,minmax(0,1fr))}
+.pos .product-form>.primary{grid-column:1/-1}
+.pos .product-form~.scroll table{min-width:650px}
+.pos .product-form~.scroll td,.pos .product-form~.scroll th{white-space:nowrap}
+.pos .inventory th:first-child,.pos .inventory td:first-child{text-align:left}
+.pos .inventory th:last-child,.pos .inventory td:last-child{text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:600px){.pos .panel{width:100%}.pos .dashboard-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.pos .dashboard-grid{grid-template-columns:minmax(0,1fr)}.pos .cart-panel>.total,.pos .customer-panel>.primary{bottom:calc(64px + env(safe-area-inset-bottom))}.pos .product-form~.scroll table{min-width:0;table-layout:fixed;font-size:14px}.pos .product-form~.scroll th,.pos .product-form~.scroll td{padding:4px;white-space:nowrap}.pos .product-form~.scroll th:nth-child(1){width:22%}.pos .product-form~.scroll th:nth-child(2){width:15%}.pos .product-form~.scroll th:nth-child(3){width:16%}.pos .product-form~.scroll th:nth-child(4){width:25%}.pos .product-form~.scroll th:nth-child(5){width:22%}.pos .product-form~.scroll input{min-width:0;min-height:40px;padding:4px;font-size:14px}.pos .product-form~.scroll button{min-height:40px;padding:4px;font-size:14px;white-space:nowrap}}
+@media(max-width:360px){.pos .bottom-tabs{gap:2px}.pos .bottom-tabs button{min-height:52px;padding:3px 1px;font-size:14px}.pos .cart-panel>.total{font-size:17px}.pos .customer-panel>.primary{font-size:16px}}
+</style>" "ISLAND_PLACEHOLDER" "ISLAND_SCRIPTS") req))

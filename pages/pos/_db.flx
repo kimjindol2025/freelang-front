@@ -1,0 +1,257 @@
+(ns pos)
+(define pos-db {:type "sqlite" :path "data/pos.db"})
+(define pos-biz ["fruit" "vegetable" "meat" "seafood" "restaurant" "cloth" "other"])
+(defn init []
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_state (id INTEGER PRIMARY KEY CHECK(id=1), payload TEXT NOT NULL, updated_at TEXT DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_imports (source TEXT PRIMARY KEY, imported_at TEXT DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_businesses (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL)" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_suppliers (id INTEGER PRIMARY KEY AUTOINCREMENT, legacy_id TEXT UNIQUE, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', payable INTEGER NOT NULL DEFAULT 0 CHECK(payable>=0))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_items (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER NOT NULL REFERENCES pos_businesses(id), supplier_id INTEGER REFERENCES pos_suppliers(id), legacy_id TEXT DEFAULT NULL, name TEXT NOT NULL, sku TEXT NOT NULL DEFAULT '', size TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', variant TEXT NOT NULL DEFAULT '', unit TEXT NOT NULL DEFAULT '개', price INTEGER NOT NULL CHECK(price>=0), cost INTEGER NOT NULL DEFAULT 0 CHECK(cost>=0), margin REAL NOT NULL DEFAULT 20, stock REAL NOT NULL DEFAULT 0 CHECK(stock>=0), active INTEGER NOT NULL DEFAULT 1, UNIQUE(business_id,legacy_id))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_customers (id INTEGER PRIMARY KEY AUTOINCREMENT, legacy_id TEXT DEFAULT NULL, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', credit INTEGER NOT NULL DEFAULT 0 CHECK(credit>=0), UNIQUE(legacy_id))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_sales (id INTEGER PRIMARY KEY AUTOINCREMENT, legacy_id TEXT NOT NULL DEFAULT '', business_id INTEGER NOT NULL REFERENCES pos_businesses(id), customer_id INTEGER REFERENCES pos_customers(id), customer_name TEXT NOT NULL DEFAULT '', payment_type TEXT NOT NULL CHECK(payment_type IN ('card','cash','credit')), total INTEGER NOT NULL CHECK(total>=0), delivery_address TEXT NOT NULL DEFAULT '', delivery_phone TEXT NOT NULL DEFAULT '', delivery_done INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_sale_lines (id INTEGER PRIMARY KEY AUTOINCREMENT, sale_id INTEGER NOT NULL REFERENCES pos_sales(id) ON DELETE CASCADE, item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL, qty REAL NOT NULL CHECK(qty>0), unit TEXT NOT NULL DEFAULT '개', unit_price INTEGER NOT NULL CHECK(unit_price>=0), total INTEGER NOT NULL CHECK(total>=0))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_customer_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER NOT NULL REFERENCES pos_customers(id), amount INTEGER NOT NULL CHECK(amount>0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_stock_ins (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL DEFAULT '', qty REAL NOT NULL CHECK(qty>0), cost INTEGER NOT NULL DEFAULT 0 CHECK(cost>=0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_supplier_items (supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), item_id INTEGER NOT NULL REFERENCES pos_items(id), PRIMARY KEY(supplier_id,item_id))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL, purchase_date TEXT NOT NULL, supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL, qty REAL NOT NULL CHECK(qty>0), unit TEXT NOT NULL, cost INTEGER NOT NULL CHECK(cost>=0), total INTEGER NOT NULL CHECK(total>=0), credit INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_supplier_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), amount INTEGER NOT NULL CHECK(amount>0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_price_settings (business_id INTEGER PRIMARY KEY REFERENCES pos_businesses(id), rounding INTEGER NOT NULL DEFAULT 10 CHECK(rounding IN (10,100)))" [])
+  (db-exec pos-db "CREATE UNIQUE INDEX IF NOT EXISTS pos_item_sku_unique ON pos_items(business_id,sku) WHERE sku<>''" [])
+  (db-exec pos-db "CREATE UNIQUE INDEX IF NOT EXISTS pos_sale_legacy_unique ON pos_sales(legacy_id) WHERE legacy_id<>''" [])
+  (do
+    (map (fn [code] (db-exec pos-db "INSERT OR IGNORE INTO pos_businesses(code,name) VALUES (?,?)" [code code])) pos-biz)
+    (map (fn [code] (db-exec pos-db "INSERT OR IGNORE INTO pos_price_settings(business_id,rounding) SELECT id,10 FROM pos_businesses WHERE code=?" [code])) pos-biz)))
+(defn state [] (let [r (db-query pos-db "SELECT payload FROM pos_state WHERE id=1" [])] (if (= (length r) 0) nil (try (json-parse (get (first r) "payload")) (catch $e nil)))))
+(defn imported? [] (> (length (db-query pos-db "SELECT source FROM pos_imports WHERE source='marketPosV1'" [])) 0))
+(defn rows [sql] (db-query pos-db sql []))
+(defn catalog-items [biz]
+  (db-query pos-db "SELECT i.*,b.code AS business FROM pos_items i JOIN pos_businesses b ON b.id=i.business_id WHERE b.code=? AND i.active=1 ORDER BY i.id" [biz]))
+(defn customers [] (db-query pos-db "SELECT * FROM pos_customers ORDER BY name" []))
+(defn get-item [id] (first (db-query pos-db "SELECT i.* FROM pos_items i WHERE i.id=?" [id])))
+(defn get-customer [id] (first (db-query pos-db "SELECT * FROM pos_customers WHERE id=?" [id])))
+(defn sales [biz] (db-query pos-db "SELECT s.*,GROUP_CONCAT(l.item_name||' '||l.qty||l.unit,', ') AS item_summary FROM pos_sales s LEFT JOIN pos_sale_lines l ON l.sale_id=s.id WHERE s.business_id=(SELECT id FROM pos_businesses WHERE code=?) GROUP BY s.id ORDER BY s.id DESC LIMIT 100" [biz]))
+(defn get-sale [id] (first (db-query pos-db "SELECT * FROM pos_sales WHERE id=?" [id])))
+(defn sale-lines [id] (db-query pos-db "SELECT * FROM pos_sale_lines WHERE sale_id=? ORDER BY id" [id]))
+(defn payments [] (db-query pos-db "SELECT p.*,c.name AS customer_name FROM pos_customer_payments p JOIN pos_customers c ON c.id=p.customer_id ORDER BY p.id DESC LIMIT 100" []))
+(defn suppliers [] (db-query pos-db "SELECT * FROM pos_suppliers ORDER BY name" []))
+(defn supplier-item-links [] (db-query pos-db "SELECT supplier_id,item_id FROM pos_supplier_items ORDER BY supplier_id,item_id" []))
+(defn purchases [biz] (db-query pos-db "SELECT p.*,s.name AS supplier_name FROM pos_purchases p JOIN pos_suppliers s ON s.id=p.supplier_id JOIN pos_items i ON i.id=p.item_id WHERE i.business_id=(SELECT id FROM pos_businesses WHERE code=?) ORDER BY p.id DESC LIMIT 200" [biz]))
+(defn supplier-payments [] (db-query pos-db "SELECT p.*,s.name AS supplier_name FROM pos_supplier_payments p JOIN pos_suppliers s ON s.id=p.supplier_id ORDER BY p.id DESC LIMIT 100" []))
+(defn stock-ins [] (db-query pos-db "SELECT x.*,i.name AS item_label FROM pos_stock_ins x LEFT JOIN pos_items i ON i.id=x.item_id ORDER BY x.id DESC LIMIT 100" []))
+(defn positive-int? [v] (and (not (= v nil)) (>= v 0) (= v (round v 0))))
+(defn pos-run [statements]
+  (db-exec pos-db "BEGIN IMMEDIATE" [])
+  (try
+    (do (map (fn [st] (db-exec pos-db (get st "sql") (get st "params"))) statements) (db-exec pos-db "COMMIT" []) true)
+    (catch $e (do (db-exec pos-db "ROLLBACK" []) (throw $e)))))
+(defn insert-many-items [biz items]
+  (if (= (length items) 0) true
+    (let [x (first items) legacy-id (str (get x "id"))]
+      (db-exec pos-db "INSERT OR IGNORE INTO pos_items(business_id,supplier_id,legacy_id,name,sku,size,color,variant,unit,price,cost,margin,stock) SELECT b.id,(SELECT id FROM pos_suppliers WHERE legacy_id=?),?,?,?,?,?,?,?,?,?,?,? FROM pos_businesses b WHERE b.code=?"
+        [(str (get x "supplierId")) legacy-id (or (get x "name") "품목") (or (get x "sku") "") (or (get x "size") "") (or (get x "color") "") (or (get x "variant") "") (or (get x "unit") "개") (str-to-num (or (get x "price") 0)) (str-to-num (or (get x "cost") 0)) (str-to-num (or (get x "margin") 20)) (str-to-num (or (get x "stock") 0)) biz])
+      (insert-many-items biz (rest items)))))
+(defn insert-suppliers [xs]
+  (if (= (length xs) 0) true
+    (let [x (first xs)]
+      (db-exec pos-db "INSERT OR IGNORE INTO pos_suppliers(legacy_id,name,phone,address,payable) VALUES(?,?,?,?,?)"
+        [(str (get x "id")) (or (get x "name") "거래처") (or (get x "phone") "") (or (get x "addr") "") (max 0 (str-to-num (or (get x "owe") 0)))])
+      (insert-suppliers (rest xs)))))
+(defn insert-supplier-defaults [xs biz]
+  (if (= (length xs) 0) true
+    (let [supplier (first xs) ids (get supplier "defaultItems")]
+      (if (= ids nil) nil
+        (map (fn [legacy-id]
+          (db-exec pos-db "INSERT OR IGNORE INTO pos_supplier_items(supplier_id,item_id) SELECT s.id,i.id FROM pos_suppliers s JOIN pos_items i ON i.legacy_id=? JOIN pos_businesses b ON b.id=i.business_id WHERE s.legacy_id=? AND b.code=?"
+            [(str legacy-id) (str (get supplier "id")) biz])) ids))
+      (insert-supplier-defaults (rest xs) biz))))
+(defn insert-purchases [xs]
+  (if (= (length xs) 0) true
+    (let [x (first xs)]
+      (db-exec pos-db "INSERT OR IGNORE INTO pos_purchases(batch_id,purchase_date,supplier_id,item_id,item_name,qty,unit,cost,total,credit) SELECT ?,?,s.id,(SELECT id FROM pos_items WHERE legacy_id=? ORDER BY id LIMIT 1),?,?,?,?,?,? FROM pos_suppliers s WHERE s.legacy_id=?"
+        [(str (or (get x "batchId") (get x "id"))) (or (get x "date") "") (str (get x "itemId")) (or (get x "name") "품목") (str-to-num (or (get x "qty") 0)) (or (get x "unit") "개") (str-to-num (or (get x "cost") 0)) (str-to-num (or (get x "total") 0)) (if (= (get x "credit") true) 1 0) (str (get x "supplierId"))])
+      (insert-purchases (rest xs)))))
+(defn insert-supplier-payments [xs]
+  (if (= (length xs) 0) true
+    (let [x (first xs) supplier-id (get (first (db-query pos-db "SELECT id FROM pos_suppliers WHERE legacy_id=?" [(str (get x "supplierId"))])) "id")]
+      (if (= supplier-id nil) nil
+        (db-exec pos-db "INSERT INTO pos_supplier_payments(supplier_id,amount,created_at) VALUES(?,?,?)" [supplier-id (str-to-num (or (get x "amount") 0)) (or (get x "time") "")]))
+      (insert-supplier-payments (rest xs)))))
+(defn insert-stock-ins [xs biz]
+  (if (= (length xs) 0) true
+    (let [x (first xs)]
+      (db-exec pos-db "INSERT INTO pos_stock_ins(item_id,item_name,qty,cost,created_at) SELECT (SELECT i.id FROM pos_items i JOIN pos_businesses b ON b.id=i.business_id WHERE i.name=? AND b.code=? ORDER BY i.id LIMIT 1),?,?,?,?"
+        [(or (get x "name") "품목") biz (or (get x "name") "품목") (str-to-num (or (get x "qty") 0)) (str-to-num (or (get x "cost") 0)) (or (get x "time") "")])
+      (insert-stock-ins (rest xs) biz))))
+(defn insert-sale-lines [sale-id lines biz]
+  (if (= (length lines) 0) true
+    (let [line (first lines) item-id (get line "id")]
+      (db-exec pos-db "INSERT INTO pos_sale_lines(sale_id,item_id,item_name,qty,unit,unit_price,total) VALUES(?,(SELECT i.id FROM pos_items i JOIN pos_businesses b ON b.id=i.business_id WHERE b.code=? AND i.legacy_id=? LIMIT 1),?,?,?,?,?)"
+        [sale-id biz (str item-id) (or (get line "name") "품목") (str-to-num (or (get line "qty") 1)) (or (get line "unit") "개") (str-to-num (or (get line "price") 0)) (* (str-to-num (or (get line "qty") 1)) (str-to-num (or (get line "price") 0)))] )
+      (insert-sale-lines sale-id (rest lines) biz))))
+(defn insert-sales [sales biz]
+  (if (= (length sales) 0) true
+    (let [sale (first sales) client-id (get sale "clientId")
+          customer-id (if (= client-id nil) nil (str-to-num (get (first (db-query pos-db "SELECT id FROM pos_customers WHERE legacy_id=?" [(str client-id)])) "id")))
+          pay (or (get sale "pay") "cash")
+          payment (if (or (= pay "card") (= pay "credit")) pay "cash")]
+      (db-exec pos-db "INSERT OR IGNORE INTO pos_sales(legacy_id,business_id,customer_id,customer_name,payment_type,total,delivery_address,delivery_phone,delivery_done,created_at) SELECT ?,b.id,?,?,?, ?,?,?,?,? FROM pos_businesses b WHERE b.code=?"
+        [(str (get sale "id")) customer-id (or (get sale "clientName") "") payment (str-to-num (or (get sale "total") 0)) (or (get (get sale "delivery") "addr") "") (or (get (get sale "delivery") "phone") "") (if (= (get (get sale "delivery") "done") true) 1 0) (or (get sale "time") "") biz])
+      (let [new-id (get (first (db-query pos-db "SELECT id FROM pos_sales WHERE legacy_id=?" [(str (get sale "id"))])) "id")
+            prior-lines (db-query pos-db "SELECT id FROM pos_sale_lines WHERE sale_id=?" [new-id])]
+        (if (= (length prior-lines) 0) (insert-sale-lines new-id (or (get sale "lines") []) biz) nil))
+      (insert-sales (rest sales) biz))))
+(defn insert-payments [pays]
+  (if (= (length pays) 0) true
+    (let [p (first pays) cust (get (first (db-query pos-db "SELECT id FROM pos_customers WHERE legacy_id=?" [(str (get p "clientId"))])) "id")]
+      (if (= cust nil) nil
+        (db-exec pos-db "INSERT INTO pos_customer_payments(customer_id,amount,created_at) VALUES(?,?,?)" [cust (str-to-num (get p "amount")) (or (get p "time") "")]))
+      (insert-payments (rest pays)))))
+(defn normalize-legacy [p]
+  (let [current (get p "biz") catalogs (get p "catalogs")]
+    (insert-suppliers (get p "suppliers"))
+    (map (fn [biz] (insert-many-items biz (if (= (get catalogs biz) nil) (if (= biz current) (get p "items") []) (get catalogs biz)))) pos-biz)
+    (insert-many-items current (get p "items"))
+    (insert-supplier-defaults (get p "suppliers") current)
+    (map (fn [c] (db-exec pos-db "INSERT OR IGNORE INTO pos_customers(legacy_id,name,phone,address,credit) VALUES(?,?,?,?,?)" [(str (get c "id")) (get c "name") (or (get c "phone") "") (or (get c "addr") "") (max 0 (str-to-num (or (get c "owe") 0)))])) (get p "clients"))
+    (insert-sales (get p "sales") current)
+    (insert-payments (get p "pays"))
+    (insert-purchases (get p "purchases"))
+    (insert-supplier-payments (get p "spays"))
+    (insert-stock-ins (get p "ins") current)
+    (map (fn [biz] (db-exec pos-db "UPDATE pos_price_settings SET rounding=? WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [(if (= (get p "round") 100) 100 10) biz])) pos-biz)))
+(defn import-legacy [p]
+  (let [encoded (json-stringify p)]
+    (db-exec pos-db "BEGIN IMMEDIATE" [])
+    (try
+      (do
+        (db-exec pos-db "DELETE FROM pos_items WHERE legacy_id LIKE 'seed:%'" [])
+        (db-exec pos-db "DELETE FROM pos_customers WHERE legacy_id LIKE 'seed:%'" [])
+        (db-exec pos-db "DELETE FROM pos_imports WHERE source='seed-examples'" [])
+        (db-exec pos-db "INSERT INTO pos_state(id,payload) VALUES(1,?)" [encoded])
+        (pos-normalize-legacy p)
+        (db-exec pos-db "INSERT INTO pos_imports(source) VALUES('marketPosV1')" [])
+        (db-exec pos-db "INSERT INTO pos_imports(source) VALUES('normalized-v2')" [])
+        (db-exec pos-db "COMMIT" []))
+      (catch $e (do (db-exec pos-db "ROLLBACK" []) (throw $e)))))
+  true)
+(defn upgrade-snapshot []
+  (let [p (pos-state) normalized (db-query pos-db "SELECT source FROM pos_imports WHERE source='normalized-v2'" [])]
+    (if (or (= p nil) (> (length normalized) 0)) true
+      (do
+        (db-exec pos-db "BEGIN IMMEDIATE" [])
+        (try (do (pos-normalize-legacy p)
+                 (db-exec pos-db "INSERT OR IGNORE INTO pos_imports(source) VALUES('normalized-v2')" [])
+                 (db-exec pos-db "COMMIT" []))
+          (catch $e (do (db-exec pos-db "ROLLBACK" []) (throw $e))))))))
+(defn add-item [biz name sku size color variant unit price stock]
+  (db-exec pos-db "INSERT INTO pos_items(business_id,name,sku,size,color,variant,unit,price,stock) SELECT id,?,?,?,?,?,?,?,? FROM pos_businesses WHERE code=?" [name sku size color variant unit price stock biz]))
+(defn edit-item [biz id name sku size color variant unit price]
+  (db-exec pos-db "UPDATE pos_items SET name=?,sku=?,size=?,color=?,variant=?,unit=?,price=? WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" [name sku size color variant unit price id biz]))
+(defn delete-item [biz id] (db-exec pos-db "UPDATE pos_items SET active=0 WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" [id biz]))
+(defn add-customer [name phone address] (db-exec pos-db "INSERT INTO pos_customers(name,phone,address) VALUES(?,?,?)" [name phone address]))
+(defn edit-customer [id name phone address] (db-exec pos-db "UPDATE pos_customers SET name=?,phone=?,address=? WHERE id=?" [name phone address id]))
+(defn add-supplier [name phone address] (db-exec pos-db "INSERT INTO pos_suppliers(name,phone,address) VALUES(?,?,?)" [name phone address]))
+(defn get-supplier [id] (first (db-query pos-db "SELECT * FROM pos_suppliers WHERE id=?" [id])))
+(defn edit-supplier [id name phone address] (db-exec pos-db "UPDATE pos_suppliers SET name=?,phone=?,address=? WHERE id=?" [name phone address id]))
+(defn supplier-payment [id amount]
+  (pos-run [{:sql "UPDATE pos_suppliers SET payable=payable-? WHERE id=? AND payable>=?" :params [amount id amount]}
+            {:sql "INSERT INTO pos_supplier_payments(supplier_id,amount) SELECT ?,? WHERE changes()=1" :params [id amount]}]))
+(defn valid-purchase-lines? [lines biz]
+  (if (= (length lines) 0) false
+    (valid-purchase-tail? lines biz)))
+(defn valid-purchase-tail? [lines biz]
+  (if (= (length lines) 0) true
+    (let [line (first lines) id (str-to-num (get line "item_id")) qty (str-to-num (get line "qty")) cost (str-to-num (get line "cost"))
+          item (db-query pos-db "SELECT id FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz])]
+      (and (not (= id nil)) (not (= qty nil)) (> qty 0) (not (= cost nil)) (>= cost 0)
+           (<= qty 1000000) (= cost (round cost 0)) (> (length item) 0)
+           (valid-purchase-tail? (rest lines) biz)))))
+(defn save-purchase-lines [supplier-id batch-id date credit adjust rounding lines]
+  (if (= (length lines) 0) 0
+    (let [line (first lines) item-id (str-to-num (get line "item_id")) qty (str-to-num (get line "qty")) cost (str-to-num (get line "cost"))
+          item (get-item item-id) margin (str-to-num (or (get line "margin") (get item "margin")))
+          price-raw (get line "price")
+          price (if (or (= price-raw nil) (= price-raw "")) (* (round (/ (* cost (+ 100 margin)) rounding) 0) rounding) (str-to-num price-raw))
+          total (round (* qty cost) 0)]
+      (db-exec pos-db "INSERT INTO pos_purchases(batch_id,purchase_date,supplier_id,item_id,item_name,qty,unit,cost,total,credit) VALUES(?,COALESCE(NULLIF(?,''),date('now','localtime')),?,?,?,?,?,?,?,?)"
+        [batch-id date supplier-id item-id (get item "name") qty (get item "unit") cost total (if credit 1 0)])
+      (db-exec pos-db "UPDATE pos_items SET stock=stock+?,cost=?,supplier_id=?,margin=CASE WHEN ?=1 THEN ? ELSE margin END,price=CASE WHEN ?=1 THEN ? ELSE price END WHERE id=?"
+        [qty cost supplier-id (if adjust 1 0) margin (if adjust 1 0) price item-id])
+      (db-exec pos-db "INSERT OR IGNORE INTO pos_supplier_items(supplier_id,item_id) VALUES(?,?)" [supplier-id item-id])
+      (+ total (save-purchase-lines supplier-id batch-id date credit adjust rounding (rest lines))))))
+(defn save-purchase [biz supplier-id date credit adjust lines]
+  (let [rounding (str-to-num (get (first (db-query pos-db "SELECT rounding FROM pos_price_settings WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [biz])) "rounding"))
+        batch-id (str (now-ms))]
+    (db-exec pos-db "BEGIN IMMEDIATE" [])
+    (try
+      (let [total (save-purchase-lines supplier-id batch-id date credit adjust (if (= rounding nil) 10 rounding) lines)]
+        (if credit (db-exec pos-db "UPDATE pos_suppliers SET payable=payable+? WHERE id=?" [total supplier-id]) nil)
+        (db-exec pos-db "COMMIT" [])
+        total)
+      (catch $e (do (db-exec pos-db "ROLLBACK" []) (throw $e))))))
+(defn set-item-margin [biz id margin rounding]
+  (db-exec pos-db "UPDATE pos_items SET margin=?,price=CAST(ROUND((cost*(1+?/100.0))/? ,0)*? AS INTEGER) WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND cost>0"
+    [margin margin rounding rounding id biz]))
+(defn apply-bulk-margin [biz supplier-id margin rounding]
+  (db-exec pos-db "UPDATE pos_items SET margin=?,price=CAST(ROUND((cost*(1+?/100.0))/? ,0)*? AS INTEGER) WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1 AND cost>0 AND (?='all' OR supplier_id=?)"
+    [margin margin rounding rounding biz supplier-id supplier-id]))
+(defn set-rounding [biz rounding]
+  (db-exec pos-db "UPDATE pos_price_settings SET rounding=? WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [rounding biz]))
+(defn mark-delivery-done [id]
+  (db-exec pos-db "UPDATE pos_sales SET delivery_done=1 WHERE id=? AND delivery_address<>''" [id]))
+(defn stock-in [biz id qty cost]
+  (pos-run [{:sql "UPDATE pos_items SET stock=stock+?,cost=CASE WHEN ?>0 THEN ? ELSE cost END WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" :params [qty cost cost id biz]}
+            {:sql "INSERT INTO pos_stock_ins(item_id,item_name,qty,cost) SELECT id,name,?,? FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND changes()=1" :params [qty cost id biz]}]))
+(defn customer-payment [id amount]
+  (pos-run [{:sql "UPDATE pos_customers SET credit=MAX(0,credit-?) WHERE id=? AND credit>=?" :params [amount id amount]}
+            {:sql "INSERT INTO pos_customer_payments(customer_id,amount) SELECT ?,? WHERE changes()=1" :params [id amount]}]))
+(defn cart-db-total [biz lines]
+  (if (= (length lines) 0) 0
+    (let [line (first lines) qty (str-to-num (get line "qty")) id (str-to-num (get line "id"))
+          item (db-query pos-db "SELECT price,stock FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz])]
+      (if (or (= qty nil) (<= qty 0) (> qty 1000000) (= (length item) 0)) (throw "invalid line") nil)
+      (+ (round (* qty (str-to-num (get (first item) "price"))) 0) (cart-db-total biz (rest lines))))))
+(defn checkout-lines [sale-id biz lines]
+  (if (= (length lines) 0) true
+    (let [line (first lines) id (str-to-num (get line "id")) qty (str-to-num (get line "qty"))
+          item (first (db-query pos-db "SELECT name,unit,price,stock FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz]))
+          price (str-to-num (get item "price"))]
+      (if (or (= item nil) (= qty nil) (<= qty 0) (> qty 1000000)) (throw "invalid line") nil)
+      (let [changed (db-exec pos-db "UPDATE pos_items SET stock=stock-? WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1 AND stock>=?" [qty id biz qty])]
+        (if (= (get changed "affectedRows") 0) (throw "stock unavailable") nil))
+      (db-exec pos-db "INSERT INTO pos_sale_lines(sale_id,item_id,item_name,qty,unit,unit_price,total) VALUES(?,?,?,?,?,?,?)" [sale-id id (get item "name") qty (get item "unit") price (round (* qty price) 0)])
+      (checkout-lines sale-id biz (rest lines)))))
+(defn checkout [biz customer-id payment delivery-address delivery-phone lines]
+  (let [cust-id (if (= customer-id "") nil (str-to-num customer-id))]
+    (db-exec pos-db "BEGIN IMMEDIATE" [])
+    (try
+      (let [total (pos-cart-db-total biz lines)]
+        (if (= (length lines) 0) (throw "cart empty") nil)
+        (if (and (= payment "credit") (= cust-id nil)) (throw "customer required") nil)
+        (db-exec pos-db "INSERT INTO pos_sales(business_id,customer_id,customer_name,payment_type,total,delivery_address,delivery_phone) SELECT b.id,?,COALESCE(c.name,''),?,?,?,? FROM pos_businesses b LEFT JOIN pos_customers c ON c.id=? WHERE b.code=?" [cust-id payment total delivery-address delivery-phone cust-id biz])
+        (let [sale-id (get (first (db-query pos-db "SELECT last_insert_rowid() AS id" [])) "id")]
+          (pos-checkout-lines sale-id biz lines)
+          (if (= payment "credit") (db-exec pos-db "UPDATE pos_customers SET credit=credit+? WHERE id=?" [total cust-id]) nil)
+          (db-exec pos-db "COMMIT" [])
+          {"ok" true "sale_id" sale-id "total" total}))
+      (catch $e (do (db-exec pos-db "ROLLBACK" []) (throw $e))))))
+
+(defn seed-example-items [biz items idx]
+  (if (= (length items) 0) true
+    (let [item (first items)]
+      (db-exec pos-db "INSERT OR IGNORE INTO pos_items(business_id,legacy_id,name,variant,unit,price,stock) SELECT id,?,?,?,?,?,? FROM pos_businesses WHERE code=?"
+        [(str "seed:" biz ":" idx) (get item 0) (or (get item 4) "") (get item 2) (get item 1) (get item 3) biz])
+      (seed-example-items biz (rest items) (+ idx 1)))))
+(defn seed-examples []
+  (let [has-items (db-query pos-db "SELECT id FROM pos_items LIMIT 1" []) seeded (db-query pos-db "SELECT source FROM pos_imports WHERE source='seed-examples'" [])]
+    (if (or (> (length has-items) 0) (> (length seeded) 0) (pos-imported?)) true
+      (do
+        (seed-example-items "fruit" [["포도" 1000 "개" 30] ["사과" 1500 "개" 40] ["배" 3000 "개" 20] ["귤" 15000 "상자" 8] ["딸기" 8000 "kg" 6] ["수박" 20000 "개" 5]] 0)
+        (seed-example-items "vegetable" [["상추" 2000 "봉" 20] ["대파" 3000 "단" 15] ["감자" 4000 "kg" 25] ["양파" 3000 "kg" 25] ["오이" 1000 "개" 20]] 0)
+        (seed-example-items "meat" [["삼겹살" 18000 "근" 10] ["목살" 16000 "근" 10] ["불고기" 15000 "팩" 12] ["닭고기" 8000 "마리" 8]] 0)
+        (seed-example-items "seafood" [["고등어" 5000 "마리" 15] ["오징어" 7000 "마리" 12] ["새우" 12000 "kg" 8] ["멸치" 8000 "팩" 10]] 0)
+        (seed-example-items "restaurant" [["김밥" 3500 "줄" 20] ["라면" 5000 "그릇" 15] ["떡볶이" 5000 "인분" 15] ["만두" 6000 "세트" 10]] 0)
+        (seed-example-items "cloth" [["A 티셔츠" 10000 "벌" 5 "S"] ["A 티셔츠" 10000 "벌" 8 "M"] ["A 티셔츠" 10000 "벌" 6 "L"] ["A 바지" 25000 "벌" 4 "M"] ["A 바지" 25000 "벌" 5 "L"] ["양말" 2000 "켤레" 50 "FREE"] ["조끼" 15000 "벌" 8 "FREE"] ["원피스" 35000 "벌" 3 "M"] ["원피스" 35000 "벌" 3 "L"] ["모자" 10000 "개" 12 "FREE"] ["운동화" 35000 "켤레" 4 "240"] ["운동화" 35000 "켤레" 5 "250"]] 0)
+        (seed-example-items "other" [] 0)
+        (db-exec pos-db "INSERT OR IGNORE INTO pos_customers(legacy_id,name) VALUES('seed:customer:1','김밥집(예시)'),('seed:customer:2','반찬가게(예시)')" [])
+        (db-exec pos-db "INSERT OR IGNORE INTO pos_imports(source) VALUES('seed-examples')" [])))))

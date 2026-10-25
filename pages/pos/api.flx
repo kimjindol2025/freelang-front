@@ -1,0 +1,138 @@
+(load "pages/pos/_db.flx")
+(pos-init)
+(pos-upgrade-snapshot)
+(pos-seed-examples)
+
+(defn pos-payload [biz]
+  {"ok" true "businesses" (pos-rows "SELECT * FROM pos_businesses ORDER BY id")
+   "business" biz "items" (pos-catalog-items biz) "customers" (pos-customers)
+   "sales" (pos-sales biz) "payments" (pos-payments) "suppliers" (pos-suppliers)
+   "recent_sales" (db-query pos-db "SELECT s.*,GROUP_CONCAT(l.item_name||' '||l.qty||l.unit,', ') AS item_summary FROM pos_sales s LEFT JOIN pos_sale_lines l ON l.sale_id=s.id WHERE s.business_id=(SELECT id FROM pos_businesses WHERE code=?) GROUP BY s.id ORDER BY s.id DESC LIMIT 5" [biz])
+   "supplier_items" (pos-supplier-item-links) "purchases" (pos-purchases biz) "supplier_payments" (pos-supplier-payments)
+   "stock_ins" (pos-stock-ins)
+   "price_settings" (db-query pos-db "SELECT rounding FROM pos_price_settings WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [biz])
+   "legacy_imported" (pos-imported?)
+   "today_sales" (db-query pos-db "SELECT COALESCE(SUM(total),0) AS total,COUNT(*) AS count FROM pos_sales WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?) AND date(created_at)=date('now','localtime')" [biz])
+   "today_customers" (db-query pos-db "SELECT CASE WHEN customer_id IS NULL THEN '일반 손님' ELSE '거래처' END AS label,COALESCE(SUM(total),0) AS total FROM pos_sales WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?) AND date(created_at)=date('now','localtime') GROUP BY label" [biz])
+   "today_payments" (db-query pos-db "SELECT payment_type AS label,COALESCE(SUM(total),0) AS total FROM pos_sales WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?) AND date(created_at)=date('now','localtime') GROUP BY payment_type" [biz])})
+(defn pos-error [msg status] (server-json {"ok" false "error" msg} status))
+(defn pos-num [v] (str-to-num (or v "")))
+(defn valid-biz? [v] (or (= v "fruit") (= v "vegetable") (= v "meat") (= v "seafood") (= v "restaurant") (= v "cloth") (= v "other")))
+(defn valid-legacy-items? [xs]
+  (if (= (length xs) 0) true
+    (let [x (first xs) price (pos-num (get x "price")) stock (pos-num (get x "stock"))]
+      (and (not (= (get x "id") nil)) (not (= (str-trim (or (get x "name") "")) ""))
+           (not (= price nil)) (not (= stock nil)) (>= price 0) (>= stock 0)
+           (valid-legacy-items? (rest xs))))))
+(defn valid-legacy-customers? [xs]
+  (if (= (length xs) 0) true
+    (and (not (= (get (first xs) "id") nil)) (not (= (str-trim (or (get (first xs) "name") "")) ""))
+         (valid-legacy-customers? (rest xs)))))
+(defn valid-legacy-lines? [xs]
+  (if (= (length xs) 0) true
+    (let [x (first xs) qty (pos-num (get x "qty")) price (pos-num (get x "price"))]
+      (and (not (= qty nil)) (> qty 0) (not (= price nil)) (>= price 0)
+           (valid-legacy-lines? (rest xs))))))
+(defn valid-legacy-sales? [xs]
+  (if (= (length xs) 0) true
+    (let [x (first xs) total (pos-num (get x "total"))]
+      (and (not (= total nil)) (>= total 0) (valid-legacy-lines? (or (get x "lines") []))
+           (valid-legacy-sales? (rest xs))))))
+(defn valid-legacy-catalogs? [xs catalogs]
+  (if (= (length xs) 0) true
+    (let [biz (first xs) catalog (get catalogs biz)]
+      (and (or (= catalog nil) (valid-legacy-items? catalog))
+           (valid-legacy-catalogs? (rest xs) catalogs)))))
+(defn valid-legacy? [s]
+  (let [catalogs (get s "catalogs")]
+   (try (and (not (= s nil)) (valid-biz? (get s "biz"))
+       (not (= (get s "items") nil)) (not (= (get s "sales") nil))
+       (not (= (get s "clients") nil)) (not (= (get s "catalogs") nil))
+       (not (= (get s "suppliers") nil)) (not (= (get s "purchases") nil))
+       (valid-legacy-items? (get s "items")) (valid-legacy-customers? (get s "clients"))
+       (valid-legacy-sales? (get s "sales")) (valid-legacy-catalogs? pos-biz catalogs))
+    (catch $e false))))
+(defn render [req]
+  (let [biz (or (server-req-query req "business") "fruit")]
+    (if (not (valid-biz? biz)) (pos-error "업종이 올바르지 않습니다" 400) (server-json (pos-payload biz)))))
+(defn render_post [req]
+  (let [b (get req "body") a (or (get b "action") "") biz (or (get b "business") "fruit")]
+    (cond
+      (= a "import-legacy")
+        (let [raw (or (get b "state_json") "")]
+          (if (> (length raw) 5000000) (pos-error "백업은 5MB 이하여야 합니다" 413)
+            (let [p (try (json-parse raw) (catch $e nil))]
+              (if (not (valid-legacy? p)) (pos-error "업종 또는 필수 목록이 올바르지 않은 백업입니다" 400)
+                (if (pos-imported?) (pos-error "백업은 이미 가져왔습니다" 409)
+                  (do (pos-import-legacy p) (server-json (pos-payload (get p "biz")))))))))
+      (= a "add-item")
+        (let [name (str-trim (or (get b "name") "")) price (pos-num (get b "price")) stock (pos-num (or (get b "stock") 0))]
+          (if (or (not (valid-biz? biz)) (= name "") (= price nil) (= stock nil) (< price 0) (< stock 0) (not (= price (round price 0))) (> stock 1000000))
+            (pos-error "이름, 업종, 정수 가격과 재고를 확인하세요" 400)
+            (do (pos-add-item biz name (str-trim (or (get b "sku") "")) (str-trim (or (get b "size") "")) (str-trim (or (get b "color") "")) (str-trim (or (get b "variant") "")) (str-trim (or (get b "unit") "개")) price stock) (server-json (pos-payload biz)))))
+      (= a "edit-item")
+        (let [id (pos-num (get b "id")) old (pos-get-item (pos-num (get b "id")))
+              price (pos-num (or (get b "price") (get old "price"))) name (str-trim (or (get b "name") (get old "name") ""))]
+          (if (or (<= id 0) (= old nil) (= name "") (= price nil) (< price 0) (not (= price (round price 0)))) (pos-error "품목 값이 올바르지 않습니다" 400)
+            (do (pos-edit-item biz id name (or (get b "sku") (get old "sku")) (or (get b "size") (get old "size")) (or (get b "color") (get old "color")) (or (get b "variant") (get old "variant")) (or (get b "unit") (get old "unit")) price) (server-json (pos-payload biz)))))
+      (= a "delete-item") (let [id (pos-num (get b "id"))] (if (or (= id nil) (<= id 0)) (pos-error "품목 ID가 필요합니다" 400) (do (pos-delete-item biz id) (server-json (pos-payload biz)))))
+      (= a "stock-in") (let [id (pos-num (get b "id")) qty (pos-num (get b "qty")) cost (pos-num (or (get b "cost") 0))]
+        (if (or (= id nil) (= qty nil) (= cost nil) (= (pos-get-item id) nil) (<= id 0) (<= qty 0) (> qty 1000000) (< cost 0) (not (= cost (round cost 0))) ) (pos-error "품목, 양수 수량과 정수 원가가 필요합니다" 400)
+          (do (pos-stock-in biz id qty cost) (server-json (pos-payload biz)))))
+      (= a "add-supplier") (let [name (str-trim (or (get b "name") ""))]
+        (if (= name "") (pos-error "거래처 이름이 필요합니다" 400)
+          (do (pos-add-supplier name (str-trim (or (get b "phone") "")) (str-trim (or (get b "address") ""))) (server-json (pos-payload biz)))))
+      (= a "edit-supplier") (let [id (pos-num (get b "id")) old (pos-get-supplier (pos-num (get b "id"))) name (str-trim (or (get b "name") (get old "name") ""))]
+        (if (or (= old nil) (= id nil) (<= id 0) (= name "")) (pos-error "거래처 값이 올바르지 않습니다" 400)
+          (do (pos-edit-supplier id name (or (get b "phone") (get old "phone")) (or (get b "address") (get old "address"))) (server-json (pos-payload biz)))))
+      (= a "supplier-payment") (let [id (pos-num (get b "id")) amount (pos-num (get b "amount")) supplier (pos-get-supplier (pos-num (get b "id")))]
+        (if (or (= id nil) (= amount nil) (= supplier nil) (<= amount 0) (> amount (get supplier "payable")) (not (= amount (round amount 0))))
+          (pos-error "미지급 잔액 이내의 입금액을 입력하세요" 400)
+          (do (pos-supplier-payment id amount) (server-json (pos-payload biz)))))
+      (= a "save-purchase")
+        (let [supplier-id (pos-num (get b "supplier_id")) supplier (pos-get-supplier (pos-num (get b "supplier_id")))
+              lines (get b "lines") adjust (= (get b "adjust_price") true) credit (= (get b "credit") true)
+              rounding (pos-num (get (first (db-query pos-db "SELECT rounding FROM pos_price_settings WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [biz])) "rounding"))]
+          (if (or (not (valid-biz? biz)) (= supplier nil) (= supplier-id nil) (not (pos-valid-purchase-lines? lines biz)))
+            (pos-error "거래처와 품목별 수량·매입가를 확인하세요" 400)
+            (try (do (pos-save-purchase biz supplier-id (or (get b "date") "") credit adjust lines)
+                     (server-json (pos-payload biz)))
+              (catch $e (pos-error "입고 저장을 완료하지 못했습니다" 409)))))
+      (= a "set-item-margin") (let [id (pos-num (get b "id")) margin (pos-num (get b "margin"))]
+        (if (or (= id nil) (= margin nil) (< margin 0) (> margin 1000) (not (= margin (round margin 0))))
+          (pos-error "비율은 0 이상의 정수로 입력하세요" 400)
+          (do (pos-set-item-margin biz id margin (pos-num (get (first (db-query pos-db "SELECT rounding FROM pos_price_settings WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [biz])) "rounding"))) (server-json (pos-payload biz)))))
+      (= a "set-price") (let [id (pos-num (get b "id")) price (pos-num (get b "price"))]
+        (if (or (= id nil) (= price nil) (< price 0) (not (= price (round price 0)))) (pos-error "판매가를 확인하세요" 400)
+          (do (db-exec pos-db "UPDATE pos_items SET price=? WHERE id=? AND active=1 AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" [price id biz]) (server-json (pos-payload biz)))))
+      (= a "bulk-margin") (let [margin (pos-num (get b "margin")) supplier-id (or (get b "supplier_id") "all")
+              rounding (pos-num (get (first (db-query pos-db "SELECT rounding FROM pos_price_settings WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [biz])) "rounding"))]
+        (if (or (= margin nil) (< margin 0) (> margin 1000) (not (= margin (round margin 0)))
+                (and (not (= supplier-id "all")) (= (pos-get-supplier (pos-num supplier-id)) nil)))
+          (pos-error "비율 또는 거래처를 확인하세요" 400)
+          (do (pos-apply-bulk-margin biz supplier-id margin rounding) (server-json (pos-payload biz)))))
+      (= a "set-rounding") (let [rounding (pos-num (get b "rounding"))]
+        (if (or (not (valid-biz? biz)) (not (or (= rounding 10) (= rounding 100))))
+          (pos-error "반올림 단위는 10원 또는 100원입니다" 400)
+          (do (pos-set-rounding biz rounding) (server-json (pos-payload biz)))))
+      (= a "delivery-done") (let [id (pos-num (get b "id"))]
+        (if (or (= id nil) (= (pos-get-sale id) nil)) (pos-error "판매 기록을 찾을 수 없습니다" 404)
+          (do (pos-mark-delivery-done id) (server-json (pos-payload biz)))))
+      (= a "add-customer") (let [name (str-trim (or (get b "name") ""))]
+        (if (= name "") (pos-error "고객 이름이 필요합니다" 400) (do (pos-add-customer name (or (get b "phone") "") (or (get b "address") "")) (server-json (pos-payload biz)))))
+      (= a "edit-customer") (let [id (pos-num (get b "id")) name (str-trim (or (get b "name") ""))]
+        (let [old (pos-get-customer id) name (str-trim (or (get b "name") (get old "name") ""))]
+          (if (or (= id nil) (<= id 0) (= old nil) (= name "")) (pos-error "고객 값이 올바르지 않습니다" 400) (do (pos-edit-customer id name (or (get b "phone") (get old "phone")) (or (get b "address") (get old "address"))) (server-json (pos-payload biz))))))
+      (= a "customer-payment") (let [id (pos-num (get b "id")) amount (pos-num (get b "amount"))]
+        (let [cust (pos-get-customer id)]
+          (if (or (= id nil) (= amount nil) (= cust nil) (<= id 0) (<= amount 0) (> amount (get cust "credit")) (not (= amount (round amount 0)))) (pos-error "고객 미수 잔액 이내의 양수 입금액이 필요합니다" 400)
+            (do (pos-customer-payment id amount) (server-json (pos-payload biz))))))
+      (= a "checkout")
+        (let [lines (get b "lines") payment (or (get b "payment") "") customer (or (get b "customer_id") "")]
+          (if (or (not (valid-biz? biz)) (= (length lines) 0)
+                  (and (not (= payment "card")) (not (= payment "cash")) (not (= payment "credit")))
+                  (and (= payment "credit") (= customer ""))) (pos-error "결제 방식, 품목과 외상 고객을 확인하세요" 400)
+            (try (let [result (pos-checkout biz customer payment (or (get b "delivery_address") "") (or (get b "delivery_phone") "") lines)]
+                   (server-json (obj-merge result (pos-payload biz))))
+              (catch $e (pos-error "재고가 부족하거나 판매를 저장하지 못했습니다" 409)))))
+      true (pos-error "지원하지 않는 작업입니다" 400))))
