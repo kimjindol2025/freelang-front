@@ -7,7 +7,7 @@
   {"ok" true "businesses" (pos-rows "SELECT * FROM pos_businesses ORDER BY id")
    "business" biz "items" (pos-catalog-items biz) "customers" (pos-customers)
    "sales" (pos-sales biz) "payments" (pos-payments) "suppliers" (pos-suppliers)
-   "recent_sales" (db-query pos-db "SELECT s.*,GROUP_CONCAT(l.item_name||' '||l.qty||l.unit,', ') AS item_summary FROM pos_sales s LEFT JOIN pos_sale_lines l ON l.sale_id=s.id WHERE s.business_id=(SELECT id FROM pos_businesses WHERE code=?) GROUP BY s.id ORDER BY s.id DESC LIMIT 5" [biz])
+   "recent_sales" (db-query pos-db "SELECT s.*,GROUP_CONCAT(l.item_name||' '||l.qty||l.unit||CASE WHEN l.unit=i.unit THEN '' ELSE ' ('||l.base_factor||i.unit||'/'||l.unit||')' END,', ') AS item_summary FROM pos_sales s LEFT JOIN pos_sale_lines l ON l.sale_id=s.id LEFT JOIN pos_items i ON i.id=l.item_id WHERE s.business_id=(SELECT id FROM pos_businesses WHERE code=?) GROUP BY s.id ORDER BY s.id DESC LIMIT 5" [biz])
    "supplier_items" (pos-supplier-item-links) "purchases" (pos-purchases biz) "supplier_payments" (pos-supplier-payments)
    "stock_ins" (pos-stock-ins)
    "price_settings" (db-query pos-db "SELECT rounding FROM pos_price_settings WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [biz])
@@ -66,19 +66,25 @@
                 (if (pos-imported?) (pos-error "백업은 이미 가져왔습니다" 409)
                   (do (pos-import-legacy p) (server-json (pos-payload (get p "biz")))))))))
       (= a "add-item")
-        (let [name (str-trim (or (get b "name") "")) price (pos-num (get b "price")) stock (pos-num (or (get b "stock") 0))]
-          (if (or (not (valid-biz? biz)) (= name "") (= price nil) (= stock nil) (< price 0) (< stock 0) (not (= price (round price 0))) (> stock 1000000))
-            (pos-error "이름, 업종, 정수 가격과 재고를 확인하세요" 400)
-            (do (pos-add-item biz name (str-trim (or (get b "sku") "")) (str-trim (or (get b "size") "")) (str-trim (or (get b "color") "")) (str-trim (or (get b "variant") "")) (str-trim (or (get b "unit") "개")) price stock) (server-json (pos-payload biz)))))
+        (let [name (str-trim (or (get b "name") "")) unit (str-trim (or (get b "unit") "개")) purchase-unit (str-trim (or (get b "purchase_unit") unit))
+              factor (pos-num (or (get b "purchase_factor") 1)) pack-price (pos-num (or (get b "pack_price") 0)) price (pos-num (get b "price")) stock (pos-num (or (get b "stock") 0))]
+          (if (or (not (valid-biz? biz)) (= name "") (= unit "") (= purchase-unit "") (= factor nil) (<= factor 0) (> factor 1000000) (and (> factor 1) (= purchase-unit unit))
+                  (= price nil) (= pack-price nil) (= stock nil) (< price 0) (< pack-price 0) (< stock 0)
+                  (not (= price (round price 0))) (not (= pack-price (round pack-price 0))) (> stock 1000000))
+            (pos-error "품목명, 단위 환산 수량과 정수 판매가를 확인하세요" 400)
+            (do (pos-add-item biz name (str-trim (or (get b "sku") "")) (str-trim (or (get b "size") "")) (str-trim (or (get b "color") "")) (str-trim (or (get b "variant") "")) unit purchase-unit factor pack-price price stock) (server-json (pos-payload biz)))))
       (= a "edit-item")
         (let [id (pos-num (get b "id")) old (pos-get-item (pos-num (get b "id")))
-              price (pos-num (or (get b "price") (get old "price"))) name (str-trim (or (get b "name") (get old "name") ""))]
-          (if (or (<= id 0) (= old nil) (= name "") (= price nil) (< price 0) (not (= price (round price 0)))) (pos-error "품목 값이 올바르지 않습니다" 400)
-            (do (pos-edit-item biz id name (or (get b "sku") (get old "sku")) (or (get b "size") (get old "size")) (or (get b "color") (get old "color")) (or (get b "variant") (get old "variant")) (or (get b "unit") (get old "unit")) price) (server-json (pos-payload biz)))))
+              price (pos-num (or (get b "price") (get old "price"))) pack-price (pos-num (or (get b "pack_price") (get old "pack_price")))
+              factor (pos-num (or (get b "purchase_factor") (get old "purchase_factor"))) unit (or (get b "unit") (get old "unit")) purchase-unit (or (get b "purchase_unit") (get old "purchase_unit")) name (str-trim (or (get b "name") (get old "name") ""))]
+          (if (or (<= id 0) (= old nil) (= name "") (= price nil) (= pack-price nil) (= factor nil) (<= factor 0) (> factor 1000000) (and (> factor 1) (= purchase-unit unit))
+                  (and (not (= unit (get old "unit"))) (> (get old "stock") 0))
+                  (< price 0) (< pack-price 0) (not (= price (round price 0))) (not (= pack-price (round pack-price 0)))) (pos-error "품목 값이 올바르지 않습니다" 400)
+            (do (pos-edit-item biz id name (or (get b "sku") (get old "sku")) (or (get b "size") (get old "size")) (or (get b "color") (get old "color")) (or (get b "variant") (get old "variant")) (or (get b "unit") (get old "unit")) (or (get b "purchase_unit") (get old "purchase_unit")) factor pack-price price) (server-json (pos-payload biz)))))
       (= a "delete-item") (let [id (pos-num (get b "id"))] (if (or (= id nil) (<= id 0)) (pos-error "품목 ID가 필요합니다" 400) (do (pos-delete-item biz id) (server-json (pos-payload biz)))))
-      (= a "stock-in") (let [id (pos-num (get b "id")) qty (pos-num (get b "qty")) cost (pos-num (or (get b "cost") 0))]
-        (if (or (= id nil) (= qty nil) (= cost nil) (= (pos-get-item id) nil) (<= id 0) (<= qty 0) (> qty 1000000) (< cost 0) (not (= cost (round cost 0))) ) (pos-error "품목, 양수 수량과 정수 원가가 필요합니다" 400)
-          (do (pos-stock-in biz id qty cost) (server-json (pos-payload biz)))))
+      (= a "stock-in") (let [id (pos-num (get b "id")) qty (pos-num (get b "qty")) cost (pos-num (or (get b "cost") 0)) item (pos-get-item (pos-num (get b "id"))) factor (if (or (= (get b "base_factor") nil) (= (get b "base_factor") "")) (get item "purchase_factor") (pos-num (get b "base_factor")))]
+        (if (or (= id nil) (= qty nil) (= cost nil) (= item nil) (= factor nil) (<= id 0) (<= qty 0) (> qty 1000000) (<= factor 0) (> factor 1000000) (< cost 0) (not (= cost (round cost 0))) (and (not (= (get item "purchase_unit") (get item "unit"))) (not (= qty (round qty 0)))) (and (= (get item "purchase_unit") (get item "unit")) (not (= factor 1)))) (pos-error "매입 단위 수량, 이번 입고의 환산 수량과 정수 원가를 확인하세요" 400)
+          (do (pos-stock-in biz id qty factor cost) (server-json (pos-payload biz)))))
       (= a "add-supplier") (let [name (str-trim (or (get b "name") ""))]
         (if (= name "") (pos-error "거래처 이름이 필요합니다" 400)
           (do (pos-add-supplier name (str-trim (or (get b "phone") "")) (str-trim (or (get b "address") ""))) (server-json (pos-payload biz)))))

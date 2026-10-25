@@ -492,10 +492,33 @@ const _fl={
     let props={};
     try{const raw=el.parentElement?.getAttribute('data-fl-props');if(raw)props=JSON.parse(raw);}catch(e){_fl._err(id,e,'props');}
     const update=()=>{
+      const active=document.activeElement;
+      const restoreFocus=el.contains(active);
+      let focusPath=[];
+      let selection=null;
+      if(restoreFocus){
+        let node=active;
+        while(node&&node!==el){
+          const parent=node.parentNode;
+          if(!parent){focusPath=[];break;}
+          focusPath.unshift(Array.prototype.indexOf.call(parent.childNodes,node));
+          node=parent;
+        }
+        if(node!==el)focusPath=[];
+        try{if(typeof active.selectionStart==='number')selection=[active.selectionStart,active.selectionEnd,active.selectionDirection];}catch(e){}
+      }
       try{
         while(el.firstChild)el.removeChild(el.firstChild);
         const r=renderFn(update,props);
         if(r)el.appendChild(r);
+        if(restoreFocus&&focusPath.length){
+          let next=el;
+          for(const index of focusPath){if(!next)break;next=next.childNodes[index];}
+          if(next&&typeof next.focus==='function'){
+            next.focus({preventScroll:true});
+            if(selection&&typeof next.setSelectionRange==='function')try{next.setSelectionRange(...selection);}catch(e){}
+          }
+        }
       }catch(e){
         _fl._err(id,e,'render');
         el.innerHTML='<div style="color:#ef4444;font-family:monospace;font-size:.8rem;padding:8px;background:#1a1a1a;border-radius:4px">[Island Error] '+String(e.message)+'</div>';

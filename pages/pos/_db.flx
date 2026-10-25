@@ -6,14 +6,21 @@
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_imports (source TEXT PRIMARY KEY, imported_at TEXT DEFAULT (datetime('now','localtime')))" [])
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_businesses (id INTEGER PRIMARY KEY, code TEXT NOT NULL UNIQUE, name TEXT NOT NULL)" [])
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_suppliers (id INTEGER PRIMARY KEY AUTOINCREMENT, legacy_id TEXT UNIQUE, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', payable INTEGER NOT NULL DEFAULT 0 CHECK(payable>=0))" [])
-  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_items (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER NOT NULL REFERENCES pos_businesses(id), supplier_id INTEGER REFERENCES pos_suppliers(id), legacy_id TEXT DEFAULT NULL, name TEXT NOT NULL, sku TEXT NOT NULL DEFAULT '', size TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', variant TEXT NOT NULL DEFAULT '', unit TEXT NOT NULL DEFAULT '개', price INTEGER NOT NULL CHECK(price>=0), cost INTEGER NOT NULL DEFAULT 0 CHECK(cost>=0), margin REAL NOT NULL DEFAULT 20, stock REAL NOT NULL DEFAULT 0 CHECK(stock>=0), active INTEGER NOT NULL DEFAULT 1, UNIQUE(business_id,legacy_id))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_items (id INTEGER PRIMARY KEY AUTOINCREMENT, business_id INTEGER NOT NULL REFERENCES pos_businesses(id), supplier_id INTEGER REFERENCES pos_suppliers(id), legacy_id TEXT DEFAULT NULL, name TEXT NOT NULL, sku TEXT NOT NULL DEFAULT '', size TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', variant TEXT NOT NULL DEFAULT '', unit TEXT NOT NULL DEFAULT '개', purchase_unit TEXT NOT NULL DEFAULT '', purchase_factor REAL NOT NULL DEFAULT 1 CHECK(purchase_factor>0), pack_price INTEGER NOT NULL DEFAULT 0 CHECK(pack_price>=0), price INTEGER NOT NULL CHECK(price>=0), cost INTEGER NOT NULL DEFAULT 0 CHECK(cost>=0), margin REAL NOT NULL DEFAULT 20, stock REAL NOT NULL DEFAULT 0 CHECK(stock>=0), active INTEGER NOT NULL DEFAULT 1, UNIQUE(business_id,legacy_id))" [])
+  (try (db-exec pos-db "ALTER TABLE pos_items ADD COLUMN purchase_unit TEXT NOT NULL DEFAULT ''" []) (catch $e nil))
+  (try (db-exec pos-db "ALTER TABLE pos_items ADD COLUMN purchase_factor REAL NOT NULL DEFAULT 1" []) (catch $e nil))
+  (try (db-exec pos-db "ALTER TABLE pos_items ADD COLUMN pack_price INTEGER NOT NULL DEFAULT 0" []) (catch $e nil))
+  (db-exec pos-db "UPDATE pos_items SET purchase_unit=unit WHERE purchase_unit=''" [])
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_customers (id INTEGER PRIMARY KEY AUTOINCREMENT, legacy_id TEXT DEFAULT NULL, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', credit INTEGER NOT NULL DEFAULT 0 CHECK(credit>=0), UNIQUE(legacy_id))" [])
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_sales (id INTEGER PRIMARY KEY AUTOINCREMENT, legacy_id TEXT NOT NULL DEFAULT '', business_id INTEGER NOT NULL REFERENCES pos_businesses(id), customer_id INTEGER REFERENCES pos_customers(id), customer_name TEXT NOT NULL DEFAULT '', payment_type TEXT NOT NULL CHECK(payment_type IN ('card','cash','credit')), total INTEGER NOT NULL CHECK(total>=0), delivery_address TEXT NOT NULL DEFAULT '', delivery_phone TEXT NOT NULL DEFAULT '', delivery_done INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
-  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_sale_lines (id INTEGER PRIMARY KEY AUTOINCREMENT, sale_id INTEGER NOT NULL REFERENCES pos_sales(id) ON DELETE CASCADE, item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL, qty REAL NOT NULL CHECK(qty>0), unit TEXT NOT NULL DEFAULT '개', unit_price INTEGER NOT NULL CHECK(unit_price>=0), total INTEGER NOT NULL CHECK(total>=0))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_sale_lines (id INTEGER PRIMARY KEY AUTOINCREMENT, sale_id INTEGER NOT NULL REFERENCES pos_sales(id) ON DELETE CASCADE, item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL, qty REAL NOT NULL CHECK(qty>0), unit TEXT NOT NULL DEFAULT '개', base_factor REAL NOT NULL DEFAULT 1 CHECK(base_factor>0), unit_price INTEGER NOT NULL CHECK(unit_price>=0), total INTEGER NOT NULL CHECK(total>=0))" [])
+  (try (db-exec pos-db "ALTER TABLE pos_sale_lines ADD COLUMN base_factor REAL NOT NULL DEFAULT 1" []) (catch $e nil))
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_customer_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER NOT NULL REFERENCES pos_customers(id), amount INTEGER NOT NULL CHECK(amount>0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
-  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_stock_ins (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL DEFAULT '', qty REAL NOT NULL CHECK(qty>0), cost INTEGER NOT NULL DEFAULT 0 CHECK(cost>=0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_stock_ins (id INTEGER PRIMARY KEY AUTOINCREMENT, item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL DEFAULT '', qty REAL NOT NULL CHECK(qty>0), base_factor REAL NOT NULL DEFAULT 1 CHECK(base_factor>0), cost INTEGER NOT NULL DEFAULT 0 CHECK(cost>=0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (try (db-exec pos-db "ALTER TABLE pos_stock_ins ADD COLUMN base_factor REAL NOT NULL DEFAULT 1" []) (catch $e nil))
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_supplier_items (supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), item_id INTEGER NOT NULL REFERENCES pos_items(id), PRIMARY KEY(supplier_id,item_id))" [])
-  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL, purchase_date TEXT NOT NULL, supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL, qty REAL NOT NULL CHECK(qty>0), unit TEXT NOT NULL, cost INTEGER NOT NULL CHECK(cost>=0), total INTEGER NOT NULL CHECK(total>=0), credit INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_purchases (id INTEGER PRIMARY KEY AUTOINCREMENT, batch_id TEXT NOT NULL, purchase_date TEXT NOT NULL, supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), item_id INTEGER REFERENCES pos_items(id), item_name TEXT NOT NULL, qty REAL NOT NULL CHECK(qty>0), unit TEXT NOT NULL, base_factor REAL NOT NULL DEFAULT 1 CHECK(base_factor>0), cost INTEGER NOT NULL CHECK(cost>=0), total INTEGER NOT NULL CHECK(total>=0), credit INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
+  (try (db-exec pos-db "ALTER TABLE pos_purchases ADD COLUMN base_factor REAL NOT NULL DEFAULT 1" []) (catch $e nil))
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_supplier_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, supplier_id INTEGER NOT NULL REFERENCES pos_suppliers(id), amount INTEGER NOT NULL CHECK(amount>0), created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')))" [])
   (db-exec pos-db "CREATE TABLE IF NOT EXISTS pos_price_settings (business_id INTEGER PRIMARY KEY REFERENCES pos_businesses(id), rounding INTEGER NOT NULL DEFAULT 10 CHECK(rounding IN (10,100)))" [])
   (db-exec pos-db "CREATE UNIQUE INDEX IF NOT EXISTS pos_item_sku_unique ON pos_items(business_id,sku) WHERE sku<>''" [])
@@ -29,7 +36,7 @@
 (defn customers [] (db-query pos-db "SELECT * FROM pos_customers ORDER BY name" []))
 (defn get-item [id] (first (db-query pos-db "SELECT i.* FROM pos_items i WHERE i.id=?" [id])))
 (defn get-customer [id] (first (db-query pos-db "SELECT * FROM pos_customers WHERE id=?" [id])))
-(defn sales [biz] (db-query pos-db "SELECT s.*,GROUP_CONCAT(l.item_name||' '||l.qty||l.unit,', ') AS item_summary FROM pos_sales s LEFT JOIN pos_sale_lines l ON l.sale_id=s.id WHERE s.business_id=(SELECT id FROM pos_businesses WHERE code=?) GROUP BY s.id ORDER BY s.id DESC LIMIT 100" [biz]))
+(defn sales [biz] (db-query pos-db "SELECT s.*,GROUP_CONCAT(l.item_name||' '||l.qty||l.unit||CASE WHEN l.unit=i.unit THEN '' ELSE ' ('||l.base_factor||i.unit||'/'||l.unit||')' END,', ') AS item_summary FROM pos_sales s LEFT JOIN pos_sale_lines l ON l.sale_id=s.id LEFT JOIN pos_items i ON i.id=l.item_id WHERE s.business_id=(SELECT id FROM pos_businesses WHERE code=?) GROUP BY s.id ORDER BY s.id DESC LIMIT 100" [biz]))
 (defn get-sale [id] (first (db-query pos-db "SELECT * FROM pos_sales WHERE id=?" [id])))
 (defn sale-lines [id] (db-query pos-db "SELECT * FROM pos_sale_lines WHERE sale_id=? ORDER BY id" [id]))
 (defn payments [] (db-query pos-db "SELECT p.*,c.name AS customer_name FROM pos_customer_payments p JOIN pos_customers c ON c.id=p.customer_id ORDER BY p.id DESC LIMIT 100" []))
@@ -39,6 +46,21 @@
 (defn supplier-payments [] (db-query pos-db "SELECT p.*,s.name AS supplier_name FROM pos_supplier_payments p JOIN pos_suppliers s ON s.id=p.supplier_id ORDER BY p.id DESC LIMIT 100" []))
 (defn stock-ins [] (db-query pos-db "SELECT x.*,i.name AS item_label FROM pos_stock_ins x LEFT JOIN pos_items i ON i.id=x.item_id ORDER BY x.id DESC LIMIT 100" []))
 (defn positive-int? [v] (and (not (= v nil)) (>= v 0) (= v (round v 0))))
+(defn sale-factor [item sell-unit]
+  (if (= item nil) nil
+    (if (= sell-unit (get item "unit")) 1
+      (if (and (= sell-unit (get item "purchase_unit")) (> (get item "purchase_factor") 1) (> (get item "pack_price") 0)) (get item "purchase_factor") nil))))
+(defn sale-unit-price [item sell-unit]
+  (if (= item nil) nil
+    (if (= sell-unit (get item "unit")) (get item "price")
+      (if (and (= sell-unit (get item "purchase_unit")) (> (get item "purchase_factor") 1)) (get item "pack_price") nil))))
+(defn sale-qty-valid? [item sell-unit qty]
+  (or (= sell-unit (get item "unit")) (= qty (round qty 0))))
+(defn line-stock-factor [item line]
+  (let [sell-unit (get line "unit") configured (pos-sale-factor item sell-unit) raw (get line "base_factor") override (str-to-num raw)]
+    (if (= configured nil) nil
+      (if (= sell-unit (get item "unit")) 1
+        (if (or (= raw nil) (= raw "")) configured (if (and (not (= override nil)) (> override 0) (<= override 1000000)) override nil))))))
 (defn pos-run [statements]
   (db-exec pos-db "BEGIN IMMEDIATE" [])
   (try
@@ -143,10 +165,10 @@
                  (db-exec pos-db "INSERT OR IGNORE INTO pos_imports(source) VALUES('normalized-v2')" [])
                  (db-exec pos-db "COMMIT" []))
           (catch $e (do (db-exec pos-db "ROLLBACK" []) (throw $e))))))))
-(defn add-item [biz name sku size color variant unit price stock]
-  (db-exec pos-db "INSERT INTO pos_items(business_id,name,sku,size,color,variant,unit,price,stock) SELECT id,?,?,?,?,?,?,?,? FROM pos_businesses WHERE code=?" [name sku size color variant unit price stock biz]))
-(defn edit-item [biz id name sku size color variant unit price]
-  (db-exec pos-db "UPDATE pos_items SET name=?,sku=?,size=?,color=?,variant=?,unit=?,price=? WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" [name sku size color variant unit price id biz]))
+(defn add-item [biz name sku size color variant unit purchase-unit purchase-factor pack-price price stock]
+  (db-exec pos-db "INSERT INTO pos_items(business_id,name,sku,size,color,variant,unit,purchase_unit,purchase_factor,pack_price,price,stock) SELECT id,?,?,?,?,?,?,?,?,?,?,? FROM pos_businesses WHERE code=?" [name sku size color variant unit purchase-unit purchase-factor pack-price price stock biz]))
+(defn edit-item [biz id name sku size color variant unit purchase-unit purchase-factor pack-price price]
+  (db-exec pos-db "UPDATE pos_items SET name=?,sku=?,size=?,color=?,variant=?,unit=?,purchase_unit=?,purchase_factor=?,pack_price=?,price=? WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" [name sku size color variant unit purchase-unit purchase-factor pack-price price id biz]))
 (defn delete-item [biz id] (db-exec pos-db "UPDATE pos_items SET active=0 WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" [id biz]))
 (defn add-customer [name phone address] (db-exec pos-db "INSERT INTO pos_customers(name,phone,address) VALUES(?,?,?)" [name phone address]))
 (defn edit-customer [id name phone address] (db-exec pos-db "UPDATE pos_customers SET name=?,phone=?,address=? WHERE id=?" [name phone address id]))
@@ -158,25 +180,27 @@
             {:sql "INSERT INTO pos_supplier_payments(supplier_id,amount) SELECT ?,? WHERE changes()=1" :params [id amount]}]))
 (defn valid-purchase-lines? [lines biz]
   (if (= (length lines) 0) false
-    (valid-purchase-tail? lines biz)))
+    (pos-valid-purchase-tail? lines biz)))
 (defn valid-purchase-tail? [lines biz]
   (if (= (length lines) 0) true
     (let [line (first lines) id (str-to-num (get line "item_id")) qty (str-to-num (get line "qty")) cost (str-to-num (get line "cost"))
-          item (db-query pos-db "SELECT id FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz])]
-      (and (not (= id nil)) (not (= qty nil)) (> qty 0) (not (= cost nil)) (>= cost 0)
-           (<= qty 1000000) (= cost (round cost 0)) (> (length item) 0)
-           (valid-purchase-tail? (rest lines) biz)))))
+          item (first (db-query pos-db "SELECT id,purchase_factor,purchase_unit,unit FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz]))
+          factor (if (or (= (get line "base_factor") nil) (= (get line "base_factor") "")) (get item "purchase_factor") (str-to-num (get line "base_factor")))]
+      (and (not (= id nil)) (not (= qty nil)) (> qty 0) (or (= (get item "purchase_unit") (get item "unit")) (= qty (round qty 0))) (not (= cost nil)) (>= cost 0)
+           (<= qty 1000000) (= cost (round cost 0)) (not (= item nil)) (not (= factor nil)) (> factor 0) (<= factor 1000000) (> (get item "purchase_factor") 0)
+           (or (not (= (get item "purchase_unit") (get item "unit"))) (= factor 1))
+           (pos-valid-purchase-tail? (rest lines) biz)))))
 (defn save-purchase-lines [supplier-id batch-id date credit adjust rounding lines]
   (if (= (length lines) 0) 0
     (let [line (first lines) item-id (str-to-num (get line "item_id")) qty (str-to-num (get line "qty")) cost (str-to-num (get line "cost"))
-          item (get-item item-id) margin (str-to-num (or (get line "margin") (get item "margin")))
+          item (get-item item-id) factor (if (or (= (get line "base_factor") nil) (= (get line "base_factor") "")) (str-to-num (get item "purchase_factor")) (str-to-num (get line "base_factor"))) base-cost (/ cost factor) margin (str-to-num (or (get line "margin") (get item "margin")))
           price-raw (get line "price")
-          price (if (or (= price-raw nil) (= price-raw "")) (* (round (/ (* cost (+ 100 margin)) rounding) 0) rounding) (str-to-num price-raw))
+          price (if (or (= price-raw nil) (= price-raw "")) (* (round (/ (* base-cost (+ 100 margin)) rounding) 0) rounding) (str-to-num price-raw))
           total (round (* qty cost) 0)]
-      (db-exec pos-db "INSERT INTO pos_purchases(batch_id,purchase_date,supplier_id,item_id,item_name,qty,unit,cost,total,credit) VALUES(?,COALESCE(NULLIF(?,''),date('now','localtime')),?,?,?,?,?,?,?,?)"
-        [batch-id date supplier-id item-id (get item "name") qty (get item "unit") cost total (if credit 1 0)])
+      (db-exec pos-db "INSERT INTO pos_purchases(batch_id,purchase_date,supplier_id,item_id,item_name,qty,unit,base_factor,cost,total,credit) VALUES(?,COALESCE(NULLIF(?,''),date('now','localtime')),?,?,?,?,?,?,?,?,?)"
+        [batch-id date supplier-id item-id (get item "name") qty (get item "purchase_unit") factor cost total (if credit 1 0)])
       (db-exec pos-db "UPDATE pos_items SET stock=stock+?,cost=?,supplier_id=?,margin=CASE WHEN ?=1 THEN ? ELSE margin END,price=CASE WHEN ?=1 THEN ? ELSE price END WHERE id=?"
-        [qty cost supplier-id (if adjust 1 0) margin (if adjust 1 0) price item-id])
+        [(* qty factor) base-cost supplier-id (if adjust 1 0) margin (if adjust 1 0) price item-id])
       (db-exec pos-db "INSERT OR IGNORE INTO pos_supplier_items(supplier_id,item_id) VALUES(?,?)" [supplier-id item-id])
       (+ total (save-purchase-lines supplier-id batch-id date credit adjust rounding (rest lines))))))
 (defn save-purchase [biz supplier-id date credit adjust lines]
@@ -199,27 +223,27 @@
   (db-exec pos-db "UPDATE pos_price_settings SET rounding=? WHERE business_id=(SELECT id FROM pos_businesses WHERE code=?)" [rounding biz]))
 (defn mark-delivery-done [id]
   (db-exec pos-db "UPDATE pos_sales SET delivery_done=1 WHERE id=? AND delivery_address<>''" [id]))
-(defn stock-in [biz id qty cost]
-  (pos-run [{:sql "UPDATE pos_items SET stock=stock+?,cost=CASE WHEN ?>0 THEN ? ELSE cost END WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" :params [qty cost cost id biz]}
-            {:sql "INSERT INTO pos_stock_ins(item_id,item_name,qty,cost) SELECT id,name,?,? FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND changes()=1" :params [qty cost id biz]}]))
+(defn stock-in [biz id qty factor cost]
+  (pos-run [{:sql "UPDATE pos_items SET stock=stock+?,cost=CASE WHEN ?>0 THEN ?/NULLIF(?,0) ELSE cost END WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?)" :params [(* qty factor) cost cost factor id biz]}
+           {:sql "INSERT INTO pos_stock_ins(item_id,item_name,qty,base_factor,cost) SELECT id,name,?,?,? FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND changes()=1" :params [qty factor cost id biz]}]))
 (defn customer-payment [id amount]
   (pos-run [{:sql "UPDATE pos_customers SET credit=MAX(0,credit-?) WHERE id=? AND credit>=?" :params [amount id amount]}
             {:sql "INSERT INTO pos_customer_payments(customer_id,amount) SELECT ?,? WHERE changes()=1" :params [id amount]}]))
 (defn cart-db-total [biz lines]
   (if (= (length lines) 0) 0
-    (let [line (first lines) qty (str-to-num (get line "qty")) id (str-to-num (get line "id"))
-          item (db-query pos-db "SELECT price,stock FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz])]
-      (if (or (= qty nil) (<= qty 0) (> qty 1000000) (= (length item) 0)) (throw "invalid line") nil)
-      (+ (round (* qty (str-to-num (get (first item) "price"))) 0) (cart-db-total biz (rest lines))))))
+    (let [line (first lines) qty (str-to-num (get line "qty")) id (str-to-num (get line "id")) sell-unit (get line "unit")
+          item (first (db-query pos-db "SELECT * FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz]))
+          factor (pos-line-stock-factor item line) price (pos-sale-unit-price item sell-unit)]
+      (if (or (= qty nil) (<= qty 0) (> qty 1000000) (= item nil) (= factor nil) (= price nil) (not (pos-sale-qty-valid? item sell-unit qty))) (throw "invalid line") nil)
+      (+ (round (* qty price) 0) (cart-db-total biz (rest lines))))))
 (defn checkout-lines [sale-id biz lines]
   (if (= (length lines) 0) true
-    (let [line (first lines) id (str-to-num (get line "id")) qty (str-to-num (get line "qty"))
-          item (first (db-query pos-db "SELECT name,unit,price,stock FROM pos_items WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1" [id biz]))
-          price (str-to-num (get item "price"))]
-      (if (or (= item nil) (= qty nil) (<= qty 0) (> qty 1000000)) (throw "invalid line") nil)
-      (let [changed (db-exec pos-db "UPDATE pos_items SET stock=stock-? WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1 AND stock>=?" [qty id biz qty])]
+    (let [line (first lines) id (str-to-num (get line "id")) qty (str-to-num (get line "qty")) sell-unit (get line "unit")
+          item (get-item id) factor (pos-line-stock-factor item line) price (pos-sale-unit-price item sell-unit) stock-qty (* qty factor)]
+      (if (or (= item nil) (= qty nil) (<= qty 0) (> qty 1000000) (= factor nil) (= price nil) (not (pos-sale-qty-valid? item sell-unit qty))) (throw "invalid line") nil)
+      (let [changed (db-exec pos-db "UPDATE pos_items SET stock=stock-? WHERE id=? AND business_id=(SELECT id FROM pos_businesses WHERE code=?) AND active=1 AND stock>=?" [stock-qty id biz stock-qty])]
         (if (= (get changed "affectedRows") 0) (throw "stock unavailable") nil))
-      (db-exec pos-db "INSERT INTO pos_sale_lines(sale_id,item_id,item_name,qty,unit,unit_price,total) VALUES(?,?,?,?,?,?,?)" [sale-id id (get item "name") qty (get item "unit") price (round (* qty price) 0)])
+      (db-exec pos-db "INSERT INTO pos_sale_lines(sale_id,item_id,item_name,qty,unit,base_factor,unit_price,total) VALUES(?,?,?,?,?,?,?,?)" [sale-id id (get item "name") qty sell-unit factor price (round (* qty price) 0)])
       (checkout-lines sale-id biz (rest lines)))))
 (defn checkout [biz customer-id payment delivery-address delivery-phone lines]
   (let [cust-id (if (= customer-id "") nil (str-to-num customer-id))]
