@@ -1,0 +1,99 @@
+; Native parser for the browser Island DSL. AST shape follows island-compiler.js.
+(defn island-space? [c]
+  (or (= c " ") (= c "\n") (= c "\r") (= c "\t") (= c ",")))
+(defn island-skip-comment [s i]
+  (if (or (>= i (length s)) (= (char-at s i) "\n")) i
+    (island-skip-comment s (+ i 1))))
+(defn island-skip-ws [s i]
+  (if (>= i (length s)) i
+    (let [c (char-at s i)]
+      (if (island-space? c) (island-skip-ws s (+ i 1))
+        (if (= c ";") (island-skip-ws s (island-skip-comment s i)) i)))))
+(defn island-atom-end? [c]
+  (or (island-space? c) (= c "(") (= c ")") (= c "{") (= c "}")
+      (= c "[") (= c "]") (= c "\"")))
+(defn island-atom-end [s i]
+  (if (or (>= i (length s)) (island-atom-end? (char-at s i))) i
+    (island-atom-end s (+ i 1))))
+(defn island-read-atom [s i]
+  (let [end (island-atom-end s i)
+        word (str-slice s i end)
+        number (str-to-num word)
+        node (if (= word "nil") nil
+               (if (= word "true") true
+                 (if (= word "false") false
+                   (if (and (not (= word "")) (not (= number nil)))
+                     number {"sym" word}))))]
+    [node end]))
+(defn island-read-string [s i result]
+  (if (>= i (length s)) [result i]
+    (let [c (char-at s i)]
+      (if (= c "\"") [result (+ i 1)]
+        (if (= c "\\")
+          (island-read-string s (+ i 2) (str result (char-at s (+ i 1))))
+          (island-read-string s (+ i 1) (str result c)))))))
+(defn island-js-array-string [items i result]
+  (if (>= i (length items)) result
+    (island-js-array-string items (+ i 1)
+      (str result (if (= i 0) "" ",") (island-js-string (get items i))))))
+(defn island-js-string [node]
+  (if (= node nil) ""
+    (if (array? node) (island-js-array-string node 0 "")
+      (if (map? node) "[object Object]" (str node)))))
+(defn island-map-key [node]
+  (if (string? node) node
+    (if (map? node)
+      (if (= (get node "kw") nil)
+        (if (= (get node "sym") nil) (island-js-string node) (get node "sym"))
+        (get node "kw"))
+      (island-js-string node))))
+(defn island-pairs-to-map [pairs i result]
+  (if (>= i (length pairs)) result
+    (island-pairs-to-map pairs (+ i 2)
+      (assoc result (island-map-key (get pairs i)) (get pairs (+ i 1))))))
+(defn island-read-list [s i close items]
+  (let [pos (island-skip-ws s i)]
+    (if (or (>= pos (length s)) (= (char-at s pos) close))
+      [items (+ pos 1)]
+      (let [entry (island-read s pos)]
+        (if (<= (get entry 1) pos) [items pos]
+          (island-read-list s (get entry 1) close
+            (append items (get entry 0))))))))
+(defn island-read [s i]
+  (let [pos (island-skip-ws s i)]
+    (if (>= pos (length s)) [nil pos]
+      (let [c (char-at s pos)]
+        (if (= c "(") (island-read-list s (+ pos 1) ")" [])
+          (if (= c "[") (island-read-list s (+ pos 1) "]" [])
+            (if (= c "{")
+              (let [entry (island-read-list s (+ pos 1) "}" [])]
+                [{"map" (island-pairs-to-map (get entry 0) 0 {})} (get entry 1)])
+              (if (= c "\"") (island-read-string s (+ pos 1) "")
+                (if (= c "@")
+                  (let [entry (island-read s (+ pos 1))]
+                    [[{"sym" "deref"} (get entry 0)] (get entry 1)])
+                  (if (= c ":")
+                    (let [entry (island-read-atom s (+ pos 1))]
+                      [{"kw" (get (get entry 0) "sym")} (get entry 1)])
+                    (island-read-atom s pos)))))))))))
+(defn island-parse [s]
+  (get (island-read s 0) 0))
+(defn island-block-end [s i depth]
+  (if (>= i (length s)) i
+    (let [c (char-at s i)
+          next (if (= c "(") (+ depth 1)
+                 (if (= c ")") (- depth 1) depth))]
+      (if (= next 0) (+ i 1)
+        (island-block-end s (+ i 1) next)))))
+(defn island-extract [src pos result]
+  (let [off (str-index-of (str-slice src pos (length src)) "(island ")]
+    (if (< off 0) result
+      (let [start (+ pos off)
+            end (island-block-end src start 0)
+            block (str-slice src start end)]
+        (island-extract src end
+          (append result {"block" block "start" start "end" end}))))))
+(defn island-asts [items i result]
+  (if (>= i (length items)) result
+    (island-asts items (+ i 1)
+      (append result (island-parse (get (get items i) "block")))))

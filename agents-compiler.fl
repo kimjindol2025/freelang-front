@@ -1,0 +1,92 @@
+; Native AGENTS.md generator using the static template in the preserved JS builder.
+(defn agents-template []
+  (let [src (file-read "fl-front-build.js")
+        marker "return `# FL-Front AI Context"
+        start (+ (str-index-of src marker) (length "return `"))
+        tail (str-slice src start (length src))
+        end (str-index-of tail "\n`;\n}")]
+    (island-template-unescape (str-slice tail 0 (+ end 1)) 0 "")))
+(defn agents-route-lines [routes i result]
+  (if (>= i (length routes)) result
+    (let [record (get routes i)]
+      (agents-route-lines routes (+ i 1)
+        (append result (str "| `" (get record "route") "` | "
+                            (get record "source") " |"))))))
+(defn agents-function-row [line comment]
+  (let [name-start (+ (length "(defn ") 0)
+        name-end (word-end line name-start)
+        name (str-slice line name-start name-end)
+        bracket (str-index-of (str-slice line name-end (length line)) "[")
+        params-start (+ name-end bracket 1)
+        params-end-off (str-index-of (str-slice line params-start (length line)) "]")
+        params-end (+ params-start params-end-off)
+        params (str-trim (str-slice line params-start params-end))
+        desc (if (str-starts-with comment ";")
+               (str-trim (str-slice comment 1 (length comment))) "")]
+    (str "| `" name "` | `[" params "]` | " desc " |")))
+(defn agents-valid-defn-line? [line]
+  (if (not (str-starts-with line "(defn ")) false
+    (let [start (length "(defn ")
+          end (word-end line start)
+          bracket (skip-whitespace line end)]
+      (and (> end start) (> bracket end)
+           (= (char-at line bracket) "[")
+           (>= (str-index-of (str-slice line (+ bracket 1) (length line)) "]") 0)))))
+(defn agents-function-rows [lines i result]
+  (if (>= i (length lines)) result
+    (let [line (get lines i)
+          prev (if (= i 0) "" (get lines (- i 1)))]
+      (agents-function-rows lines (+ i 1)
+        (if (agents-valid-defn-line? line)
+          (append result (agents-function-row line prev)) result)))))
+(defn agents-helper-sections [helpers i result]
+  (if (>= i (length helpers)) result
+    (let [name (get helpers i)
+          lines (str-split (file-read (str "pages/" name)) "\n")
+          rows (agents-function-rows lines 0 [])
+          section (if (= (length rows) 0) ""
+                    (str "### `" name "`\n\n"
+                         "| 함수 | 파라미터 | 설명 |\n"
+                         "|------|----------|------|\n"
+                         (str-join rows "\n")))]
+      (agents-helper-sections helpers (+ i 1)
+        (if (= section "") result (append result section))))))
+(defn agents-type-lines [lines file i result]
+  (if (>= i (length lines)) result
+    (let [line (get lines i)
+          trimmed (str-trim line)
+          annotation (str-trim (str-slice trimmed 7 (length trimmed)))]
+      (agents-type-lines lines file (+ i 1)
+        (if (str-starts-with trimmed "; @type ")
+          (append result (str "- `" file "` — `" annotation "`"))
+          result)))))
+(defn agents-types-helpers [helpers i result]
+  (if (>= i (length helpers)) result
+    (let [name (get helpers i)]
+      (agents-types-helpers helpers (+ i 1)
+        (concat result (agents-type-lines
+          (str-split (file-read (str "pages/" name)) "\n") name 0 []))))))
+(defn agents-types-routes [routes i result]
+  (if (>= i (length routes)) result
+    (let [file (get (get routes i) "source")
+          name (last (str-split file "/"))]
+      (agents-types-routes routes (+ i 1)
+        (concat result (agents-type-lines
+          (str-split (file-read file) "\n") name 0 []))))))
+(defn agents-generate [routes helpers]
+  (let [template (agents-template)
+        route-list (str-join (agents-route-lines routes 0 []) "\n")
+        helper-entries (agents-helper-sections helpers 0 [])
+        helper-section (if (= (length helper-entries) 0) ""
+          (str "\n## 헬퍼 파일 함수 목록 (자동 추출)\n\n"
+               (str-join helper-entries "\n\n") "\n"))
+        type-entries (agents-types-routes routes 0
+                       (agents-types-helpers helpers 0 []))
+        type-section (if (= (length type-entries) 0) ""
+          (str "\n## @type 주석 (파일에서 자동 추출)\n\n"
+               (str-join type-entries "\n") "\n"))]
+    (str-replace
+      (str-replace
+        (str-replace template (str "$" "{routeList}") route-list)
+        (str "$" "{typeSection}") type-section)
+      (str "$" "{helperSection}") helper-section)))

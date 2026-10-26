@@ -7,7 +7,7 @@ temp_dir=$(mktemp -d)
 trap 'rm -r "$temp_dir"' EXIT
 mkdir -p tests/build-actual
 find pages -type d | while IFS= read -r dir; do
-  mkdir -p "tests/build-actual/stripped/$dir" "tests/build-actual/sections/$dir" "tests/build-actual/pre-island/$dir" "tests/build-actual/pre-island-js/$dir"
+  mkdir -p "tests/build-actual/stripped/$dir" "tests/build-actual/sections/$dir" "tests/build-actual/pre-island/$dir" "tests/build-actual/pre-island-js/$dir" "tests/build-actual/island-ast/$dir" "tests/build-actual/island-ast-js/$dir" "tests/build-actual/island-scripts/$dir" "tests/build-actual/island-scripts-js/$dir"
 done
 sh scripts/build-style-fl.sh
 cp public/app.css tests/build-actual/app.css

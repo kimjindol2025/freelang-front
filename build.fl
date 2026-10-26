@@ -1,5 +1,8 @@
 ; Native front build stages that are supported by the current v11 C backend.
 (load "build-transforms.fl")
+(load "island-compiler.fl")
+(load "island-emitter.fl")
+(load "agents-compiler.fl")
 (defn scan-pages [dir]
   (scan-entries dir (sort (dir-list dir)) 0 []))
 (defn scan-entries [dir entries i result]
@@ -139,7 +142,7 @@
   (let [css-path (str "tests/style-actual/"
                   (str-slice file 0 (- (length file) 4)) ".css")]
     (if (file-exists css-path) (file-read css-path) "")))
-(defn page-body [record seen]
+(defn page-body [record seen bindings helpers]
   (let [file (get record "source")
         fn-name (get record "fn")
         route (get record "route")
@@ -155,26 +158,34 @@
         with-layout (if (= critical "") (get resolved 0)
                       (inject-layout-css (get resolved 0) critical))
         clean (str-trim (remove-defstores with-layout 0 ""))
-        ; shortcut: Island blocks remain raw until their native parser and JS emitter are ported.
-        island? (>= (str-index-of clean "(island ") 0)
+        islands (island-extract clean 0 [])
+        island? (> (length islands) 0)
+        island-src (island-transform clean islands bindings helpers file)
         renamed (rename-render
-                  (rename-render clean "render" (str fn-name "__inner"))
+                  (rename-render island-src "render" (str fn-name "__inner"))
                   "render_post" (str fn-name "_post__inner"))
         post? (>= (str-index-of (file-read file) "(defn render_post [req]") 0)
         section (str renamed "\n" (wrapper fn-name route false) "\n"
                   (if post? (str (wrapper (str fn-name "_post") route true) "\n") ""))]
     [(str "; ── " file " ──\n" section "\n")
-     (str section "\n") (get resolved 1) island? clean]))
-(defn page-bodies [routes i seen result island-list]
+     (str section "\n") (get resolved 1) island? clean islands]))
+(defn page-bodies [routes i seen result island-list bindings helpers]
   (if (>= i (length routes)) [result island-list]
     (let [record (get routes i)
-          entry (page-body record seen)
+          entry (page-body record seen bindings helpers)
           file (get record "source")]
       (do (file-write (str "tests/build-actual/sections/" file) (get entry 1))
           (file-write (str "tests/build-actual/pre-island/" file) (get entry 4))
+          (if (get entry 3)
+            (do
+              (file-write (str "tests/build-actual/island-ast/" file ".json")
+                (str (json-stringify (island-asts (get entry 5) 0 [])) "\n"))
+              (file-write (str "tests/build-actual/island-scripts/" file ".txt")
+                (str (str-join (island-compile-all (get entry 5) 0 []) "\n") "\n"))) nil)
           (page-bodies routes (+ i 1) (get entry 2)
             (str result (get entry 0))
-            (if (get entry 3) (append island-list file) island-list))))))
+            (if (get entry 3) (append island-list file) island-list)
+            bindings helpers))))))
 
 (let [files (scan-pages "pages")
       records (route-records files 0 [])
@@ -191,7 +202,7 @@
             (str-replace (file-read "public/app.css") "\n" " ")))
       global-css (str (file-read "templates/base.css") "\n" css)
       helper-pair (helper-bodies helpers 0 global-css {} "")
-      pages-pair (page-bodies routes 0 (get helper-pair 1) "" [])
+      pages-pair (page-bodies routes 0 (get helper-pair 1) "" [] bindings helpers)
       binding-text (if (= (length bindings) 0) ""
         (str "; ── CSS 스타일 클래스 바인딩 ──\n"
              (binding-lines bindings 0 "") "\n"))
@@ -211,6 +222,8 @@
     (file-write "tests/build-actual/route-registration.fl"
       (str-join registration "\n"))
     (file-write "tests/build-actual/_app.fl" app)
+    (file-write "tests/build-actual/AGENTS.md"
+      (agents-generate routes helpers))
     (file-write "tests/build-actual/island-pages.txt"
       (str (str-join (get pages-pair 1) "\n") "\n"))
     (println (str "BUILD_FL_ROUTES=" (length routes)))

@@ -1,0 +1,343 @@
+; Native browser JavaScript emitter for parsed Island ASTs.
+(defn island-drop [items n i result]
+  (if (>= i (length items)) result
+    (island-drop items n (+ i 1)
+      (if (>= i n) (append result (get items i)) result))))
+(defn island-sym [node]
+  (if (map? node) (get node "sym") nil))
+(defn island-emit-sym [s]
+  (let [known {"inc" "v => v + 1" "dec" "v => v - 1"
+               "not" "v => !v" "str" "_fl_str"
+               "nil?" "v => v == null"
+               "empty?" "v => !v || v.length === 0"}
+        hit (get known s)]
+    (if (= hit nil)
+      (let [plain (str-replace s "-" "_")]
+        (if (str-ends-with plain "?")
+          (str (str-slice plain 0 (- (length plain) 1)) "_q")
+          (if (str-ends-with plain "!")
+            (str (str-slice plain 0 (- (length plain) 1)) "_bang") plain)))
+      hit)))
+(defn island-emit-join [items start sep]
+  (island-emit-join-at items start sep start ""))
+(defn island-emit-join-at [items start sep i result]
+  (if (>= i (length items)) result
+    (island-emit-join-at items start sep (+ i 1)
+      (str result (if (= i start) "" sep) (island-emit (get items i))))))
+(defn island-emit-map [obj]
+  (island-emit-map-at obj (keys obj) 0 ""))
+(defn island-emit-map-at [obj names i result]
+  (if (>= i (length names)) (str "{" result "}")
+    (let [key (get names i)
+          keystr (if (str-starts-with key ":")
+                   (str-slice key 1 (length key)) key)]
+      (island-emit-map-at obj names (+ i 1)
+        (str result (if (= i 0) "" ", ")
+             (json-stringify keystr) ": " (island-emit (get obj key)))))))
+(defn island-emit [node]
+  (if (= node nil) "null"
+    (if (= node true) "true"
+      (if (= node false) "false"
+        (if (number? node) (str node)
+          (if (string? node) (json-stringify node)
+            (if (array? node) (island-emit-list node)
+              (if (map? node)
+                (let [kw (get node "kw")
+                      sym (get node "sym")
+                      obj (get node "map")]
+                  (if (not (= kw nil)) (json-stringify kw)
+                    (if (not (= sym nil)) (island-emit-sym sym)
+                      (if (not (= obj nil)) (island-emit-map obj) "null"))))
+                "null"))))))))
+(defn island-emit-binary [args op]
+  (str "(" (island-emit (get args 0)) " " op " "
+       (island-emit (get args 1)) ")"))
+(defn island-emit-get-in [args]
+  (let [obj (island-emit (get args 0))
+        keys (get args 1)]
+    (if (or (not (array? keys)) (= (length keys) 0))
+      (str "(" obj " ?? null)")
+      (island-emit-get-in-keys keys 0 obj))))
+(defn island-emit-get-in-keys [keys i chain]
+  (if (>= i (length keys)) (str "(" chain " ?? null)")
+    (island-emit-get-in-keys keys (+ i 1)
+      (str "(" chain ")?.[" (island-emit (get keys i)) "]"))))
+(defn island-emit-decls [bindings i result]
+  (if (>= i (length bindings)) result
+    (let [name (island-emit-sym (island-sym (get bindings i)))
+          val (island-emit (get bindings (+ i 1)))]
+      (island-emit-decls bindings (+ i 2)
+        (append result (str "const " name " = " val))))))
+(defn island-emit-let [args]
+  (let [decls (island-emit-decls (get args 0) 0 [])
+        body (island-drop args 1 0 [])]
+    (str "(() => { " (str-join decls "; ") "; return "
+         (island-emit-join body 0 ";\n  ") "; })()")))
+(defn island-emit-params [params i result]
+  (if (>= i (length params)) result
+    (island-emit-params params (+ i 1)
+      (append result (island-emit-sym (island-sym (get params i)))))))
+(defn island-emit-fn-body [body i result]
+  (if (>= i (length body)) result
+    (island-emit-fn-body body (+ i 1)
+      (append result (str (if (= i (- (length body) 1)) "return " "")
+                          (island-emit (get body i)))))))
+(defn island-emit-fn [args]
+  (let [params (island-emit-params (get args 0) 0 [])
+        body (island-emit-fn-body (island-drop args 1 0 []) 0 [])]
+    (str "(" (str-join params ", ") ") => { "
+         (str-join body "; ") "; }")))
+(defn island-state-decls [bindings i atoms others]
+  (if (>= i (length bindings)) [atoms others]
+    (let [node (get bindings (+ i 1))
+          decl (str "const " (island-emit-sym (island-sym (get bindings i)))
+                    " = " (island-emit node))
+          atom? (and (array? node) (= (island-sym (get node 0)) "atom"))]
+      (island-state-decls bindings (+ i 2)
+        (if atom? (append atoms decl) atoms)
+        (if atom? others (append others decl))))))
+(defn island-emit-island [args]
+  (let [body (island-drop args 2 0 [])
+        top (get body 0)
+        top-let? (and (= (length body) 1) (array? top)
+                      (= (island-sym (get top 0)) "let"))]
+    (if top-let?
+      (let [decls (island-state-decls (get top 1) 0 [] [])
+            atoms (get decls 0)
+            others (get decls 1)]
+        (if (> (length atoms) 0)
+          (let [body-js (island-emit-join (island-drop top 2 0 []) 0 ";\n      ")
+                inner (if (> (length others) 0)
+                        (str (str-join others "; ") "; return " body-js ";")
+                        (str "return " body-js ";"))]
+            (str "(() => { " (str-join atoms "; ") ";\n"
+                 "  return (update) => { " inner " };\n})()"))
+          (str "(update) => {\n    return "
+               (island-emit-join body 0 ";\n    ") ";\n  }")))
+      (str "(update) => {\n    return "
+           (island-emit-join body 0 ";\n    ") ";\n  }"))))
+(defn island-emit-h [args]
+  (str "_fl.h(" (island-emit (get args 0)) ", "
+       (if (> (length args) 1) (island-emit (get args 1)) "{}")
+       (if (> (length args) 2)
+         (str ", " (island-emit-join args 2 ", ")) "") ")"))
+(defn island-emit-list [node]
+  (if (= (length node) 0) "[]"
+    (let [head (get node 0)
+          sym (island-sym head)
+          args (island-drop node 1 0 [])
+          simple {"atom" "_fl.atom" "deref" "_fl.deref"
+                  "push" "_fl.push" "get" "_fl.get" "assoc" "_fl.assoc"
+                  "dissoc" "_fl.dissoc" "map" "_fl.map_arr"
+                  "filter" "_fl.filter_arr" "reduce" "_fl.reduce_arr"
+                  "fetch!" "_fl.fetch" "fetch-post!" "_fl.fetch_post"
+                  "fetch-delete!" "_fl.fetch_delete"
+                  "watch-store" "_fl.watch_store"}
+          simple-fn (get simple sym)
+          binary {"=" "===" "not=" "!==" ">" ">" "<" "<"
+                  ">=" ">=" "<=" "<=" "mod" "%" "??" "??"}
+          binary-op (get binary sym)]
+      (if (and (= sym nil) (not (array? head)))
+        (str "[" (island-emit-join node 0 ", ") "]")
+        (if (= sym "island") (island-emit-island args)
+          (if (= sym "let") (island-emit-let args)
+            (if (= sym "fn") (island-emit-fn args)
+              (if (= sym "if")
+                (str "(" (island-emit (get args 0)) ") ? ("
+                     (island-emit (get args 1)) ") : ("
+                     (island-emit (get args 2)) ")")
+                (if (= sym "do")
+                  (str "(() => { " (island-emit-join args 0 "; ") " })()")
+                  (if (= sym "swap!")
+                    (str "(_fl.swap(" (island-emit (get args 0)) ", "
+                         (island-emit (get args 1)) "), update())")
+                    (if (= sym "reset!")
+                      (str "(_fl.reset(" (island-emit (get args 0)) ", "
+                           (island-emit (get args 1)) "), update())")
+                      (if (= sym "h") (island-emit-h args)
+                        (if (= sym "str")
+                          (str "_fl_str(" (island-emit-join args 0 ", ") ")")
+                          (if (or (= sym "+") (= sym "-") (= sym "*") (= sym "/"))
+                            (str "(" (island-emit-join args 0
+                                (str " " sym " ")) ")")
+                            (if (not (= binary-op nil)) (island-emit-binary args binary-op)
+                              (island-emit-rest head sym args simple-fn))))))))))))))))
+(defn island-emit-rest [head sym args simple-fn]
+  (if (= sym "get-in") (island-emit-get-in args)
+    (if (= sym "not") (str "!(" (island-emit (get args 0)) ")")
+      (if (= sym "when")
+        (str "(" (island-emit (get args 0)) ") ? ("
+             (island-emit (get args 1)) ") : null")
+        (if (or (= sym "or") (= sym "and"))
+          (str "(" (island-emit-logical args 0
+                       (if (= sym "or") " || " " && ")) ")")
+          (if (= sym "length")
+            (str "(" (island-emit (get args 0)) ")?.length ?? 0")
+            (if (= sym "first")
+              (str "(" (island-emit (get args 0)) ")?.[0] ?? null")
+              (if (= sym "rest")
+                (str "(" (island-emit (get args 0)) ")?.slice(1) ?? []")
+                (if (= sym "get-store")
+                  (str "_fl.get_store(" (if (> (length args) 0)
+                    (island-emit (get args 0)) "") ")")
+                  (if (= sym "dispatch")
+                    (str "_fl.dispatch(" (island-emit (get args 0))
+                         (if (> (length args) 1)
+                           (str "," (island-emit (get args 1))) "") ")")
+                    (if (= sym "empty?")
+                      (let [value (island-emit (get args 0))]
+                        (str "(!((" value ") && (" value ").length > 0))"))
+                      (if (= sym "map")
+                        (str "_fl.map_arr(" (island-emit (get args 0)) ", "
+                             (island-emit (get args 1)) ")")
+                      (if (not (= simple-fn nil))
+                        (str simple-fn "(" (island-emit-join args 0 ", ") ")")
+                        (if (and (not (= sym nil)) (str-starts-with sym ".-"))
+                          (str "(" (island-emit (get args 0)) ")."
+                               (str-slice sym 2 (length sym)))
+                          (if (and (not (= sym nil)) (str-starts-with sym ".")
+                                   (> (length sym) 1))
+                            (str "(" (island-emit (get args 0)) ")."
+                                 (str-slice sym 1 (length sym)) "("
+                                 (island-emit-join args 1 ", ") ")")
+                            (str (island-emit head) "("
+                                 (island-emit-join args 0 ", ") ")"))))))))))))))))
+(defn island-emit-logical [args i sep]
+  (island-emit-logical-at args i sep ""))
+(defn island-emit-logical-at [args i sep result]
+  (if (>= i (length args)) result
+    (island-emit-logical-at args (+ i 1) sep
+      (str result (if (= i 0) "" sep) "("
+           (island-emit (get args i)) ")"))))
+(defn island-watch-keys [opts i found]
+  (if (>= i (length opts)) found
+    (let [node (get opts i)]
+      (if (= (get node "kw") "watch")
+        (island-watch-keys opts (+ i 1)
+          (concat found (island-strings-after opts (+ i 1) [])))
+        (island-watch-keys opts (+ i 1) found)))))
+(defn island-strings-after [opts i result]
+  (if (>= i (length opts)) result
+    (island-strings-after opts (+ i 1)
+      (if (string? (get opts i)) (append result (get opts i)) result))))
+(defn island-compile-one [entry idx]
+  (let [ast (island-parse (get entry "block"))
+        name (or (island-sym (get ast 1)) (str "Island" idx))
+        lower (str-lower name)
+        id (str "island-" lower "-" idx)
+        opts (get ast 2)
+        keys (if (array? opts) (island-watch-keys opts 0 []) [])
+        render-fn (island-emit-island (island-drop ast 1 0 []))
+        call (if (> (length keys) 0)
+               (str "_fl.mount_reactive(" (json-stringify id) ", "
+                    render-fn ", " (json-stringify keys) ");")
+               (str "_fl.mount(" (json-stringify id) ", " render-fn ");"))]
+    (str call "\n//# sourceURL=island-" lower ".flx")))
+(defn island-compile-all [entries i result]
+  (if (>= i (length entries)) result
+    (island-compile-all entries (+ i 1)
+      (append result (island-compile-one (get entries i) i)))))
+(defn island-runtime []
+  (let [src (file-read "island-compiler.js")
+        marker "const FL_ISLAND_RT = `"
+        start (+ (str-index-of src marker) (length marker))
+        tail (str-slice src start (length src))
+        end (str-index-of tail "`;")]
+    (island-template-unescape (str-slice tail 0 end) 0 "")))
+(defn island-template-unescape [s i result]
+  (if (>= i (length s)) result
+    (let [c (char-at s i)]
+      (if (and (= c "\\") (< (+ i 1) (length s)))
+        (let [next (char-at s (+ i 1))]
+          (island-template-unescape s (+ i 2)
+            (str result (if (= next "n") "\n"
+                          (if (= next "r") "\r"
+                            (if (= next "t") "\t" next))))))
+        (island-template-unescape s (+ i 1) (str result c))))))
+(defn island-css-vars [bindings i result]
+  (if (>= i (length bindings)) result
+    (let [binding (get bindings i)
+          name (str-replace (get binding "name") "-" "_")
+          cls (get binding "cls")]
+      (island-css-vars bindings (+ i 1)
+        (str result (if (= i 0) "" "\n")
+             "var " name "=\"" cls "\";")))))
+(defn island-store-value [raw]
+  (if (or (= raw "[]") (= raw "{}") (= raw "true") (= raw "false")) raw
+    (if (not (= (str-to-num raw) nil)) raw
+      (if (and (str-starts-with raw "\"") (str-ends-with raw "\""))
+        raw "null"))))
+(defn island-store-init [src pos result]
+  (let [off (str-index-of (str-slice src pos (length src)) "(defstore ")]
+    (if (< off 0) result
+      (let [start (+ pos off 10)
+            end-off (str-index-of (str-slice src start (length src)) ")")]
+        (if (< end-off 0) result
+          (let [end (+ start end-off)
+                form (str-trim (str-slice src start end))
+                space (str-index-of form " ")
+                key (if (str-starts-with form ":")
+                      (str-slice form 1 space) (str-slice form 0 space))
+                value (str-trim (str-slice form (+ space 1) (length form)))
+                line (str "if(_fl.get_store(\"" key "\")==null)_fl.dispatch(\""
+                          key "\"," (island-store-value value) ");")]
+            (island-store-init src (+ end 1)
+              (str result (if (= result "") "" "\n") line))))))))
+(defn island-helper-source [helpers i result]
+  (if (>= i (length helpers)) result
+    (island-helper-source helpers (+ i 1)
+      (str result (file-read (str "pages/" (get helpers i))) "\n"))))
+(defn island-remove-blocks [src islands i pos result]
+  (if (>= i (length islands)) (str result (str-slice src pos (length src)))
+    (let [entry (get islands i)
+          start (get entry "start")
+          end (get entry "end")]
+      (island-remove-blocks src islands (+ i 1) end
+        (str result (str-slice src pos start))))))
+(defn island-placeholder-name [entry idx]
+  (let [ast (island-parse (get entry "block"))
+        name (island-sym (get ast 1))
+        end (if (= name nil) 0 (word-end name 0))
+        valid (if (= end 0) (str "island" idx)
+                (str-slice name 0 end))]
+    (str "island-" (str-lower valid) "-" idx)))
+(defn island-replace-numbered [src islands i]
+  (if (>= i (length islands)) src
+    (let [id (island-placeholder-name (get islands i) i)
+          marker (str "\"ISLAND_PLACEHOLDER_" i "\"")
+          div (str "<div id='" id "'></div>")]
+      (island-replace-numbered
+        (str-replace src marker (json-stringify div)) islands (+ i 1)))))
+(defn island-all-divs [islands i result]
+  (if (>= i (length islands)) result
+    (island-all-divs islands (+ i 1)
+      (str result "<div id='" (island-placeholder-name (get islands i) i)
+           "'></div>"))))
+(defn island-compress-spaces [s]
+  (let [next (str-replace s "  " " ")]
+    (if (= s next) s (island-compress-spaces next))))
+(defn island-utils-css []
+  (let [path (if (file-exists "skl-utils.css") "skl-utils.css"
+               (if (file-exists "utils.css") "utils.css" nil))]
+    (if (= path nil) ""
+      (str-trim (island-compress-spaces
+        (str-replace (str-replace (str-replace (file-read path)
+          "\n" " ") "\r" " ") "\t" " "))))))
+(defn island-transform [src islands bindings helpers file]
+  (if (= (length islands) 0) src
+    (let [no-blocks (str-trim (island-remove-blocks src islands 0 0 ""))
+          scripts (island-compile-all islands 0 [])
+          css-vars (island-css-vars bindings 0 "")
+          store-source (str (island-helper-source helpers 0 "") (file-read file))
+          store-init (island-store-init store-source 0 "")
+          script-block (str (island-runtime) "<script>\n"
+                            css-vars "\n" store-init "\n"
+                            (str-join scripts "\n") "\n</script>")
+          numbered (island-replace-numbered no-blocks islands 0)
+          unnamed (str-replace numbered "\"ISLAND_PLACEHOLDER\""
+                    (json-stringify (island-all-divs islands 0 "")))
+          with-scripts (str-replace unnamed "\"ISLAND_SCRIPTS\""
+                         (json-stringify script-block))
+          utils (island-utils-css)]
+      (if (= utils "") with-scripts
+        (str-replace with-scripts "<style>" (str "<style>" utils))))))
