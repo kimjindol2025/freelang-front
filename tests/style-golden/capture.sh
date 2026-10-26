@@ -12,5 +12,5 @@ done
 find pages -type f -name '*.css' | LC_ALL=C sort | while IFS= read -r file; do
   dest="tests/style-golden/paired/${file#pages/}"
   mkdir -p "$(dirname "$dest")"
-  sed ':a;N;$!ba;s/[[:space:]][[:space:]]*/ /g' "$file" > "$dest"
+  perl -0777 -ne 's/\s+/ /g; s/^ //; s/ $//; print' "$file" > "$dest"
 done
