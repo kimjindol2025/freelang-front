@@ -1,0 +1,275 @@
+; Native CSS compiler for the style forms used by FL-Front.
+(define prop-map {
+  ":bg" "background" ":bg-img" "background-image" ":bg-size" "background-size"
+  ":color" "color" ":size" "font-size" ":weight" "font-weight" ":font" "font-family"
+  ":align" "text-align" ":decoration" "text-decoration" ":lh" "line-height"
+  ":ws" "white-space" ":truncate" "truncate"
+  ":p" "padding" ":pt" "padding-top" ":pb" "padding-bottom"
+  ":pl" "padding-left" ":pr" "padding-right" ":px" "px" ":py" "py"
+  ":m" "margin" ":mt" "margin-top" ":mb" "margin-bottom"
+  ":ml" "margin-left" ":mr" "margin-right" ":mx" "mx" ":my" "my"
+  ":width" "width" ":height" "height" ":min-w" "min-width"
+  ":max-w" "max-width" ":min-h" "min-height" ":max-h" "max-height"
+  ":radius" "border-radius" ":border" "border" ":border-top" "border-top"
+  ":border-color" "border-color" ":outline" "outline" ":shadow" "box-shadow"
+  ":display" "display" ":flex" "flex" ":flex-dir" "flex-direction"
+  ":flex-wrap" "flex-wrap" ":items" "align-items" ":justify" "justify-content"
+  ":gap" "gap" ":cols" "cols" ":col-span" "col-span" ":rows" "rows"
+  ":position" "position" ":top" "top" ":bottom" "bottom" ":left" "left"
+  ":right" "right" ":z" "z-index" ":inset" "inset" ":overflow" "overflow"
+  ":cursor" "cursor" ":opacity" "opacity" ":transition" "transition"
+  ":transform" "transform" ":pointer" "pointer" ":select" "select"
+  ":aspect" "aspect-ratio" ":object" "object-fit"})
+(define shadow-map {"sm" "0 1px 3px rgba(0,0,0,.12)"
+                    "md" "0 4px 12px rgba(0,0,0,.15)"
+                    "lg" "0 8px 24px rgba(0,0,0,.18)"
+                    "xl" "0 16px 40px rgba(0,0,0,.22)"
+                    "none" "none"})
+(define pseudos ["hover" "focus" "active" "visited" "disabled" "checked"
+                 "focus-within" "focus-visible" "placeholder"])
+(define breakpoints ["xl" "lg" "md" "sm"])
+(define widths {"xl" "1280px" "lg" "1024px" "md" "768px" "sm" "640px"})
+
+(defn word-char? [c]
+  (let [n (char-code-at c 0)]
+    (and (not (= n nil))
+         (or (and (>= n 48) (<= n 57)) (and (>= n 65) (<= n 90))
+             (and (>= n 97) (<= n 122)) (= n 45) (= n 95)))))
+(defn digit? [c]
+  (let [n (char-code-at c 0)] (and (not (= n nil)) (>= n 48) (<= n 57))))
+(defn whitespace? [c]
+  (or (= c " ") (= c "\n") (= c "\r") (= c "\t")))
+(defn scan-while [s i mode]
+  (if (>= i (length s)) i
+    (let [c (char-at s i)]
+      (if (if (= mode "word") (word-char? c)
+            (if (= mode "space") (whitespace? c)
+              (or (digit? c) (= c "."))))
+        (scan-while s (+ i 1) mode) i))))
+(defn has-pair? [pairs key i]
+  (if (>= i (length pairs)) false
+    (if (= (get (get pairs i) 0) key) true (has-pair? pairs key (+ i 1)))))
+
+; JS scans all quoted pairs first, then numeric pairs without an existing key.
+(defn candidate [block start mode]
+  (let [stop (scan-while block start "word")
+        value-start (scan-while block stop "space")
+        key (str ":" (str-slice block start stop))]
+    (if (or (= start stop) (= value-start stop)) nil
+      (if (= mode "quoted")
+        (if (= (char-at block value-start) "\"")
+          (let [off (str-index-of
+                      (str-slice block (+ value-start 1) (length block)) "\"")]
+            (if (<= off 0) nil
+              [(+ value-start off 2) key
+               (str-slice block (+ value-start 1) (+ value-start off 1))]))
+          nil)
+        (if (digit? (char-at block value-start))
+          (let [end (scan-while block value-start "number")]
+            [end key (str-slice block value-start end)])
+          nil)))))
+(defn scan-pairs [block pos mode pairs]
+  (let [off (str-index-of (str-slice block pos (length block)) ":")]
+    (if (< off 0) pairs
+      (let [start (+ pos off 1)
+            found (candidate block start mode)]
+        (if (= found nil)
+          (scan-pairs block start mode pairs)
+          (let [key (get found 1)]
+            (scan-pairs block (get found 0) mode
+              (if (and (= mode "number") (has-pair? pairs key 0)) pairs
+                (append pairs [key (get found 2)])))))))))
+
+(defn prefix-of [key prefixes i]
+  (if (>= i (length prefixes)) nil
+    (let [prefix (get prefixes i)]
+      (if (str-starts-with key (str prefix "-")) prefix
+        (prefix-of key prefixes (+ i 1))))))
+(defn group-pairs [pairs i base pseudo responsive]
+  (if (>= i (length pairs))
+    {"base" base "pseudo" pseudo "responsive" responsive}
+    (let [pair (get pairs i)
+          key (str-slice (get pair 0) 1 (length (get pair 0)))
+          pc (prefix-of key pseudos 0)
+          bp (prefix-of key breakpoints 0)]
+      (if (not (= pc nil))
+        (group-pairs pairs (+ i 1) base
+          (assoc pseudo pc (append (or (get pseudo pc) [])
+                            [(str ":" (str-slice key (+ (length pc) 1) (length key)))
+                             (get pair 1)]))
+          responsive)
+        (if (not (= bp nil))
+          (group-pairs pairs (+ i 1) base pseudo
+            (assoc responsive bp (append (or (get responsive bp) [])
+                                  [(str ":" (str-slice key (+ (length bp) 1) (length key)))
+                                   (get pair 1)])))
+          (group-pairs pairs (+ i 1) (append base pair) pseudo responsive))))))
+
+(defn hex-of [n]
+  (if (< n 16)
+    (char-at "0123456789abcdef" n)
+    (str (hex-of (bit-shr n 4)) (char-at "0123456789abcdef" (bit-and n 15)))))
+(defn hash-step [s i h]
+  (if (>= i (length s)) h
+    (hash-step s (+ i 1)
+      (bit-and (bit-xor (* h 33) (char-code-at s i)) 4294967295))))
+(defn class-name [name grouped]
+  (let [json (json-stringify grouped)
+        hash (hex-of (hash-step (str name json) 0 5381))]
+    (str (str-replace name "-" "_") "__"
+         (str-slice hash 0 (if (> (length hash) 4) 4 (length hash))))))
+
+(defn declaration [key value context]
+  (let [prop (get prop-map key)]
+    (if (= prop nil)
+      (do (println (str "⚠ 알 수 없는 속성 '" key "' (" context ")")) "")
+      (if (= key ":truncate") "overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+      (if (= key ":px") (str "padding-left:" value ";padding-right:" value ";")
+      (if (= key ":py") (str "padding-top:" value ";padding-bottom:" value ";")
+      (if (= key ":mx") (str "margin-left:" value ";margin-right:" value ";")
+      (if (= key ":my") (str "margin-top:" value ";margin-bottom:" value ";")
+      (if (= key ":cols") (str "grid-template-columns:repeat(" value ",1fr);")
+      (if (= key ":col-span") (str "grid-column:span " value ";")
+      (if (= key ":rows") (str "grid-template-rows:repeat(" value ",1fr);")
+      (if (= key ":pointer") (str "pointer-events:" value ";")
+      (if (= key ":select") (str "user-select:" value ";")
+      (str prop ":" (if (= key ":shadow") (or (get shadow-map value) value) value) ";")
+      )))))))))))))
+(defn declarations [pairs i context]
+  (if (>= i (length pairs)) ""
+    (str (declaration (get (get pairs i) 0) (get (get pairs i) 1) context)
+         (declarations pairs (+ i 1) context))))
+(defn pseudo-rules [cls grouped order i context]
+  (if (>= i (length order)) []
+    (let [pc (get order i)
+          pairs (get (get grouped "pseudo") pc)
+          decls (if (= pairs nil) "" (declarations pairs 0 context))]
+      (if (= decls "") (pseudo-rules cls grouped order (+ i 1) context)
+        (concat [(str "." cls ":" pc "{" decls "}")]
+                (pseudo-rules cls grouped order (+ i 1) context))))))
+(defn responsive-rules [cls grouped i context]
+  (if (>= i (length breakpoints)) []
+    (let [bp (get breakpoints i)
+          pairs (get (get grouped "responsive") bp)
+          decls (if (= pairs nil) "" (declarations pairs 0 context))]
+      (if (= decls "") (responsive-rules cls grouped (+ i 1) context)
+        (concat [(str "@media(max-width:" (get widths bp) "){." cls "{" decls "}}")]
+                (responsive-rules cls grouped (+ i 1) context))))))
+(defn render-style [block context]
+  (let [name-start (scan-while block 6 "space")
+        name-end (scan-while block name-start "word")
+        name (str-slice block name-start name-end)
+        quoted (scan-pairs block 0 "quoted" [])
+        pairs (scan-pairs block 0 "number" quoted)
+        grouped (group-pairs pairs 0 [] {} {})
+        cls (class-name name grouped)
+        base (declarations (get grouped "base") 0 context)
+        base-rules (if (= base "") [] [(str "." cls "{" base "}")])
+        rules (concat (concat base-rules
+                       (pseudo-rules cls grouped (keys (get grouped "pseudo")) 0 context))
+                      (responsive-rules cls grouped 0 context))]
+    (if (= name "") nil
+      {"name" name "cls" cls "css" (str-join rules " ")})))
+
+(defn block-end [s pos depth]
+  (if (>= pos (length s)) pos
+    (let [c (char-at s pos)
+          next (if (= c "(") (+ depth 1) (if (= c ")") (- depth 1) depth))]
+      (if (= next 0) (+ pos 1) (block-end s (+ pos 1) next)))))
+(defn extract-styles [src pos context result]
+  (let [off (str-index-of (str-slice src pos (length src)) "(style ")]
+    (if (< off 0) result
+      (let [start (+ pos off)
+            end (block-end src start 0)
+            style (render-style (str-slice src start end) context)]
+        (extract-styles src end context
+          (if (= style nil) result (append result style)))))))
+(defn css-of [styles i]
+  (if (>= i (length styles)) []
+    (concat [(get (get styles i) "css")] (css-of styles (+ i 1)))))
+(defn only-flx? [name] (str-ends-with name ".flx"))
+(defn scan-files [dir]
+  (let [entries (sort (dir-list dir))]
+    (scan-entries dir entries 0 [])))
+(defn scan-entries [dir entries i result]
+  (if (>= i (length entries)) result
+    (let [name (get entries i)
+          path (str dir "/" name)]
+      (if (dir-exists? path)
+        (scan-entries dir entries (+ i 1) (concat result (scan-files path)))
+        (scan-entries dir entries (+ i 1)
+          (if (only-flx? name) (append result path) result))))))
+(defn unique-styles [styles i names result]
+  (if (>= i (length styles)) result
+    (let [style (get styles i)
+          name (get style "name")]
+      (if (= (get names name) nil)
+        (unique-styles styles (+ i 1) (assoc names name true) (append result style))
+        (unique-styles styles (+ i 1) names result)))))
+(defn collapse-spaces [s]
+  (let [next (str-replace s "  " " ")]
+    (if (= next s) s (collapse-spaces next))))
+(defn normalize-css [s]
+  (str-trim (collapse-spaces
+    (str-replace (str-replace (str-replace s "\n" " ") "\r" " ") "\t" " "))))
+(defn paired-css [files i result]
+  (if (>= i (length files)) result
+    (let [path (get files i)
+          css-path (str (str-slice path 0 (- (length path) 4)) ".css")]
+      (if (file-exists css-path)
+        (let [css (normalize-css (file-read css-path))
+              dest (str "tests/style-actual/paired/"
+                        (str-slice css-path 6 (length css-path)))]
+          (do (file-write dest css)
+              (paired-css files (+ i 1)
+                (if (= css "") result (str result " " css)))))
+        (paired-css files (+ i 1) result)))))
+(defn compile-files [files i styles]
+  (if (>= i (length files)) styles
+    (let [path (get files i)
+          found (extract-styles (file-read path) 0 path [])
+          dest (str "tests/style-actual/" (str-slice path 0 (- (length path) 4)) ".css")]
+      (do
+        (file-write dest (str-join (css-of found 0) " "))
+        (compile-files files (+ i 1) (concat styles found))))))
+(defn bindings-of [styles i result]
+  (if (>= i (length styles)) result
+    (let [style (get styles i)]
+      (bindings-of styles (+ i 1)
+        (assoc result (get style "name") (get style "cls"))))))
+(defn skip-comment [src pos]
+  (if (or (>= pos (length src)) (= (char-at src pos) "\n")) pos
+    (skip-comment src (+ pos 1))))
+(defn styled-parts [src pos bindings result]
+  (if (>= pos (length src)) result
+    (let [c (char-at src pos)]
+      (if (= c ";") (styled-parts src (skip-comment src pos) bindings result)
+        (if (= c "\"")
+          (let [off (str-index-of (str-slice src (+ pos 1) (length src)) "\"")]
+            (if (< off 0) result
+              (styled-parts src (+ pos off 2) bindings
+                (str result (str-slice src (+ pos 1) (+ pos off 1))))))
+          (if (word-char? c)
+            (let [end (scan-while src pos "word")
+                  word (str-slice src pos end)]
+              (styled-parts src end bindings
+                (str result (or (get bindings word) ""))))
+            (styled-parts src (+ pos 1) bindings result)))))))
+(defn styled-html [styles css extra]
+  (let [src (file-read "pages/styled.flx")
+        marker "(layout-html \"Styled\" (str"
+        start (+ (str-index-of src marker) (length marker))
+        end-off (str-index-of (str-slice src start (length src)) ") req))")
+        end (if (< end-off 0) (length src) (+ start end-off))
+        body (styled-parts (str-slice src start end) 0 (bindings-of styles 0 {}) "")]
+    (str "<!doctype html><html><head><meta charset=\"utf-8\"><title>Styled</title><style>"
+         (normalize-css css) extra "</style></head><body>" body "</body></html>\n")))
+
+(let [files (scan-files "pages")
+      styles (unique-styles (compile-files files 0 []) 0 {} [])
+      css (str "/* FL-Front 자동 생성 — 직접 수정 금지 */\n"
+               (str-join (css-of styles 0) "\n") "\n")
+      extra (paired-css files 0 "")]
+  (do (file-write "public/app.css" css)
+      (file-write "public/styled.html" (styled-html styles css extra))
+      (println (str "STYLE_FL_STYLES=" (length styles)))))
