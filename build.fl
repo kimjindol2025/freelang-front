@@ -185,7 +185,7 @@
           (page-bodies routes (+ i 1) (get entry 2)
             (str result (get entry 0))
             (if (get entry 3) (append island-list file) island-list)
-            bindings helpers))))))
+            bindings helpers)))))
 
 (let [files (scan-pages "pages")
       records (route-records files 0 [])
