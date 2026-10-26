@@ -221,6 +221,11 @@
       (if (= (get names name) nil)
         (unique-styles styles (+ i 1) (assoc names name true) (append result style))
         (unique-styles styles (+ i 1) names result)))))
+(defn binding-list [styles i result]
+  (if (>= i (length styles)) result
+    (let [style (get styles i)]
+      (binding-list styles (+ i 1)
+        (append result {"name" (get style "name") "cls" (get style "cls")})))))
 (defn collapse-spaces [s]
   (let [next (str-replace s "  " " ")]
     (if (= next s) s (collapse-spaces next))))
@@ -287,5 +292,7 @@
                (str-join (css-of styles 0) "\n") "\n")
       extra (paired-css files 0 "")]
   (do (file-write "public/app.css" css)
+      (file-write "tests/style-actual/bindings.json"
+        (str (json-stringify (binding-list styles 0 [])) "\n"))
       (file-write "public/styled.html" (styled-html styles css extra))
       (println (str "STYLE_FL_STYLES=" (length styles)))))

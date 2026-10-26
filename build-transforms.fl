@@ -69,7 +69,7 @@
             name (str-slice s start end)]
         (defn-names s end
           (if (or (= name "") (str-starts-with name (str ns "-")))
-            names (append names name)) ns))))
+            names (append names name)) ns)))))
 (defn rename-names [s names ns i]
   (if (>= i (length names)) s
     (let [name (get names i)
@@ -88,7 +88,11 @@
             close (str-index-of (str-slice src name-end (length src)) ")")
             end (if (< close 0) name-end (+ name-end close 1))
             after (if (= (char-at src end) "\n") (+ end 1) end)
-            stripped (str (str-slice src 0 at)
+            before (if (and (>= at 2)
+                            (= (char-at src (- at 1)) "\n")
+                            (= (char-at src (- at 2)) "\n"))
+                     (- at 1) at)
+            stripped (str (str-slice src 0 before)
                           (str-slice src after (length src)))
             names (defn-names stripped 0 [] name)]
         (str "; ── ns: " name " ──\n"
@@ -134,9 +138,57 @@
           (let [end (+ start close-off 1)
                 after (if (= (char-at src end) "\n") (+ end 1) end)]
             (remove-defstores src after
-              (str result (str-slice src pos start))))))))
+              (str result (str-slice src pos start)))))))))
 (defn server-fn-to-defn [src]
   (let [off (str-index-of src "(server-fn ")]
     (if (< off 0) src
       (str (str-slice src 0 off) "(defn "
            (str-slice src (+ off 11) (length src))))))
+(defn replace-first [s needle replacement]
+  (let [at (str-index-of s needle)]
+    (if (< at 0) s
+      (str (str-slice s 0 at) replacement
+           (str-slice s (+ at (length needle)) (length s))))))
+(defn replace-global-css [src css]
+  (let [start (str-index-of src "(define GLOBAL-CSS")]
+    (if (< start 0) src
+      (let [tail (str-slice src start (length src))
+            off (str-index-of tail "\")")]
+        (if (< off 0) src
+          (str (str-slice src 0 start) "(define GLOBAL-CSS \"<style>" css "</style>\")"
+               (str-slice src (+ start off 2) (length src))))))))
+(defn whitespace? [c]
+  (or (= c " ") (= c "\n") (= c "\r") (= c "\t")))
+(defn skip-whitespace [s i]
+  (if (and (< i (length s)) (whitespace? (char-at s i)))
+    (skip-whitespace s (+ i 1)) i))
+(defn inject-layout-css [src css]
+  (let [start (str-index-of src "(layout")]
+    (if (< start 0) src
+      (let [after-layout (+ start 7)
+            quote-at (skip-whitespace src after-layout)]
+        (if (or (= quote-at after-layout)
+                (not (= (char-at src quote-at) "\""))) src
+          (let [quote-end (skip-quoted src (+ quote-at 1))
+                str-at (skip-whitespace src quote-end)]
+            (if (or (= str-at quote-end)
+                    (not (starts-at? src str-at "(str"))) src
+              (let [end (+ str-at 4)]
+                (str (str-slice src 0 end) " "
+                     (json-stringify (str "<style>" css "</style>"))
+                     (str-slice src end (length src)))))))))))
+(defn rename-render [src old new]
+  (let [head (str "(defn " old " [req]")
+        dollar-head (str "(defn " old " [$req]")
+        replacement (str "(defn " new " [req]")]
+    (if (starts-at? src 0 head) (replace-first src head replacement)
+      (if (starts-at? src 0 dollar-head)
+        (replace-first src dollar-head replacement)
+        (let [next (replace-first src (str "\n" head) (str "\n" replacement))]
+          (if (= next src)
+            (replace-first src (str "\n" dollar-head) (str "\n" replacement))
+            next))))))
+(defn wrapper [fn-name route post?]
+  (str "(defn " fn-name " [req]\n"
+       "  (try (" fn-name "__inner req)\n"
+       "    (catch $err (dev-error-page \"" route (if post? " [POST]" "") "\" (str $err)))))"))

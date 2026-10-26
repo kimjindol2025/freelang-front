@@ -1,0 +1,153 @@
+
+; ── fl-front 내장 헬퍼 (자동 주입) ──
+
+; ── 누락 stdlib 보완 ──
+; nil? — FreeLang에 없는 함수 보완
+(defn nil? [x] (= x nil))
+
+; round — 반올림 (% 연산자로 소수점 추출)
+(defn round [n]
+  (let [frac (% n 1)]
+    (if (>= frac 0.5)
+      (+ (- n frac) 1)
+      (- n frac))))
+
+; str-slice — 부분 문자열 추출
+(defn str-slice [s start end]
+  (let [chars (str-split (str s) "")
+        idx   (atom 0)]
+    (arr-join
+      (filter
+        (fn [_c]
+          (let [i (deref idx)
+                _ (swap! idx (fn [n] (+ n 1)))]
+            (and (>= i start) (< i end))))
+        chars)
+      "")))
+
+; map-indexed — 인덱스 포함 map (atom 카운터 방식)
+(defn map-indexed [f arr]
+  (let [idx (atom 0)]
+    (map
+      (fn [item]
+        (let [i (deref idx)
+              _ (swap! idx (fn [n] (+ n 1)))]
+          (f i item)))
+      arr)))
+
+; server-html alias — snake_case 혼동 방지
+(defn server-html [html] (server_html html))
+
+; empty? — 빈 컬렉션 체크
+(defn empty? [x] (if (= x nil) true (= (length x) 0)))
+
+; form-field: JSON + urlencoded 둘 다 지원
+(defn form-field [req key]
+  (let [raw (get req "body")]
+    (if (= raw nil)
+      ""
+      (let [val (get raw key)]
+        (if (= val nil) "" (str val))))))
+
+; form-data — body 전체 맵 반환
+(defn form-data [req]
+  (let [body (get req "body")]
+    (if (= body nil) {} body)))
+
+; form-get — 특정 키 읽기 (없으면 "")
+(defn form-get [req key]
+  (let [body (get req "body")]
+    (if (= body nil) ""
+      (let [v (get body key)]
+        (if (= v nil) "" (str v))))))
+
+; form-validate — 필수 키 검증 → {"valid" true/false "errors" [...누락키]}
+(defn form-validate [req keys]
+  (let [missing (filter (fn [k] (= (form-get req k) "")) keys)]
+    {"valid" (= (length missing) 0)
+     "errors" missing}))
+
+; url-decode: + → 공백 처리
+(defn url-decode [s]
+  (if (= s nil) ""
+    (str-replace-in (str s) "+" " ")))
+
+; 에러 오버레이 HTML 렌더러 — AI 친화적 메시지 포함
+(defn dev-error-page [route msg]
+  (let [hint (if (> (str-count (str msg) "not found") 0)
+               (str "<div style='background:#1c1917;border:1px solid #78350f;border-radius:8px;padding:16px;margin-top:16px'>"
+                    "<div style='color:#fbbf24;font-size:.8rem;font-weight:700;margin-bottom:8px'>💡 AI 힌트</div>"
+                    "<div style='color:#fde68a;font-size:.85rem;line-height:1.6'>"
+                    "함수명 오타 가능성 있음.<br>"
+                    "올바른 목록: <code>AGENTS.md</code> 참고<br>"
+                    "server_ 함수는 언더스코어(snake_case) 사용<br>"
+                    "예: server-html → server_html ❌, server-html ✅"
+                    "</div></div>")
+               "")]
+    (server_status 500
+      (str "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+           "<title>Error — FL-Front</title>"
+           "<style>body{margin:0;font-family:monospace;background:#0d0d0d;color:#fff}"
+           ".box{max-width:860px;margin:60px auto;padding:40px}"
+           ".tag{display:inline-block;background:#ef4444;color:white;font-size:.75rem;"
+           "padding:4px 10px;border-radius:4px;margin-bottom:16px;font-weight:700}"
+           "h1{font-size:1.4rem;margin:0 0 16px;color:#fca5a5}"
+           "pre{background:#1a1a1a;border:1px solid #333;border-radius:8px;"
+           "padding:24px;overflow-x:auto;font-size:.85rem;line-height:1.6;color:#f87171}"
+           ".route{color:#9ca3af;font-size:.85rem;margin-bottom:8px}"
+           "code{background:#292524;padding:2px 6px;border-radius:3px;color:#fde68a}"
+           "</style>"
+           "</head><body><div class='box'>"
+           "<span class='tag'>Runtime Error</span>"
+           "<div class='route'>" route "</div>"
+           "<h1>서버 오류가 발생했습니다</h1>"
+           "<pre>" msg "</pre>"
+           hint
+           "</div></body></html>"))))
+
+; ── h() SSR — HTML 문자열 빌더 ──
+; 사용: (h "div" {:class btn :id "main"} "내용")
+; 사용: (h "div" {:class card} (h "p" {} "자식"))
+; 자식이 배열이면 자동으로 결합
+
+(defn arr-join [arr sep]
+  (reduce
+    (fn [acc x] (if (= acc "") (str x) (str acc sep x)))
+    "" arr))
+
+; 큰따옴표 문자
+(define DQUOTE (first (str-split (json-str "x") "x")))
+
+(defn h-attrs [attrs]
+  (if (= attrs nil) ""
+    (let [pairs (map-entries attrs)]
+      (arr-join
+        (filter (fn [s] (not (= s "")))
+          (map (fn [pair]
+            (let [k (get pair 0)
+                  v (get pair 1)]
+              (if (= v nil) ""
+                (str " " k "=" DQUOTE (str v) DQUOTE))))
+            pairs))
+        ""))))
+
+(defn h [tag attrs content]
+  (let [a (h-attrs attrs)
+        c (if (= content nil) "" (str content))]
+    (str "<" tag a ">" c "</" tag ">")))
+
+; 자기닫힘 태그용
+(defn h! [tag attrs]
+  (str "<" tag (h-attrs attrs) ">"))
+
+; 404 핸들러
+(defn not_found_handler [req]
+  (server_status 404
+    "<!DOCTYPE html><html><head><meta charset='utf-8'><title>404 — 페이지를 찾을 수 없음 — FreeLang Front</title>
+<style>body{font-family:sans-serif;margin:0;background:#f9fafb}
+.box{max-width:480px;margin:120px auto;text-align:center;padding:24px}
+h1{font-size:4rem;margin:0;color:#6366f1}p{color:#6b7280}
+a{color:#6366f1;text-decoration:none;font-weight:600}</style></head>
+<body><div class='box'><h1>404</h1>
+<p>요청하신 페이지를 찾을 수 없습니다.</p>
+<a href='/'>← 홈으로</a></div></body></html>"))

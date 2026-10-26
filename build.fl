@@ -102,6 +102,78 @@
           stripped (remove-style-blocks (file-read file) 0 "")]
       (do (file-write dest stripped)
           (write-stripped-pages files (+ i 1))))))
+(defn binding-lines [bindings i result]
+  (if (>= i (length bindings)) result
+    (let [binding (get bindings i)
+          name (get binding "name")
+          cls (get binding "cls")
+          snake (str-replace name "-" "_")
+          next (str result "(define " snake " \"" cls "\")\n")]
+      (binding-lines bindings (+ i 1)
+        (if (= name snake) next
+          (str next "(define " name " \"" cls "\")\n"))))))
+(defn app-css [routes i css]
+  (if (>= i (length routes)) css
+    (let [file (get (get routes i) "source")
+          paired (str (str-slice file 0 (- (length file) 4)) ".css")
+          extra (if (file-exists paired)
+                  (str-trim (str-replace (file-read paired) "\n" " ")) "")]
+      (app-css routes (+ i 1)
+        (if (= extra "") css (str css " " extra))))))
+(defn escape-css [s]
+  (str-replace (str-replace s "\\" "\\\\") "\"" "\\\""))
+(defn helper-body [file css seen]
+  (let [name (last (str-split file "/"))
+        raw (str-trim (file-read file))
+        source (if (= name "_layout.flx")
+                 (replace-global-css raw (escape-css css)) raw)
+        stripped (str-trim (remove-style-blocks source 0 ""))
+        resolved (resolve-loads stripped "pages" seen 0 "")]
+    [(str "; ── " name " ──\n" (get resolved 0) "\n\n") (get resolved 1)]))
+(defn helper-bodies [helpers i css seen result]
+  (if (>= i (length helpers)) [result seen]
+    (let [entry (helper-body (str "pages/" (get helpers i)) css seen)]
+      (helper-bodies helpers (+ i 1) css (get entry 1)
+        (str result (get entry 0))))))
+(defn page-critical-css [file]
+  (let [css-path (str "tests/style-actual/"
+                  (str-slice file 0 (- (length file) 4)) ".css")]
+    (if (file-exists css-path) (file-read css-path) "")))
+(defn page-body [record seen]
+  (let [file (get record "source")
+        fn-name (get record "fn")
+        route (get record "route")
+        raw (str-trim (file-read file))
+        critical (page-critical-css file)
+        first-pass (server-fn-to-defn raw)
+        with-link (if (= critical "") first-pass
+                    (replace-first first-pass
+                      "\"<link rel='stylesheet' href='/public/app.css'>\""
+                      (json-stringify (str "<style>" critical "</style>"))))
+        stripped (str-trim (remove-style-blocks with-link 0 ""))
+        resolved (resolve-loads stripped (dirname-of file) seen 0 "")
+        with-layout (if (= critical "") (get resolved 0)
+                      (inject-layout-css (get resolved 0) critical))
+        clean (str-trim (remove-defstores with-layout 0 ""))
+        island? (>= (str-index-of clean "(island ") 0)
+        renamed (rename-render
+                  (rename-render clean "render" (str fn-name "__inner"))
+                  "render_post" (str fn-name "_post__inner"))
+        post? (>= (str-index-of (file-read file) "(defn render_post [req]") 0)
+        section (str renamed "\n" (wrapper fn-name route false) "\n"
+                  (if post? (str (wrapper (str fn-name "_post") route true) "\n") ""))]
+    [(str "; ── " file " ──\n" section "\n")
+     (str section "\n") (get resolved 1) island? clean]))
+(defn page-bodies [routes i seen result island-list]
+  (if (>= i (length routes)) [result island-list]
+    (let [record (get routes i)
+          entry (page-body record seen)
+          file (get record "source")]
+      (do (file-write (str "tests/build-actual/sections/" file) (get entry 1))
+          (file-write (str "tests/build-actual/pre-island/" file) (get entry 4))
+          (page-bodies routes (+ i 1) (get entry 2)
+            (str result (get entry 0))
+            (if (get entry 3) (append island-list file) island-list))))))
 
 (let [files (scan-pages "pages")
       records (route-records files 0 [])
@@ -112,7 +184,23 @@
       registration (concat (route-lines routes 0 [])
         ["(server-get \"/*\" \"not_found_handler\")" ""
          (str "(println \"FL-Front v0.1 — http://localhost:" port "\")")
-         (str "(server-start " port ")")])]
+         (str "(server-start " port ")")])
+      bindings (json-parse (file-read "tests/style-actual/bindings.json"))
+      css (app-css routes 0 (str-trim
+            (str-replace (file-read "public/app.css") "\n" " ")))
+      global-css (str (file-read "templates/base.css") "\n" css)
+      helper-pair (helper-bodies helpers 0 global-css {} "")
+      pages-pair (page-bodies routes 0 (get helper-pair 1) "" [])
+      binding-text (if (= (length bindings) 0) ""
+        (str "; ── CSS 스타일 클래스 바인딩 ──\n"
+             (binding-lines bindings 0 "") "\n"))
+      app (str "; _app.fl — 자동 생성. 직접 수정 금지.\n"
+               "; 생성: <native>\n\n"
+               (file-read "templates/injected-helpers.fl") "\n\n"
+               binding-text
+               "; ── 레이아웃·헬퍼 함수 ──\n"
+               (get helper-pair 0) (get pages-pair 0)
+               (str-join registration "\n"))]
   (do
     (write-stripped-pages (scan-all-flx "pages") 0)
     (file-write "tests/build-actual/routes.json"
@@ -121,5 +209,9 @@
       (str (json-stringify helpers) "\n"))
     (file-write "tests/build-actual/route-registration.fl"
       (str-join registration "\n"))
+    (file-write "tests/build-actual/_app.fl" app)
+    (file-write "tests/build-actual/island-pages.txt"
+      (str (str-join (get pages-pair 1) "\n") "\n"))
     (println (str "BUILD_FL_ROUTES=" (length routes)))
-    (println (str "BUILD_FL_HELPERS=" (length helpers)))))
+    (println (str "BUILD_FL_HELPERS=" (length helpers)))
+    (println (str "BUILD_FL_ISLAND_PAGES=" (length (get pages-pair 1))))))

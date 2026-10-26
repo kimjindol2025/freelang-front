@@ -1,0 +1,139 @@
+/* ━━━ OKLCH + Relative Colors + light-dark() 다크모드 ━━━ */
+:root{
+  color-scheme: light dark;
+
+  /* OKLCH 팔레트 — 지각적으로 균일한 색상 */
+  --c-primary:   oklch(0.55 0.22 264);
+  --c-primary-d: oklch(from var(--c-primary) calc(l - 0.07) c h);
+  --c-primary-l: oklch(from var(--c-primary) 0.94 0.05 h);
+  --c-success:   oklch(0.55 0.17 145);
+  --c-warning:   oklch(0.62 0.15 76);
+  --c-danger:    oklch(0.50 0.20 25);
+
+  /* light-dark() — 다크모드 자동 전환 */
+  --c-bg:      light-dark(oklch(0.97 0.01 264), oklch(0.12 0.015 264));
+  --c-surface: light-dark(oklch(1 0 0),          oklch(0.17 0.012 264));
+  --c-border:  light-dark(oklch(0.91 0.01 264),  oklch(0.27 0.015 264));
+  --c-text:    light-dark(oklch(0.17 0.01 264),  oklch(0.92 0.005 264));
+  --c-muted:   light-dark(oklch(0.65 0.01 264),  oklch(0.52 0.01 264));
+  --c-nav-bg:  light-dark(oklch(0.17 0.03 264),  oklch(0.10 0.02 264));
+
+  --radius-sm:8px;--radius-md:12px;
+  --shadow-sm:0 1px 3px oklch(0 0 0 / .07);
+  --shadow-md:0 4px 16px oklch(0 0 0 / .12);
+  --ease-spring:linear(0,0.009,0.035 2.1%,0.141,0.281 6.7%,0.723 12.9%,0.938 16.7%,1.017,1.06,1.081 21%,1.09,1.088 24.6%,1.081,1.037 33.3%,1.009 38.3%,1);
+  --ease-bounce:linear(0,0.063,0.25,0.563,1.001,1.199 18.2%,1.249,1.27,1.274,1.25 25%,1.008 32.8%,0.96,0.944 37%,0.944 38.6%,0.96,1.001 46.6%,1.015,1.016 52.5%,1.001 56.6%,0.994,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--c-bg);color:var(--c-text);min-height:100dvh}
+h1,h2,h3{text-wrap:balance;overflow-wrap:break-word}
+p{text-wrap:pretty;overflow-wrap:break-word;margin:8px 0;line-height:1.6}
+a{color:var(--c-primary);text-decoration:none;transition:color .15s}
+a:hover{text-decoration:underline;color:var(--c-primary-d)}
+.card{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-sm);margin-bottom:16px;transition:box-shadow .3s var(--ease-spring),transform .3s var(--ease-spring)}
+.card:hover{box-shadow:var(--shadow-md);transform:translateY(-2px)}
+.badge{display:inline-block;padding:2px 9px;border-radius:99px;font-size:.76rem;font-weight:600}
+.badge-primary{background:var(--c-primary-l);color:var(--c-primary-d)}
+.badge-success{background:#dcfce7;color:var(--c-success)}
+.badge-warning{background:#fef3c7;color:var(--c-warning)}
+.badge-danger{background:#fee2e2;color:var(--c-danger)}
+.table-wrap{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:16px;box-shadow:var(--shadow-sm)}
+table{width:100%;border-collapse:collapse}
+th{background:#f8fafc;padding:10px 14px;font-size:.82rem;font-weight:600;color:#6b7280;border-bottom:1px solid var(--c-border);text-align:left}
+td{padding:11px 14px;font-size:.9rem;border-bottom:1px solid #f1f3f6;transition:background .15s}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#f5f7ff}
+tr:has(input[type=checkbox]:checked) td{background:color-mix(in srgb,var(--c-primary) 6%,transparent)}
+form{display:grid;gap:14px;max-width:520px}
+label{font-size:.88rem;font-weight:600;display:block;margin-bottom:4px;transition:color .15s}
+.field:has(input:focus) label,.field:has(textarea:focus) label,.field:has(select:focus) label{color:var(--c-primary)}
+input,select{font:inherit;padding:9px 12px;border:1px solid #d1d5db;border-radius:var(--radius-sm);width:100%;background:var(--c-surface);color:var(--c-text);transition:all .18s}
+textarea{font:inherit;padding:9px 12px;border:1px solid #d1d5db;border-radius:var(--radius-sm);width:100%;background:var(--c-surface);color:var(--c-text);transition:all .18s;resize:none;min-height:90px;field-sizing:content;overflow-y:auto;max-height:360px}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--c-primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--c-primary) 15%,transparent)}
+form:has(input:invalid:not(:placeholder-shown)) [type=submit]{opacity:.55;cursor:not-allowed}
+button,[type=submit]{font:inherit;background:var(--c-primary);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 22px;font-weight:600;cursor:pointer;width:fit-content;transition:transform .35s var(--ease-spring),background .18s,box-shadow .35s var(--ease-spring)}
+button:hover,[type=submit]:hover{background:var(--c-primary-d);transform:translateY(-2px);box-shadow:0 4px 12px rgba(99,102,241,.3)}
+button:active,[type=submit]:active{transform:translateY(0);box-shadow:none}
+button.secondary{background:#f3f4f6;color:#374151;border:1px solid #d1d5db}
+button.secondary:hover{background:#e5e7eb;transform:none;box-shadow:none}
+button.danger{background:var(--c-danger)}
+button.danger:hover{background:#b91c1c}
+.muted{color:var(--c-muted);font-size:.85rem;text-wrap:pretty}
+.stat{background:var(--c-surface);border:1px solid var(--c-border);border-radius:var(--radius-md);padding:20px;box-shadow:var(--shadow-sm);transition:transform .4s var(--ease-spring),box-shadow .4s var(--ease-spring)}
+.stat:hover{transform:translateY(-3px);box-shadow:var(--shadow-md)}
+.stat .v{font-size:1.8rem;font-weight:800;color:var(--c-primary);line-height:1}
+.stat .l{font-size:.8rem;color:var(--c-muted);margin-top:6px;text-wrap:balance}
+@media(max-width:640px){table{min-width:480px}.table-wrap{overflow-x:auto}}
+
+/* ━━━ Scroll-driven Animations ━━━ */
+@keyframes fade-in-up{from{opacity:0;transform:translateY(28px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fade-in-left{from{opacity:0;transform:translateX(-24px)}to{opacity:1;transform:translateX(0)}}
+@keyframes scale-in{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:scale(1)}}
+.scroll-fade{animation:fade-in-up linear both;animation-timeline:view();animation-range:entry 0% entry 35%}
+.scroll-left{animation:fade-in-left linear both;animation-timeline:view();animation-range:entry 0% entry 35%}
+.scroll-scale{animation:scale-in linear both;animation-timeline:view();animation-range:entry 0% entry 30%}
+.card{animation:fade-in-up linear both;animation-timeline:view();animation-range:entry 0% entry 30%}
+.stat{animation:scale-in linear both;animation-timeline:view();animation-range:entry 0% entry 25%}
+
+/* ━━━ View Transitions ━━━ */
+@view-transition{navigation:auto}
+::view-transition-old(root){animation:.28s cubic-bezier(.4,0,1,1) both vt-slide-out}
+::view-transition-new(root){animation:.3s cubic-bezier(0,0,.2,1) both vt-slide-in}
+@keyframes vt-slide-out{to{opacity:0;transform:translateX(-18px) scale(.98)}}
+@keyframes vt-slide-in{from{opacity:0;transform:translateX(18px) scale(.98)}}
+::view-transition-group(hero){animation-duration:.5s}
+
+/* ━━━ Anchor Positioning ━━━ */
+.tooltip-wrap{position:relative;display:inline-block}
+.tooltip-trigger{anchor-name:--tip}
+.tooltip{
+  position:absolute;
+  position-anchor:--tip;
+  top:anchor(bottom);left:anchor(center);
+  translate:-50% 8px;
+  background:#1e2433;color:#e2e8f0;font-size:.78rem;padding:6px 12px;
+  border-radius:6px;white-space:nowrap;pointer-events:none;
+  opacity:0;transform:translateY(-4px);
+  transition:opacity .18s,transform .18s var(--ease-spring);
+  box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:200;
+}
+.tooltip-wrap:has(.tooltip-trigger:hover) .tooltip,
+.tooltip-wrap:has(.tooltip-trigger:focus) .tooltip{opacity:1;transform:translateY(0)}
+
+/* ━━━ @starting-style — 플래시 없는 진입 애니메이션 ━━━ */
+.card{transition:opacity .4s,transform .4s var(--ease-spring),box-shadow .3s}
+@starting-style{
+  .card{opacity:0;transform:translateY(14px)}
+}
+dialog{transition:opacity .3s,transform .3s var(--ease-spring),display .3s allow-discrete}
+dialog[open]{opacity:1;transform:scale(1) translateY(0)}
+@starting-style{
+  dialog[open]{opacity:0;transform:scale(.94) translateY(-12px)}
+}
+.badge{transition:opacity .25s,transform .25s var(--ease-spring)}
+@starting-style{
+  .badge{opacity:0;transform:scale(.7)}
+}
+.stat{transition:opacity .4s,transform .4s var(--ease-spring),box-shadow .3s}
+@starting-style{
+  .stat{opacity:0;transform:scale(.9)}
+}
+
+/* ━━━ @scope — 컴포넌트 CSS 격리 ━━━ */
+@scope (.card){
+  :scope{position:relative}
+  p{color:var(--c-text);line-height:1.6;margin:6px 0}
+  a{color:var(--c-primary);font-weight:500}
+  h3{font-size:1rem;font-weight:700;margin-bottom:10px;text-wrap:balance}
+  code{background:oklch(from var(--c-primary) 0.95 0.03 h);color:var(--c-primary-d);padding:2px 6px;border-radius:4px;font-size:.85em}
+}
+@scope (.table-wrap){
+  th{background:oklch(from var(--c-bg) calc(l - 0.03) c h)}
+  td{color:var(--c-text)}
+  tr:hover td{background:oklch(from var(--c-primary) 0.96 0.03 h)}
+}
+@scope (form){
+  :scope{gap:14px}
+  label{color:var(--c-text);font-weight:600}
+  input,select,textarea{background:var(--c-surface);color:var(--c-text);border-color:var(--c-border)}
+}
