@@ -6,6 +6,9 @@ runtime="$v11_root/runtime"
 temp_dir=$(mktemp -d)
 trap 'rm -r "$temp_dir"' EXIT
 mkdir -p tests/build-actual
+find pages -type d | while IFS= read -r dir; do
+  mkdir -p "tests/build-actual/stripped/$dir"
+done
 sh scripts/build-style-fl.sh
 cp public/app.css tests/build-actual/app.css
 "$v11_root/bin/cgc-bin-x86_64-seed-v11" build.fl "$temp_dir/build.c"

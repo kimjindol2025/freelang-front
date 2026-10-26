@@ -1,0 +1,142 @@
+; Source transforms used by the native front build.
+(defn starts-at? [s i needle]
+  (= (str-slice s i (+ i (length needle))) needle))
+(defn skip-quoted [s i]
+  (if (>= i (length s)) i
+    (let [c (char-at s i)]
+      (if (= c "\\") (skip-quoted s (+ i 2))
+        (if (= c "\"") (+ i 1) (skip-quoted s (+ i 1)))))))
+(defn skip-triple [s i]
+  (let [off (str-index-of (str-slice s (+ i 3) (length s)) "\"\"\"")]
+    (if (< off 0) (length s) (+ i off 6))))
+(defn style-end [s i depth]
+  (if (>= i (length s)) i
+    (if (starts-at? s i "\"\"\"") (style-end s (skip-triple s i) depth)
+      (let [c (char-at s i)]
+        (if (= c "\"") (style-end s (skip-quoted s (+ i 1)) depth)
+          (let [next (if (= c "(") (+ depth 1)
+                       (if (= c ")") (- depth 1) depth))]
+            (if (= next 0) (+ i 1)
+              (style-end s (+ i 1) next))))))))
+(defn skip-line-ends [s i]
+  (if (>= i (length s)) i
+    (let [c (char-at s i)]
+      (if (or (= c "\n") (= c "\r")) (skip-line-ends s (+ i 1)) i))))
+(defn remove-style-blocks [s pos result]
+  (let [off (str-index-of (str-slice s pos (length s)) "(style ")]
+    (if (< off 0) (str result (str-slice s pos (length s)))
+      (let [start (+ pos off)
+            end (style-end s start 0)]
+        (remove-style-blocks s (skip-line-ends s end)
+          (str result (str-slice s pos start)))))))
+(defn last-slash [s i found]
+  (if (>= i (length s)) found
+    (last-slash s (+ i 1) (if (= (char-at s i) "/") i found))))
+(defn dirname-of [path]
+  (str-slice path 0 (last-slash path 0 0)))
+(defn word-byte? [c]
+  (let [n (char-code-at c 0)]
+    (and (not (= n nil))
+      (or (and (>= n 48) (<= n 57))
+          (and (>= n 65) (<= n 90))
+          (and (>= n 97) (<= n 122))
+          (= n 45) (= n 95)))))
+(defn word-end [s i]
+  (if (and (< i (length s)) (word-byte? (char-at s i)))
+    (word-end s (+ i 1)) i))
+(defn call-boundary? [s i]
+  (if (>= i (length s)) false
+    (let [c (char-at s i)]
+      (or (= c " ") (= c "\n") (= c "\r") (= c "\t")
+          (= c "(") (= c ")")))))
+(defn replace-call [s needle replacement pos result]
+  (let [off (str-index-of (str-slice s pos (length s)) needle)]
+    (if (< off 0) (str result (str-slice s pos (length s)))
+      (let [start (+ pos off)
+            end (+ start (length needle))]
+        (replace-call s needle replacement end
+          (str result (str-slice s pos start)
+            (if (call-boundary? s end) replacement needle)))))))
+(defn find-form-line [s form pos]
+  (if (and (= pos 0) (starts-at? s 0 form)) 0
+    (let [off (str-index-of (str-slice s pos (length s)) (str "\n" form))]
+      (if (< off 0) -1 (+ pos off 1)))))
+(defn defn-names [s pos names ns]
+  (let [off (str-index-of (str-slice s pos (length s)) "(defn ")]
+    (if (< off 0) names
+      (let [start (+ pos off 6)
+            end (word-end s start)
+            name (str-slice s start end)]
+        (defn-names s end
+          (if (or (= name "") (str-starts-with name (str ns "-")))
+            names (append names name)) ns))))
+(defn rename-names [s names ns i]
+  (if (>= i (length names)) s
+    (let [name (get names i)
+          prefixed (str ns "-" name)]
+      (rename-names
+        (replace-call
+          (replace-call s (str "(defn " name) (str "(defn " prefixed) 0 "")
+          (str "(" name) (str "(" prefixed) 0 "")
+        names ns (+ i 1)))))
+(defn apply-ns [src]
+  (let [at (find-form-line src "(ns " 0)]
+    (if (< at 0) src
+      (let [name-start (+ at 4)
+            name-end (word-end src name-start)
+            name (str-slice src name-start name-end)
+            close (str-index-of (str-slice src name-end (length src)) ")")
+            end (if (< close 0) name-end (+ name-end close 1))
+            after (if (= (char-at src end) "\n") (+ end 1) end)
+            stripped (str (str-slice src 0 at)
+                          (str-slice src after (length src)))
+            names (defn-names stripped 0 [] name)]
+        (str "; ── ns: " name " ──\n"
+          (rename-names stripped names name 0))))))
+(defn load-target [base file]
+  (let [local (str base "/" file)
+        root file
+        pages (str "pages/" file)]
+    (if (file-exists local) local
+      (if (file-exists root) root
+        (if (file-exists pages) pages nil)))))
+(defn resolve-loads [src base seen pos result]
+  (let [off (str-index-of (str-slice src pos (length src)) "(load \"")]
+    (if (< off 0) [(str result (str-slice src pos (length src))) seen]
+      (let [start (+ pos off)
+            file-start (+ start 7)
+            close-off (str-index-of
+                        (str-slice src file-start (length src)) "\")")]
+        (if (< close-off 0)
+          [(str result (str-slice src pos (length src))) seen]
+          (let [file (str-slice src file-start (+ file-start close-off))
+                end (+ file-start close-off 2)
+                target (load-target base file)
+                replacement
+                  (if (= target nil)
+                    (str "; (load \"" file "\" — 파일 없음)")
+                    (if (get seen target)
+                      "; (load already inlined)"
+                      (str "; ── inlined: " file " ──\n"
+                           (apply-ns (str-trim (file-read target)))
+                           "\n; ── end: " file " ──")))
+                next-seen (if (or (= target nil) (get seen target))
+                            seen (assoc seen target true))]
+            (resolve-loads src base next-seen end
+              (str result (str-slice src pos start) replacement))))))))
+(defn remove-defstores [src pos result]
+  (let [off (str-index-of (str-slice src pos (length src)) "(defstore ")]
+    (if (< off 0) (str result (str-slice src pos (length src)))
+      (let [start (+ pos off)
+            close-off (str-index-of
+                        (str-slice src start (length src)) ")")]
+        (if (< close-off 0) (str result (str-slice src pos (length src)))
+          (let [end (+ start close-off 1)
+                after (if (= (char-at src end) "\n") (+ end 1) end)]
+            (remove-defstores src after
+              (str result (str-slice src pos start))))))))
+(defn server-fn-to-defn [src]
+  (let [off (str-index-of src "(server-fn ")]
+    (if (< off 0) src
+      (str (str-slice src 0 off) "(defn "
+           (str-slice src (+ off 11) (length src))))))

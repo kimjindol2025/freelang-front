@@ -1,4 +1,5 @@
 ; Native front build stages that are supported by the current v11 C backend.
+(load "build-transforms.fl")
 (defn scan-pages [dir]
   (scan-entries dir (sort (dir-list dir)) 0 []))
 (defn scan-entries [dir entries i result]
@@ -11,6 +12,16 @@
           (if (and (str-ends-with name ".flx")
                    (not (str-starts-with name "_")))
             (append result path) result))))))
+(defn scan-all-flx [dir]
+  (scan-all-entries dir (sort (dir-list dir)) 0 []))
+(defn scan-all-entries [dir entries i result]
+  (if (>= i (length entries)) result
+    (let [name (get entries i)
+          path (str dir "/" name)]
+      (if (dir-exists? path)
+        (scan-all-entries dir entries (+ i 1) (concat result (scan-all-flx path)))
+        (scan-all-entries dir entries (+ i 1)
+          (if (str-ends-with name ".flx") (append result path) result))))))
 (defn route-name [file]
   (let [relative (str-slice file 6 (- (length file) 4))
         path (str "/" relative)
@@ -84,6 +95,13 @@
         (if post?
           (append next (str "(server-post \"" route "\" \"" fn-name "_post\")"))
           next)))))
+(defn write-stripped-pages [files i]
+  (if (>= i (length files)) true
+    (let [file (get files i)
+          dest (str "tests/build-actual/stripped/" file)
+          stripped (remove-style-blocks (file-read file) 0 "")]
+      (do (file-write dest stripped)
+          (write-stripped-pages files (+ i 1))))))
 
 (let [files (scan-pages "pages")
       records (route-records files 0 [])
@@ -96,6 +114,7 @@
          (str "(println \"FL-Front v0.1 — http://localhost:" port "\")")
          (str "(server-start " port ")")])]
   (do
+    (write-stripped-pages (scan-all-flx "pages") 0)
     (file-write "tests/build-actual/routes.json"
       (str (json-stringify (public-routes routes 0 [])) "\n"))
     (file-write "tests/build-actual/helpers.json"
