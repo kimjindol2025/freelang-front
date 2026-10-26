@@ -1,0 +1,106 @@
+; Native front build stages that are supported by the current v11 C backend.
+(defn scan-pages [dir]
+  (scan-entries dir (sort (dir-list dir)) 0 []))
+(defn scan-entries [dir entries i result]
+  (if (>= i (length entries)) result
+    (let [name (get entries i)
+          path (str dir "/" name)]
+      (if (dir-exists? path)
+        (scan-entries dir entries (+ i 1) (concat result (scan-pages path)))
+        (scan-entries dir entries (+ i 1)
+          (if (and (str-ends-with name ".flx")
+                   (not (str-starts-with name "_")))
+            (append result path) result))))))
+(defn route-name [file]
+  (let [relative (str-slice file 6 (- (length file) 4))
+        path (str "/" relative)
+        without-index (if (str-ends-with path "/index")
+                        (str-slice path 0 (- (length path) 6)) path)
+        root (if (= without-index "") "/" without-index)]
+    (str-replace (str-replace root "[" ":") "]" "")))
+(defn function-name [file]
+  (let [relative (str-slice file 6 (- (length file) 4))]
+    (str "page_"
+      (str-replace
+        (str-replace
+          (str-replace
+            (str-replace relative "[" "") "]" "")
+          "/" "_")
+        "-" "_"))))
+(defn route-record [file]
+  {"route" (route-name file)
+   "file" (last (str-split file "/"))
+   "fn" (function-name file)
+   "source" file})
+(defn route-records [files i result]
+  (if (>= i (length files)) result
+    (route-records files (+ i 1) (append result (route-record (get files i))))))
+(defn select-routes [routes i dynamic result]
+  (if (>= i (length routes)) result
+    (let [record (get routes i)
+          is-dynamic (>= (str-index-of (get record "route") ":") 0)]
+      (select-routes routes (+ i 1) dynamic
+        (if (= is-dynamic dynamic) (append result record) result)))))
+(defn remove-source [record]
+  {"route" (get record "route")
+   "file" (get record "file")
+   "fn" (get record "fn")})
+(defn public-routes [routes i result]
+  (if (>= i (length routes)) result
+    (public-routes routes (+ i 1)
+      (append result (remove-source (get routes i))))))
+(defn helper-rank [name]
+  (if (str-starts-with name "_layout") 0
+  (if (str-starts-with name "_db") 1
+  (if (str-starts-with name "_auth") 2
+  (if (str-starts-with name "_error") 3
+  (if (str-starts-with name "_charts") 4 5))))))
+(defn helper-files [entries i result]
+  (if (>= i (length entries)) result
+    (let [name (get entries i)]
+      (helper-files entries (+ i 1)
+        (if (and (str-starts-with name "_") (str-ends-with name ".flx"))
+          (append result name) result)))))
+(defn helpers-at-rank [helpers rank i result]
+  (if (>= i (length helpers)) result
+    (let [name (get helpers i)]
+      (helpers-at-rank helpers rank (+ i 1)
+        (if (= (helper-rank name) rank) (append result name) result)))))
+(defn order-helpers [helpers rank result]
+  (if (> rank 5) result
+    (order-helpers helpers (+ rank 1)
+      (concat result (helpers-at-rank helpers rank 0 [])))))
+(defn route-lines [routes i result]
+  (if (>= i (length routes)) result
+    (let [record (get routes i)
+          route (get record "route")
+          fn-name (get record "fn")
+          source (get record "source")
+          get-line (str "(server-get \"" route "\" \"" fn-name "\")")
+          post? (>= (str-index-of (file-read source)
+                       "(defn render_post [req]") 0)
+          next (append result get-line)]
+      (route-lines routes (+ i 1)
+        (if post?
+          (append next (str "(server-post \"" route "\" \"" fn-name "_post\")"))
+          next)))))
+
+(let [files (scan-pages "pages")
+      records (route-records files 0 [])
+      routes (concat (select-routes records 0 false [])
+                     (select-routes records 0 true []))
+      helpers (order-helpers (helper-files (sort (dir-list "pages")) 0 []) 0 [])
+      port (or (env-get "PORT") "40850")
+      registration (concat (route-lines routes 0 [])
+        ["(server-get \"/*\" \"not_found_handler\")" ""
+         (str "(println \"FL-Front v0.1 — http://localhost:" port "\")")
+         (str "(server-start " port ")")])]
+  (do
+    (file-write "tests/build-actual/routes.json"
+      (str (json-stringify (public-routes routes 0 [])) "\n"))
+    (file-write "tests/build-actual/helpers.json"
+      (str (json-stringify helpers) "\n"))
+    (file-write "tests/build-actual/route-registration.fl"
+      (str-join registration "\n"))
+    (println (str "BUILD_FL_ROUTES=" (length routes)))
+    (println (str "BUILD_FL_HELPERS=" (length helpers)))))

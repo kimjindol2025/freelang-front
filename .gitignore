@@ -5,3 +5,4 @@ _app.fl
 _app.fl.out.js
 public/styled.html
 tests/style-actual/
+tests/build-actual/
