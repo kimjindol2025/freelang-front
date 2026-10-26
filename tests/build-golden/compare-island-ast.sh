@@ -15,11 +15,16 @@ reference_exit=$?
 matched=0
 different=0
 total=0
+normalized_expected=$(mktemp)
+normalized_actual=$(mktemp)
+trap 'rm -f "$normalized_expected" "$normalized_actual"' EXIT
 while IFS= read -r file; do
   total=$((total + 1))
   expected="tests/build-actual/island-ast-js/$file.json"
   actual="tests/build-actual/island-ast/$file.json"
-  if cmp "$expected" "$actual"; then
+  node -e 'process.stdout.write(JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))))' "$expected" > "$normalized_expected"
+  node -e 'process.stdout.write(JSON.stringify(JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"))))' "$actual" > "$normalized_actual"
+  if cmp "$normalized_expected" "$normalized_actual"; then
     matched=$((matched + 1))
   else
     printf 'AST_DIFF: %s\n' "$file"
