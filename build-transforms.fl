@@ -128,6 +128,7 @@
                             seen (assoc seen target true))]
             (resolve-loads src base next-seen end
               (str result (str-slice src pos start) replacement))))))))
+; shortcut: defstore initializers with nested parentheses need a balanced-form scanner.
 (defn remove-defstores [src pos result]
   (let [off (str-index-of (str-slice src pos (length src)) "(defstore ")]
     (if (< off 0) (str result (str-slice src pos (length src)))

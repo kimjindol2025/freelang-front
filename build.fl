@@ -155,6 +155,7 @@
         with-layout (if (= critical "") (get resolved 0)
                       (inject-layout-css (get resolved 0) critical))
         clean (str-trim (remove-defstores with-layout 0 ""))
+        ; shortcut: Island blocks remain raw until their native parser and JS emitter are ported.
         island? (>= (str-index-of clean "(island ") 0)
         renamed (rename-render
                   (rename-render clean "render" (str fn-name "__inner"))
