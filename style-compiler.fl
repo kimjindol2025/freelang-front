@@ -109,10 +109,25 @@
   (if (< n 16)
     (char-at "0123456789abcdef" n)
     (str (hex-of (bit-shr n 4)) (char-at "0123456789abcdef" (bit-and n 15)))))
+(defn hash-unit [h unit]
+  (bit-and (bit-xor (* h 33) unit) 4294967295))
 (defn hash-step [s i h]
   (if (>= i (length s)) h
-    (hash-step s (+ i 1)
-      (bit-and (bit-xor (* h 33) (char-code-at s i)) 4294967295))))
+    (let [a (char-code-at s i)
+          b (if (< a 128) 0 (char-code-at s (+ i 1)))
+          c (if (< a 224) 0 (char-code-at s (+ i 2)))
+          d (if (< a 240) 0 (char-code-at s (+ i 3)))
+          width (if (< a 128) 1 (if (< a 224) 2 (if (< a 240) 3 4)))
+          code (if (= width 1) a
+                 (if (= width 2) (+ (* (- a 192) 64) (- b 128))
+                   (if (= width 3) (+ (* (- a 224) 4096) (* (- b 128) 64) (- c 128))
+                     (+ (* (- a 240) 262144) (* (- b 128) 4096)
+                        (* (- c 128) 64) (- d 128)))))
+          next (if (<= code 65535) (hash-unit h code)
+                 (let [x (- code 65536)]
+                   (hash-unit (hash-unit h (+ 55296 (bit-shr x 10)))
+                              (+ 56320 (bit-and x 1023)))))]
+      (hash-step s (+ i width) next))))
 (defn class-name [name grouped]
   (let [json (json-stringify grouped)
         hash (hex-of (hash-step (str name json) 0 5381))]
@@ -255,6 +270,7 @@
               (styled-parts src end bindings
                 (str result (or (get bindings word) ""))))
             (styled-parts src (+ pos 1) bindings result)))))))
+; shortcut: this renderer covers styled.flx literal strings and class bindings; use full SSR for dynamic pages.
 (defn styled-html [styles css extra]
   (let [src (file-read "pages/styled.flx")
         marker "(layout-html \"Styled\" (str"
