@@ -238,12 +238,7 @@
     (island-compile-all entries (+ i 1)
       (append result (island-compile-one (get entries i) i)))))
 (defn island-runtime []
-  (let [src (file-read "island-compiler.js")
-        marker "const FL_ISLAND_RT = `"
-        start (+ (str-index-of src marker) (length marker))
-        tail (str-slice src start (length src))
-        end (str-index-of tail "`;")]
-    (island-template-unescape (str-slice tail 0 end) 0 "")))
+  (island-template-unescape (file-read "templates/island-runtime.template") 0 ""))
 (defn island-template-unescape [s i result]
   (if (>= i (length s)) result
     (let [c (char-at s i)]

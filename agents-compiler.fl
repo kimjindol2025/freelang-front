@@ -1,11 +1,6 @@
 ; Native AGENTS.md generator using the static template in the preserved JS builder.
 (defn agents-template []
-  (let [src (file-read "fl-front-build.js")
-        marker "return `# FL-Front AI Context"
-        start (+ (str-index-of src marker) (length "return `"))
-        tail (str-slice src start (length src))
-        end (str-index-of tail "\n`;\n}")]
-    (island-template-unescape (str-slice tail 0 (+ end 1)) 0 "")))
+  (file-read "templates/agents.md"))
 (defn agents-route-lines [routes i result]
   (if (>= i (length routes)) result
     (let [record (get routes i)]

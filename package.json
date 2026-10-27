@@ -12,8 +12,8 @@
     "node": ">=14.0.0"
   },
   "scripts": {
-    "build": "node fl-front-build.js",
-    "start": "node fl-front-build.js && node runtime/bootstrap.js run _app.fl",
+    "build": "sh scripts/build-fl.sh",
+    "start": "sh scripts/build-fl.sh && node runtime/bootstrap.js run _app.fl",
     "dev": "node dev-server.js",
     "init": "node fl-front-init.js"
   },
