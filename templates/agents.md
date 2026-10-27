@@ -136,6 +136,7 @@ python3 /home/kimjin/freelang-v11/scripts/check-parens.py pages/mypage.flx
 | 경로 | 파일 |
 |------|------|
 ${routeList}
+
 ## 네이밍 규칙
 
 - FreeLang stdlib: `snake_case` (server_req_method, db_query)
