@@ -1,0 +1,18 @@
+{
+  "project_id": "freelang-front",
+  "source_commit": "a53e0ff903a6c9ef6bddeedb40f3b2aefda18368",
+  "published_base_commit": "d4f65837e413a67a43aaa99a583472ae92bfb63e",
+  "files": [
+    "tests/island-closure.cjs",
+    "tests/island.test.flx"
+  ],
+  "validation": {
+    "checksum_diff_count": 0,
+    "functional_tests": "NOT_RUN"
+  },
+  "notes": [
+    "Preservation snapshot; source application changes are not included.",
+    "Existing producer default branch remains unchanged.",
+    "Credentials, dependencies and caches excluded."
+  ]
+}
