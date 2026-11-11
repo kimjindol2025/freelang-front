@@ -481,12 +481,10 @@ function generateAgentsMd(routes, helpers = []) {
 | ❌ 쓰면 안 됨 | ✅ 올바른 함수 |
 |-------------|-------------|
 | \`server-req-body\` | \`(get req "body")\` |
-| \`server-html\` | \`server_html\` (언더스코어) |
-| \`str-split\` | \`regex_split str pattern\` |
+| \`server_html\` | 페이지에서는 주입된 \`server-html\` 사용 권장 |
+| \`str_split\` | \`(str-split text separator)\` |
 | \`str-includes?\` | \`(> (str-count s sub) 0)\` |
-| \`nil?\` | \`(= x nil)\` |
-| \`map-indexed\` | \`(map fn arr)\` + index 수동 |
-| \`string?\` | ❌ 없음 |
+| \`is_string\` | \`(string? value)\` |
 | \`server-sse\` | ❌ 미지원 |
 | \`(catch $e [])\` | \`(catch $e nil)\` → 빈 벡터 반환은 에러 |
 
@@ -1921,7 +1919,11 @@ function checkRouteShadow(routes) {
         if (ds[k].startsWith(':')) continue;       // 동적 위치 — 무엇이든 매치
         if (ds[k] !== ss[k]) { shadow = false; break; }
       }
-      if (shadow) hits.push({ dyn: d.route, stat: s.route, file: path.basename(d.file) });
+      // routes는 위에서 정적 경로를 먼저 등록하도록 정렬했다. 이 경우에는
+      // 동적 경로가 정적 형제를 가로채지 않으므로 경고하지 않는다.
+      if (shadow && routes.indexOf(d) < routes.indexOf(s)) {
+        hits.push({ dyn: d.route, stat: s.route, file: path.basename(d.file) });
+      }
     }
   }
   if (hits.length === 0) { console.log('  \x1b[32m✅ 라우트 가로채기 위험 없음\x1b[0m'); return; }

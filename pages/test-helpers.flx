@@ -1,5 +1,16 @@
 ; 주입 헬퍼 검증 페이지 — round / str-slice / map-indexed
 
+(defn test-row [input actual expected]
+  (h "tr" {}
+    (str
+      (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} input)
+      (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (str actual))
+      (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (str expected))
+      (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"}
+        (if (= actual expected)
+          (h "span" {:class "ok"} "✅ PASS")
+          (h "span" {:class "fail"} "❌ FAIL"))))))
+
 (defn render [req]
   (let [; ── round 테스트 ──
         r1 (round 3.7)
@@ -46,19 +57,11 @@
             (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "결과")
             (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "기댓값")
             (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "상태")))
-        (arr-join
-          (map (fn [row]
-            (h "tr" {}
-              (str
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 0))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (str (get row 1)))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (str (get row 2)))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"}
-                  (if (= (str (get row 1)) (str (get row 2)))
-                    (h "span" {:class "ok"} "✅ PASS")
-                    (h "span" {:class "fail"} "❌ FAIL"))))))
-            [["3.7" r1 4] ["3.2" r2 3] ["1.5" r3 2] ["0.4" r4 0]])
-          "")
+        (str
+          (test-row "3.7" r1 4)
+          (test-row "3.2" r2 3)
+          (test-row "1.5" r3 2)
+          (test-row "0.4" r4 0))
         "</table></div>"
 
         ; ── str-slice ──
@@ -72,22 +75,10 @@
             (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "결과")
             (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "기댓값")
             (h "th" {:style "text-align:left;padding:8px 16px;background:#f3f4f6"} "상태")))
-        (arr-join
-          (map (fn [row]
-            (h "tr" {}
-              (str
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 0))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 1))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb;font-weight:bold"} (str (get row 2)))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"} (get row 3))
-                (h "td" {:style "padding:8px 16px;border:1px solid #e5e7eb"}
-                  (if (= (get row 2) (get row 3))
-                    (h "span" {:class "ok"} "✅ PASS")
-                    (h "span" {:class "fail"} "❌ FAIL"))))))
-            [["Hello, World!" "0~5" s1 "Hello"]
-             ["FreeLang"      "4~8" s2 "Lang"]
-             ["abcdef"        "2~4" s3 "cd"]])
-          "")
+        (str
+          (test-row "Hello, World! (0~5)" s1 "Hello")
+          (test-row "FreeLang (4~8)" s2 "Lang")
+          (test-row "abcdef (2~4)" s3 "cd"))
         "</table></div>"
 
         ; ── map-indexed ──

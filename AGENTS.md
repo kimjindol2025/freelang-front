@@ -67,12 +67,10 @@
 | ❌ 쓰면 안 됨 | ✅ 올바른 함수 |
 |-------------|-------------|
 | `server-req-body` | `(get req "body")` |
-| `server-html` | `server_html` (언더스코어) |
-| `str-split` | `regex_split str pattern` |
+| `server_html` | 페이지에서는 주입된 `server-html` 사용 권장 |
+| `str_split` | `(str-split text separator)` |
 | `str-includes?` | `(> (str-count s sub) 0)` |
-| `nil?` | `(= x nil)` |
-| `map-indexed` | `(map fn arr)` + index 수동 |
-| `string?` | ❌ 없음 |
+| `is_string` | `(string? value)` |
 | `server-sse` | ❌ 미지원 |
 | `(catch $e [])` | `(catch $e nil)` → 빈 벡터 반환은 에러 |
 
