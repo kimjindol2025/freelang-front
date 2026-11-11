@@ -1,7 +1,7 @@
 {
   "ok": true,
-  "time": "2026-06-09T13:00:27.607Z",
-  "elapsed": 1121,
+  "time": "2026-11-11T08:25:14.595Z",
+  "elapsed": 8016,
   "routes": [
     {
       "route": "/about",
@@ -635,48 +635,6 @@
     },
     {
       "level": "warn",
-      "check": "route-shadow",
-      "file": "[id].flx",
-      "line": 0,
-      "message": "동적 '/contacts/:id' 가 정적 '/contacts/api' 를 가로챌 수 있음 — 정적 우선 등록 확인"
-    },
-    {
-      "level": "warn",
-      "check": "route-shadow",
-      "file": "[id].flx",
-      "line": 0,
-      "message": "동적 '/contacts/:id' 가 정적 '/contacts/remind' 를 가로챌 수 있음 — 정적 우선 등록 확인"
-    },
-    {
-      "level": "warn",
-      "check": "route-shadow",
-      "file": "[id].flx",
-      "line": 0,
-      "message": "동적 '/flash/:id' 가 정적 '/flash/api' 를 가로챌 수 있음 — 정적 우선 등록 확인"
-    },
-    {
-      "level": "warn",
-      "check": "route-shadow",
-      "file": "[id].flx",
-      "line": 0,
-      "message": "동적 '/flash/:id' 가 정적 '/flash/study' 를 가로챌 수 있음 — 정적 우선 등록 확인"
-    },
-    {
-      "level": "warn",
-      "check": "route-shadow",
-      "file": "[id].flx",
-      "line": 0,
-      "message": "동적 '/goals/:id' 가 정적 '/goals/api' 를 가로챌 수 있음 — 정적 우선 등록 확인"
-    },
-    {
-      "level": "warn",
-      "check": "route-shadow",
-      "file": "[id].flx",
-      "line": 0,
-      "message": "동적 '/reading/:id' 가 정적 '/reading/api' 를 가로챌 수 있음 — 정적 우선 등록 확인"
-    },
-    {
-      "level": "warn",
       "check": "str-loop-concat",
       "file": "_charts.flx",
       "line": 26,
@@ -796,20 +754,20 @@
     "8613-8718": "pages/subs/api.flx",
     "8721-8740": "pages/subs/index.flx",
     "8743-8764": "pages/tasks.flx",
-    "8767-8876": "pages/test-helpers.flx",
-    "8879-8887": "pages/todo.flx",
-    "8890-8946": "pages/upload.flx",
-    "8949-9203": "pages/vault/api.flx",
-    "9206-9224": "pages/vault/index.flx",
-    "9227-9235": "pages/api/notes/[id]/delete.flx",
-    "9238-9247": "pages/api/notes/[id]/pin.flx",
-    "9250-9534": "pages/contacts/[id].flx",
-    "9537-9645": "pages/flash/[id].flx",
-    "9648-9761": "pages/goals/[id].flx",
-    "9764-10002": "pages/reading/[id].flx",
-    "10005-10110": "pages/shop/orders/[id].flx",
-    "10113-10194": "pages/shop/products/[id].flx",
-    "10197-10296": "pages/shop/users/[id].flx",
-    "10299-10460": "pages/users/[id].flx"
+    "8767-8867": "pages/test-helpers.flx",
+    "8870-8878": "pages/todo.flx",
+    "8881-8937": "pages/upload.flx",
+    "8940-9194": "pages/vault/api.flx",
+    "9197-9215": "pages/vault/index.flx",
+    "9218-9226": "pages/api/notes/[id]/delete.flx",
+    "9229-9238": "pages/api/notes/[id]/pin.flx",
+    "9241-9525": "pages/contacts/[id].flx",
+    "9528-9636": "pages/flash/[id].flx",
+    "9639-9752": "pages/goals/[id].flx",
+    "9755-9993": "pages/reading/[id].flx",
+    "9996-10101": "pages/shop/orders/[id].flx",
+    "10104-10185": "pages/shop/products/[id].flx",
+    "10188-10287": "pages/shop/users/[id].flx",
+    "10290-10451": "pages/users/[id].flx"
   }
 }
